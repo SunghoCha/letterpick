@@ -1,0 +1,27 @@
+// 이 root는 GitHub Actions가 dev ECS service를 배포할 때 필요한 장기 IAM role을 만든다.
+// secret 값은 받지 않고, repository/environment와 AWS 리소스 이름 기준만 입력으로 둔다.
+
+variable "project" {
+  type    = string
+  default = "letterpick"
+}
+
+variable "dev_environment" {
+  type    = string
+  default = "dev"
+}
+
+variable "aws_region" {
+  type    = string
+  default = "ap-northeast-2"
+}
+
+variable "github_repository" {
+  type    = string
+  default = "SunghoCha/letterpick"
+}
+
+variable "tags" {
+  type    = map(string)
+  default = {}
+}

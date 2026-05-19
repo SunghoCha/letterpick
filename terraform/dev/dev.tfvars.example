@@ -1,0 +1,39 @@
+# 이 파일은 dev 환경 입력값 예시다.
+# 실제 값은 git에 올리지 않는 dev.tfvars에 두고, 이 파일은 필요한 입력 형태만 보여준다.
+environment = "dev"
+
+vpc_cidr = "10.0.0.0/16"
+
+availability_zone_count = 2
+
+public_subnet_cidrs = [
+  "10.0.0.0/24",
+  "10.0.1.0/24",
+]
+
+private_subnet_cidrs = [
+  "10.0.10.0/24",
+  "10.0.11.0/24",
+]
+
+tags = {}
+
+initial_backend_image_uri = "730335589937.dkr.ecr.ap-northeast-2.amazonaws.com/letterpick-backend:bootstrap"
+
+api_desired_count = 1
+
+worker_desired_count = 1
+
+frontend_base_url = "http://localhost:5173"
+
+newsletter_inbox_address_domain = "inbound.letterpick.local"
+
+google_client_id = "dummy-google-id"
+
+naver_client_id = "dummy-naver-id"
+
+# OAuth 로그인까지 검증할 때만 실제 Secrets Manager secret 이름을 연결한다.
+# backend_secret_names = {
+#   GOOGLE_CLIENT_SECRET = "letterpick/dev/google-client-secret"
+#   NAVER_CLIENT_SECRET  = "letterpick/dev/naver-client-secret"
+# }

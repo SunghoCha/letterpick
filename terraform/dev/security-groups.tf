@@ -1,0 +1,115 @@
+// 이 파일은 dev 환경의 네트워크 접근 경계를 만든다.
+// ALB, ECS task, RDS를 서로 다른 security group으로 나눠서
+// 외부 요청은 ALB까지만 받고, DB는 API/Worker task에서만 접근하게 한다.
+
+resource "aws_security_group" "alb" {
+  name        = "${local.name_prefix}-alb-sg"
+  description = "Allow public HTTP traffic to the application load balancer"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-alb-sg"
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "alb_http_ipv4" {
+  security_group_id = aws_security_group.alb.id
+  description       = "Allow public HTTP"
+
+  ip_protocol = "tcp"
+  from_port   = 80
+  to_port     = 80
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_egress_rule" "alb_all_ipv4" {
+  security_group_id = aws_security_group.alb.id
+  description       = "Allow outbound traffic from ALB"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
+resource "aws_security_group" "api_task" {
+  name        = "${local.name_prefix}-api-task-sg"
+  description = "Allow API task traffic from the ALB"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-api-task-sg"
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "api_task_from_alb" {
+  security_group_id            = aws_security_group.api_task.id
+  referenced_security_group_id = aws_security_group.alb.id
+  description                  = "Allow ALB to reach API task"
+
+  ip_protocol = "tcp"
+  from_port   = var.container_port
+  to_port     = var.container_port
+}
+
+resource "aws_vpc_security_group_egress_rule" "api_task_all_ipv4" {
+  security_group_id = aws_security_group.api_task.id
+  description       = "Allow API task outbound traffic"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
+resource "aws_security_group" "worker_task" {
+  name        = "${local.name_prefix}-worker-task-sg"
+  description = "Allow worker task outbound traffic"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-worker-task-sg"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "worker_task_all_ipv4" {
+  security_group_id = aws_security_group.worker_task.id
+  description       = "Allow worker task outbound traffic"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
+resource "aws_security_group" "rds" {
+  name        = "${local.name_prefix}-rds-sg"
+  description = "Allow MySQL access from application tasks"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-rds-sg"
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_api" {
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.api_task.id
+  description                  = "Allow API task to reach MySQL"
+
+  ip_protocol = "tcp"
+  from_port   = var.rds_port
+  to_port     = var.rds_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_worker" {
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.worker_task.id
+  description                  = "Allow worker task to reach MySQL"
+
+  ip_protocol = "tcp"
+  from_port   = var.rds_port
+  to_port     = var.rds_port
+}
+
+resource "aws_vpc_security_group_egress_rule" "rds_all_ipv4" {
+  security_group_id = aws_security_group.rds.id
+  description       = "Allow RDS outbound traffic"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
