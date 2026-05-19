@@ -1,0 +1,73 @@
+name: Start Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_uri:
+        description: Full ECR image URI to use for the initial dev task definitions
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  start-dev:
+    name: Start Dev
+    runs-on: ubuntu-latest
+    environment: dev
+
+    env:
+      IMAGE_URI: ${{ inputs.image_uri }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          required_env=(
+            IMAGE_URI
+            AWS_REGION
+            AWS_TERRAFORM_ROLE_ARN
+          )
+
+          for name in "${required_env[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_TERRAFORM_ROLE_ARN }}
+          role-session-name: github-actions-start-dev
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.4
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform -chdir=terraform/dev init -input=false
+
+      - name: Terraform validate
+        run: terraform -chdir=terraform/dev validate
+
+      - name: Terraform apply
+        run: |
+          terraform -chdir=terraform/dev apply -auto-approve -input=false \
+            -var="initial_backend_image_uri=$IMAGE_URI"
+
+      - name: Summarize dev endpoint
+        run: |
+          API_ALB_URL=$(terraform -chdir=terraform/dev output -raw api_alb_url)
+          echo "### Dev runtime" >> "$GITHUB_STEP_SUMMARY"
+          echo "API URL: $API_ALB_URL" >> "$GITHUB_STEP_SUMMARY"

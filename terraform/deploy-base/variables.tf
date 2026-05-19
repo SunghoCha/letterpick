@@ -16,6 +16,16 @@ variable "aws_region" {
   default = "ap-northeast-2"
 }
 
+variable "terraform_state_bucket_name" {
+  type    = string
+  default = "letterpick-terraform-state-730335589937-ap-northeast-2"
+}
+
+variable "dev_terraform_state_key" {
+  type    = string
+  default = "letterpick/dev/terraform.tfstate"
+}
+
 variable "github_repository" {
   type    = string
   default = "SunghoCha/letterpick"
