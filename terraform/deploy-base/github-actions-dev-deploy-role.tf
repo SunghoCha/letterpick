@@ -1,5 +1,7 @@
 // 이 파일은 GitHub Actions deploy-dev workflow가 dev ECS service를 rolling update할 수 있게 한다.
-// OIDC sub 조건을 dev environment로 제한해서 이 repository의 dev 배포 job만 role을 assume하게 한다.
+// dev runtime보다 오래 유지되는 배포 기반 role이므로 terraform/dev가 아니라 deploy-base에서 관리한다.
+
+data "aws_caller_identity" "current" {}
 
 data "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
@@ -23,18 +25,32 @@ data "aws_iam_policy_document" "github_actions_dev_deploy_assume_role" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:environment:${var.environment}"]
+      values   = ["repo:${var.github_repository}:environment:${var.dev_environment}"]
     }
   }
 }
 
 resource "aws_iam_role" "github_actions_dev_deploy" {
-  name               = "${local.name_prefix}-github-actions-deploy-role"
+  name               = "${local.dev_name_prefix}-github-actions-deploy-role"
   assume_role_policy = data.aws_iam_policy_document.github_actions_dev_deploy_assume_role.json
 
   tags = merge(local.common_tags, {
-    Name = "${local.name_prefix}-github-actions-deploy-role"
+    Name = "${local.dev_name_prefix}-github-actions-deploy-role"
   })
+}
+
+locals {
+  dev_ecs_cluster_arn = "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${local.dev_name_prefix}-cluster"
+
+  dev_ecs_service_arns = [
+    "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${local.dev_name_prefix}-cluster/${local.dev_name_prefix}-api",
+    "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${local.dev_name_prefix}-cluster/${local.dev_name_prefix}-worker",
+  ]
+
+  dev_ecs_task_role_arns = [
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.dev_name_prefix}-ecs-execution-role",
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.dev_name_prefix}-worker-task-role",
+  ]
 }
 
 data "aws_iam_policy_document" "github_actions_dev_deploy" {
@@ -53,7 +69,7 @@ data "aws_iam_policy_document" "github_actions_dev_deploy" {
     ]
 
     resources = [
-      aws_ecs_cluster.main.arn,
+      local.dev_ecs_cluster_arn,
     ]
   }
 
@@ -63,10 +79,7 @@ data "aws_iam_policy_document" "github_actions_dev_deploy" {
       "ecs:UpdateService",
     ]
 
-    resources = [
-      aws_ecs_service.api.id,
-      aws_ecs_service.worker.id,
-    ]
+    resources = local.dev_ecs_service_arns
   }
 
   statement {
@@ -74,10 +87,7 @@ data "aws_iam_policy_document" "github_actions_dev_deploy" {
       "iam:PassRole",
     ]
 
-    resources = [
-      aws_iam_role.ecs_execution.arn,
-      aws_iam_role.worker_task.arn,
-    ]
+    resources = local.dev_ecs_task_role_arns
 
     condition {
       test     = "StringEquals"
@@ -88,7 +98,7 @@ data "aws_iam_policy_document" "github_actions_dev_deploy" {
 }
 
 resource "aws_iam_role_policy" "github_actions_dev_deploy" {
-  name   = "${local.name_prefix}-github-actions-deploy"
+  name   = "${local.dev_name_prefix}-github-actions-deploy"
   role   = aws_iam_role.github_actions_dev_deploy.id
   policy = data.aws_iam_policy_document.github_actions_dev_deploy.json
 }
