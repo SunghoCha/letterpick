@@ -101,6 +101,10 @@ output "worker_service_name" {
   value = aws_ecs_service.worker.name
 }
 
+output "github_actions_dev_deploy_role_arn" {
+  value = aws_iam_role.github_actions_dev_deploy.arn
+}
+
 output "api_alb_dns_name" {
   value = aws_lb.api.dns_name
 }
