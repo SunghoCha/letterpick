@@ -48,6 +48,13 @@ CLAUDE.md
 ### 환경변수 ###
 .env
 
+### Terraform ###
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
 ### Docs ###
 docs/*
 

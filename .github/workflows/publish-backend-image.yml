@@ -47,9 +47,14 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push backend image
+        id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker build -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image-uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          echo "### Backend image" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$IMAGE_URI\`" >> "$GITHUB_STEP_SUMMARY"
