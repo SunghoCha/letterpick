@@ -109,6 +109,14 @@ output "api_alb_url" {
   value = "http://${aws_lb.api.dns_name}"
 }
 
+output "api_domain_name" {
+  value = var.api_domain_name
+}
+
+output "api_url" {
+  value = "https://${var.api_domain_name}"
+}
+
 output "api_target_group_arn" {
   value = aws_lb_target_group.api.arn
 }

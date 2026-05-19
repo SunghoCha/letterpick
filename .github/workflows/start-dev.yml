@@ -68,6 +68,6 @@ jobs:
 
       - name: Summarize dev endpoint
         run: |
-          API_ALB_URL=$(terraform -chdir=terraform/dev output -raw api_alb_url)
+          API_URL=$(terraform -chdir=terraform/dev output -raw api_url)
           echo "### Dev runtime" >> "$GITHUB_STEP_SUMMARY"
-          echo "API URL: $API_ALB_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "API URL: $API_URL" >> "$GITHUB_STEP_SUMMARY"
