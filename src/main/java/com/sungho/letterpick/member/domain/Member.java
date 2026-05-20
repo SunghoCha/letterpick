@@ -30,7 +30,7 @@ public class Member {
 
     @Embedded
     @AttributeOverride(name = "address",
-            column = @Column(name = "email", nullable = false))
+            column = @Column(name = "email", nullable = false, length = 100))
     private Email email;
 
     @Embedded
@@ -44,7 +44,7 @@ public class Member {
 
     @Embedded
     @AttributeOverride(name = "name",
-            column = @Column(name = "nickname", nullable = false))
+            column = @Column(name = "nickname", nullable = false, length = 20))
     private Nickname nickname;
 
     @Embedded
