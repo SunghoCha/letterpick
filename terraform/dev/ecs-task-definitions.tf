@@ -10,12 +10,14 @@ resource "aws_ecs_cluster" "main" {
 }
 
 locals {
+  newsletter_inbox_address_domain = coalesce(var.newsletter_inbox_address_domain, var.ses_receive_domain_name)
+
   backend_common_environment = {
     SPRING_PROFILES_ACTIVE          = var.environment
     LETTERPICK_AWS_REGION           = var.aws_region
     FRONTEND_BASE_URL               = var.frontend_base_url
     SPRING_DATASOURCE_URL           = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
-    NEWSLETTER_INBOX_ADDRESS_DOMAIN = var.newsletter_inbox_address_domain
+    NEWSLETTER_INBOX_ADDRESS_DOMAIN = local.newsletter_inbox_address_domain
     GOOGLE_CLIENT_ID                = var.google_client_id
     NAVER_CLIENT_ID                 = var.naver_client_id
   }
@@ -126,9 +128,18 @@ resource "aws_ecs_task_definition" "worker" {
 
   container_definitions = jsonencode([
     {
-      name      = "worker"
-      image     = var.initial_backend_image_uri
-      essential = true
+      name        = "worker"
+      image       = var.initial_backend_image_uri
+      essential   = true
+      stopTimeout = 30
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/actuator/health/liveness || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 120
+      }
 
       environment = local.worker_environment
       secrets     = local.backend_secrets

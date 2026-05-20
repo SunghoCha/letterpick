@@ -73,6 +73,22 @@ output "mail_receive_dlq_arn" {
   value = aws_sqs_queue.mail_receive_dlq.arn
 }
 
+output "ses_receive_domain_name" {
+  value = var.ses_receive_domain_name
+}
+
+output "ses_receipt_rule_set_name" {
+  value = aws_ses_receipt_rule_set.mail_receive.rule_set_name
+}
+
+output "ses_receipt_rule_name" {
+  value = aws_ses_receipt_rule.store_and_notify.name
+}
+
+output "ses_mx_record" {
+  value = local.ses_inbound_mx_record
+}
+
 output "ecs_cluster_name" {
   value = aws_ecs_cluster.main.name
 }

@@ -1,7 +1,7 @@
 // 이 파일은 dev 환경의 네트워크 뼈대를 만든다.
 // public subnet은 ALB와 NAT Gateway가 놓일 공간이고,
 // private subnet은 API/Worker task와 RDS가 놓일 공간이다.
-// 이 단계에서는 NAT Gateway를 만들지 않으므로 private subnet의 외부 통신 경로는 아직 없다.
+// private subnet의 외부 통신 경로는 nat.tf에서 NAT Gateway route로 추가한다.
 
 data "aws_availability_zones" "available" {
   state = "available"

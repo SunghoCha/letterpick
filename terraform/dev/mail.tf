@@ -1,6 +1,6 @@
 // 이 파일은 메일 수신의 내부 파이프라인을 만든다.
-// SES/DNS는 아직 만들지 않고, raw MIME 저장소(S3), 수신 알림(SNS),
-// Worker가 소비할 queue(SQS/DLQ)까지만 먼저 검증한다.
+// SES receipt rule은 ses.tf에서 만들고, 이 파일은 raw MIME 저장소(S3),
+// 수신 알림(SNS), Worker가 소비할 queue(SQS/DLQ)를 담당한다.
 
 data "aws_caller_identity" "current" {}
 
