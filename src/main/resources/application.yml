@@ -11,6 +11,8 @@ spring:
         enabled: ${LETTERPICK_MAIL_SQS_LISTENER_ENABLED:${LETTERPICK_SQS_ENABLED:false}}
         queue-not-found-strategy: FAIL
         region: ${LETTERPICK_AWS_REGION:ap-northeast-2}
+  flyway:
+    enabled: false
   jpa:
     properties:
       hibernate.jdbc.time_zone: UTC
