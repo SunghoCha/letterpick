@@ -186,6 +186,26 @@ variable "rds_skip_final_snapshot" {
   default = true
 }
 
+variable "enable_db_access_host" {
+  type    = bool
+  default = true
+}
+
+variable "db_access_instance_type" {
+  type    = string
+  default = "t4g.nano"
+}
+
+variable "db_access_subnet_index" {
+  type    = number
+  default = 0
+
+  validation {
+    condition     = var.db_access_subnet_index >= 0
+    error_message = "db_access_subnet_index must be zero or greater."
+  }
+}
+
 variable "raw_mail_bucket_name" {
   type    = string
   default = null

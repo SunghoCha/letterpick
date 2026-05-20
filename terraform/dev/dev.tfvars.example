@@ -24,6 +24,12 @@ api_desired_count = 1
 
 worker_desired_count = 1
 
+enable_db_access_host = true
+
+db_access_instance_type = "t4g.nano"
+
+db_access_subnet_index = 0
+
 frontend_base_url = "http://localhost:5173"
 
 api_domain_name = "dev-api.letterpicknews.com"

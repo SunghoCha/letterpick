@@ -1,6 +1,6 @@
 // 이 파일은 dev 환경의 네트워크 접근 경계를 만든다.
-// ALB, ECS task, RDS를 서로 다른 security group으로 나눠서
-// 외부 요청은 ALB까지만 받고, DB는 API/Worker task에서만 접근하게 한다.
+// ALB, ECS task, RDS, DB access host를 서로 다른 security group으로 나눠서
+// 외부 요청은 ALB까지만 받고, DB는 API/Worker task와 SSM 터널용 host에서만 접근하게 한다.
 
 resource "aws_security_group" "alb" {
   name        = "${local.name_prefix}-alb-sg"
@@ -86,6 +86,28 @@ resource "aws_vpc_security_group_egress_rule" "worker_task_all_ipv4" {
   cidr_ipv4   = "0.0.0.0/0"
 }
 
+resource "aws_security_group" "db_access_host" {
+  count = var.enable_db_access_host ? 1 : 0
+
+  name        = "${local.name_prefix}-db-access-host-sg"
+  description = "Allow SSM managed host to reach private RDS"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-db-access-host-sg"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "db_access_host_all_ipv4" {
+  count = var.enable_db_access_host ? 1 : 0
+
+  security_group_id = aws_security_group.db_access_host[0].id
+  description       = "Allow DB access host outbound traffic for SSM and RDS"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
 resource "aws_security_group" "rds" {
   name        = "${local.name_prefix}-rds-sg"
   description = "Allow MySQL access from application tasks"
@@ -110,6 +132,18 @@ resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_worker" {
   security_group_id            = aws_security_group.rds.id
   referenced_security_group_id = aws_security_group.worker_task.id
   description                  = "Allow worker task to reach MySQL"
+
+  ip_protocol = "tcp"
+  from_port   = var.rds_port
+  to_port     = var.rds_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_db_access_host" {
+  count = var.enable_db_access_host ? 1 : 0
+
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.db_access_host[0].id
+  description                  = "Allow SSM DB access host to reach MySQL"
 
   ip_protocol = "tcp"
   from_port   = var.rds_port
