@@ -26,6 +26,10 @@ worker_desired_count = 1
 
 frontend_base_url = "http://localhost:5173"
 
+api_domain_name = "dev-api.letterpicknews.com"
+
+route53_zone_name = "letterpicknews.com"
+
 newsletter_inbox_address_domain = "inbound.letterpick.local"
 
 google_client_id = "dummy-google-id"

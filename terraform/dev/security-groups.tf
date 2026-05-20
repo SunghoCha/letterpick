@@ -22,6 +22,16 @@ resource "aws_vpc_security_group_ingress_rule" "alb_http_ipv4" {
   cidr_ipv4   = "0.0.0.0/0"
 }
 
+resource "aws_vpc_security_group_ingress_rule" "alb_https_ipv4" {
+  security_group_id = aws_security_group.alb.id
+  description       = "Allow public HTTPS"
+
+  ip_protocol = "tcp"
+  from_port   = 443
+  to_port     = 443
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
 resource "aws_vpc_security_group_egress_rule" "alb_all_ipv4" {
   security_group_id = aws_security_group.alb.id
   description       = "Allow outbound traffic from ALB"

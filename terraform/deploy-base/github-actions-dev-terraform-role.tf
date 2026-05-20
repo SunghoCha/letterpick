@@ -70,6 +70,8 @@ data "aws_iam_policy_document" "github_actions_dev_terraform" {
       "elasticloadbalancing:*",
       "iam:*",
       "logs:*",
+      "acm:*",
+      "route53:*",
       "rds:*",
       "s3:*",
       "secretsmanager:*",

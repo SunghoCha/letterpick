@@ -111,6 +111,16 @@ variable "api_target_group_deregistration_delay_seconds" {
   default = 30
 }
 
+variable "api_domain_name" {
+  type    = string
+  default = "dev-api.letterpicknews.com"
+}
+
+variable "route53_zone_name" {
+  type    = string
+  default = "letterpicknews.com"
+}
+
 variable "rds_port" {
   type    = number
   default = 3306
