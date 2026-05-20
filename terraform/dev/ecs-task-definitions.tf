@@ -76,9 +76,10 @@ resource "aws_ecs_task_definition" "api" {
 
   container_definitions = jsonencode([
     {
-      name      = "api"
-      image     = var.initial_backend_image_uri
-      essential = true
+      name        = "api"
+      image       = var.initial_backend_image_uri
+      essential   = true
+      stopTimeout = 30
 
       portMappings = [
         {
@@ -86,6 +87,14 @@ resource "aws_ecs_task_definition" "api" {
           protocol      = "tcp"
         },
       ]
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/actuator/health/liveness || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 120
+      }
 
       environment = local.api_environment
       secrets     = local.backend_secrets
