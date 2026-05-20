@@ -78,7 +78,7 @@ variable "worker_desired_count" {
 
 variable "api_health_check_path" {
   type    = string
-  default = "/actuator/health"
+  default = "/actuator/health/readiness"
 }
 
 variable "api_health_check_grace_period_seconds" {
