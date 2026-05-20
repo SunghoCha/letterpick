@@ -75,6 +75,7 @@ data "aws_iam_policy_document" "github_actions_dev_terraform" {
       "rds:*",
       "s3:*",
       "secretsmanager:*",
+      "ses:*",
       "sns:*",
       "sqs:*",
       "kms:Describe*",

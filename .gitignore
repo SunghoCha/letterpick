@@ -54,6 +54,7 @@ CLAUDE.md
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+terraform/old/
 
 ### Docs ###
 docs/*

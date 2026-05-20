@@ -121,6 +121,26 @@ variable "route53_zone_name" {
   default = "letterpicknews.com"
 }
 
+variable "ses_receive_domain_name" {
+  type    = string
+  default = "inbound-dev.letterpicknews.com"
+}
+
+variable "ses_receipt_rule_set_name" {
+  type    = string
+  default = null
+}
+
+variable "ses_receipt_rule_name" {
+  type    = string
+  default = null
+}
+
+variable "ses_dns_ttl" {
+  type    = number
+  default = 300
+}
+
 variable "rds_port" {
   type    = number
   default = 3306
@@ -222,7 +242,7 @@ variable "frontend_base_url" {
 
 variable "newsletter_inbox_address_domain" {
   type    = string
-  default = "inbound.letterpick.local"
+  default = null
 }
 
 variable "google_client_id" {
