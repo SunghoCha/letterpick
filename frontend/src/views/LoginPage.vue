@@ -3,9 +3,9 @@ export default {
   name: 'LoginPage',
   data() {
     // OAuth2 진입은 브라우저 navigate (window.location 이동)이라 CORS 적용 X.
-    // VITE_API_BASE_URL은 백엔드 절대 URL (개발: http://localhost:8080, 운영: 운영 도메인).
+    // VITE_API_BASE_URL이 비어 있으면 현재 origin의 /oauth2 경로를 사용한다.
     // axios도 같은 변수를 baseURL로 사용한다.
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
     return {
       providers: [
         {

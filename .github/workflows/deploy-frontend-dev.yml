@@ -54,13 +54,12 @@ jobs:
 
           FRONTEND_BUCKET=$(terraform -chdir=terraform/dev output -raw frontend_bucket_name)
           CLOUDFRONT_DISTRIBUTION_ID=$(terraform -chdir=terraform/dev output -raw frontend_cloudfront_distribution_id)
-          API_URL=$(terraform -chdir=terraform/dev output -raw api_url)
           FRONTEND_URL=$(terraform -chdir=terraform/dev output -raw frontend_url)
 
           {
             echo "FRONTEND_BUCKET=$FRONTEND_BUCKET"
             echo "CLOUDFRONT_DISTRIBUTION_ID=$CLOUDFRONT_DISTRIBUTION_ID"
-            echo "VITE_API_BASE_URL=$API_URL"
+            echo "VITE_API_BASE_URL="
             echo "FRONTEND_URL=$FRONTEND_URL"
           } >> "$GITHUB_ENV"
 
@@ -105,4 +104,4 @@ jobs:
         run: |
           echo "### Dev frontend" >> "$GITHUB_STEP_SUMMARY"
           echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
-          echo "API URL: $VITE_API_BASE_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "API URL: $FRONTEND_URL/api" >> "$GITHUB_STEP_SUMMARY"
