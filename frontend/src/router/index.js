@@ -62,12 +62,13 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    // 한 뉴스레터의 이슈 목록 (보관함 카드 클릭으로 진입).
+    // 한 뉴스레터의 이슈 목록. 백엔드의 뉴스레터별 이슈 API가 정해지기 전까지 직접 진입만 가능하다.
     path: '/newsletters/:newsletterId/issues',
     name: 'newsletter-issues',
     component: NewsletterIssuesPage,
     // route param이 string으로 들어오므로 props로 변환할 때 number로 캐스팅.
     props: (route) => ({ newsletterId: Number(route.params.newsletterId) }),
+    meta: { requiresAuth: true },
   },
   {
     // 이슈 단건 상세 (투데이·뉴스레터별 목록의 항목 클릭으로 진입).
@@ -75,6 +76,7 @@ const routes = [
     name: 'issue-detail',
     component: IssueDetailPage,
     props: (route) => ({ issueId: Number(route.params.issueId) }),
+    meta: { requiresAuth: true },
   },
   // 어느 라우트와도 매칭되지 않는 모든 경로는 404로 처리한다.
   {
