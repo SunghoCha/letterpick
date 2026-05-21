@@ -22,6 +22,9 @@ jobs:
       IMAGE_URI: ${{ inputs.image_uri }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
       AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      NAVER_CLIENT_ID: ${{ vars.NAVER_CLIENT_ID }}
+      BACKEND_SECRET_NAMES: '{"GOOGLE_CLIENT_SECRET":"letterpick/dev/google-client-secret","NAVER_CLIENT_SECRET":"letterpick/dev/naver-client-secret"}'
 
     steps:
       - name: Checkout
@@ -33,6 +36,9 @@ jobs:
             IMAGE_URI
             AWS_REGION
             AWS_TERRAFORM_ROLE_ARN
+            GOOGLE_CLIENT_ID
+            NAVER_CLIENT_ID
+            BACKEND_SECRET_NAMES
           )
 
           for name in "${required_env[@]}"; do
@@ -64,7 +70,10 @@ jobs:
       - name: Terraform apply
         run: |
           terraform -chdir=terraform/dev apply -auto-approve -input=false \
-            -var="initial_backend_image_uri=$IMAGE_URI"
+            -var="initial_backend_image_uri=$IMAGE_URI" \
+            -var="google_client_id=$GOOGLE_CLIENT_ID" \
+            -var="naver_client_id=$NAVER_CLIENT_ID" \
+            -var="backend_secret_names=$BACKEND_SECRET_NAMES"
 
       - name: Summarize dev endpoint
         run: |

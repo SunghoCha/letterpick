@@ -45,6 +45,7 @@ google_client_id = "dummy-google-id"
 naver_client_id = "dummy-naver-id"
 
 # OAuth 로그인까지 검증할 때만 실제 Secrets Manager secret 이름을 연결한다.
+# map key는 ECS 환경변수 이름이면서 Secrets Manager JSON key 이름이다.
 # backend_secret_names = {
 #   GOOGLE_CLIENT_SECRET = "letterpick/dev/google-client-secret"
 #   NAVER_CLIENT_SECRET  = "letterpick/dev/naver-client-secret"
