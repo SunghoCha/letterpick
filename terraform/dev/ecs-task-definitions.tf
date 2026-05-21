@@ -36,7 +36,7 @@ locals {
   application_secrets = [
     for name in sort(keys(var.backend_secret_names)) : {
       name      = name
-      valueFrom = data.aws_secretsmanager_secret.backend[name].arn
+      valueFrom = "${data.aws_secretsmanager_secret.backend[name].arn}:${name}::"
     }
   ]
 

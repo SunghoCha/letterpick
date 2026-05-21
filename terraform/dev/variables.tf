@@ -296,8 +296,9 @@ variable "naver_client_id" {
 }
 
 variable "backend_secret_names" {
-  type    = map(string)
-  default = {}
+  description = "Map of ECS environment variable names to Secrets Manager secret names. Each secret must contain a JSON key with the same name as the map key."
+  type        = map(string)
+  default     = {}
 }
 
 variable "api_cpu" {
