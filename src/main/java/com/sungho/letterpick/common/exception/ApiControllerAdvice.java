@@ -3,18 +3,19 @@ package com.sungho.letterpick.common.exception;
 import com.sungho.letterpick.member.domain.exception.DuplicateEmailException;
 import com.sungho.letterpick.member.domain.exception.DuplicateNicknameException;
 import com.sungho.letterpick.member.domain.exception.DuplicateSocialIdentityException;
-import java.time.Instant;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -40,8 +41,37 @@ public class ApiControllerAdvice {
         String message = exception.getBindingResult().getFieldErrors().stream()
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
                 .collect(Collectors.joining(", "));
-        return ResponseEntity.badRequest().body(
-                new ErrorResponse("INVALID_INPUT", message, Instant.now()));
+        return ResponseEntity.status(CommonErrorCode.INVALID_INPUT.getStatus())
+                .body(ErrorResponse.of(CommonErrorCode.INVALID_INPUT, message));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(
+            NoResourceFoundException exception,
+            HttpServletRequest request
+    ) {
+        log.info(
+                "요청 경로를 찾을 수 없음. method={}, uri={}, userAgent={}, xForwardedFor={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                request.getHeader("User-Agent"),
+                request.getHeader("X-Forwarded-For")
+        );
+        return ResponseEntity.status(CommonErrorCode.RESOURCE_NOT_FOUND.getStatus())
+                .body(ErrorResponse.of(CommonErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException exception
+    ) {
+        log.info(
+                "허용되지 않은 HTTP 메서드. method={}, supportedMethods={}",
+                exception.getMethod(),
+                exception.getSupportedHttpMethods()
+        );
+        return ResponseEntity.status(CommonErrorCode.METHOD_NOT_ALLOWED.getStatus())
+                .body(ErrorResponse.of(CommonErrorCode.METHOD_NOT_ALLOWED));
     }
 
     // TODO: 현재는 회원 도메인 unique constraint만 임시로 번역한다.
@@ -91,11 +121,7 @@ public class ApiControllerAdvice {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
         log.error("예상치 못한 예외", exception);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(
-                        "INTERNAL_SERVER_ERROR",
-                        "서버 오류가 발생했습니다",
-                        Instant.now()
-                ));
+        return ResponseEntity.status(CommonErrorCode.INTERNAL_SERVER_ERROR.getStatus())
+                .body(ErrorResponse.of(CommonErrorCode.INTERNAL_SERVER_ERROR));
     }
 }

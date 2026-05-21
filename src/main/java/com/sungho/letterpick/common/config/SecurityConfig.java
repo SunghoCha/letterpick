@@ -4,12 +4,12 @@ import static com.sungho.letterpick.common.auth.SecurityAuthorities.ROLE_ADMIN;
 import static com.sungho.letterpick.common.auth.SecurityAuthorities.ROLE_PENDING_SIGNUP;
 import static com.sungho.letterpick.common.auth.SecurityAuthorities.ROLE_USER;
 
+import com.sungho.letterpick.common.exception.CommonErrorCode;
 import com.sungho.letterpick.common.exception.ErrorResponse;
 import com.sungho.letterpick.member.adapter.security.CustomOAuth2UserService;
 import com.sungho.letterpick.member.adapter.security.CustomOidcUserService;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginFailureHandler;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginSuccessHandler;
-import java.time.Instant;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -145,10 +145,12 @@ public class SecurityConfig {
     @Bean
     public AuthenticationEntryPoint apiAuthenticationEntryPoint(ObjectMapper objectMapper) {
         return (request, response, ex) -> {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            CommonErrorCode errorCode = CommonErrorCode.UNAUTHORIZED;
+
+            response.setStatus(errorCode.getStatus().value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
-            ErrorResponse body = new ErrorResponse("UNAUTHORIZED", "인증이 필요합니다", Instant.now());
+            ErrorResponse body = ErrorResponse.of(errorCode);
             objectMapper.writeValue(response.getWriter(), body);
         };
     }
@@ -170,10 +172,12 @@ public class SecurityConfig {
     @Bean
     public AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
         return (request, response, ex) -> {
-            response.setStatus(HttpStatus.FORBIDDEN.value());
+            CommonErrorCode errorCode = CommonErrorCode.FORBIDDEN;
+
+            response.setStatus(errorCode.getStatus().value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
-            ErrorResponse body = new ErrorResponse("FORBIDDEN", "권한이 없습니다", Instant.now());
+            ErrorResponse body = ErrorResponse.of(errorCode);
             objectMapper.writeValue(response.getWriter(), body);
         };
     }
