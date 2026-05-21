@@ -1,5 +1,6 @@
 <script>
 import * as newsletterApi from '@/api/newsletter'
+import DevIssueDemoButton from '@/components/DevIssueDemoButton.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
@@ -7,6 +8,9 @@ const PAGE_SIZE = 20
 
 export default {
   name: 'InboxPage',
+  components: {
+    DevIssueDemoButton,
+  },
   data() {
     return {
       issues: [],
@@ -108,11 +112,14 @@ export default {
 
 <template>
   <v-container class="py-8" max-width="900">
-    <header class="mb-6">
-      <h1 class="text-h5 font-weight-bold mb-2">보관함</h1>
-      <p class="text-body-2 text-medium-emphasis">
-        내가 구독한 뉴스레터에서 도착한 전체 이슈를 최신순으로 모아 봅니다.
-      </p>
+    <header class="page-header mb-6">
+      <div>
+        <h1 class="text-h5 font-weight-bold mb-2">보관함</h1>
+        <p class="text-body-2 text-medium-emphasis">
+          내가 구독한 뉴스레터에서 도착한 전체 이슈를 최신순으로 모아 봅니다.
+        </p>
+      </div>
+      <DevIssueDemoButton @created="resetList" />
     </header>
 
     <!-- 비로그인: 로그인 안내 카드 -->
@@ -217,6 +224,13 @@ export default {
 </template>
 
 <style scoped>
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .issue-scroll {
   background: #fff;
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -260,5 +274,11 @@ export default {
   color: #757575;
   font-weight: 600;
   font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .page-header {
+    flex-direction: column;
+  }
 }
 </style>
