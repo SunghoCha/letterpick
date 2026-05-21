@@ -78,3 +78,8 @@ resource "aws_lb_listener" "https" {
     Name = "${local.name_prefix}-https-listener"
   })
 }
+
+resource "aws_lb_listener_certificate" "frontend_origin" {
+  listener_arn    = aws_lb_listener.https.arn
+  certificate_arn = aws_acm_certificate_validation.frontend_origin.certificate_arn
+}

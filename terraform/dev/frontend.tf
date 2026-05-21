@@ -9,6 +9,15 @@ locals {
   )
 
   frontend_origin_id = "${local.name_prefix}-frontend-s3"
+  api_origin_id      = "${local.name_prefix}-api-alb"
+}
+
+data "aws_cloudfront_cache_policy" "disabled" {
+  name = "Managed-CachingDisabled"
+}
+
+data "aws_cloudfront_origin_request_policy" "all_viewer" {
+  name = "Managed-AllViewer"
 }
 
 resource "aws_s3_bucket" "frontend" {
@@ -86,6 +95,33 @@ resource "aws_acm_certificate_validation" "frontend" {
   validation_record_fqdns = [for record in aws_route53_record.frontend_certificate_validation : record.fqdn]
 }
 
+resource "aws_cloudfront_function" "frontend_spa_rewrite" {
+  name    = "${local.name_prefix}-frontend-spa-rewrite"
+  runtime = "cloudfront-js-2.0"
+  comment = "Rewrite browser routes to index.html while leaving backend paths untouched"
+  publish = true
+  code    = <<-EOT
+    function handler(event) {
+      var request = event.request;
+      var uri = request.uri;
+
+      if (
+        uri.startsWith('/api/') ||
+        uri.startsWith('/oauth2/') ||
+        uri.startsWith('/login/oauth2/')
+      ) {
+        return request;
+      }
+
+      if (uri === '/' || !uri.includes('.')) {
+        request.uri = '/index.html';
+      }
+
+      return request;
+    }
+  EOT
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   comment             = "${local.name_prefix} frontend"
@@ -99,6 +135,21 @@ resource "aws_cloudfront_distribution" "frontend" {
     origin_id                = local.frontend_origin_id
   }
 
+  # Backend requests use the same viewer domain as the frontend.
+  # CloudFront forwards the original Host header to ALB so Spring/OAuth can build
+  # redirects and cookies for dev.letterpicknews.com instead of dev-api.
+  origin {
+    domain_name = aws_lb.api.dns_name
+    origin_id   = local.api_origin_id
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
@@ -106,20 +157,44 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress               = true
     target_origin_id       = local.frontend_origin_id
     viewer_protocol_policy = "redirect-to-https"
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.frontend_spa_rewrite.arn
+    }
   }
 
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
+  ordered_cache_behavior {
+    path_pattern             = "/api/*"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+    compress                 = true
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
+    target_origin_id         = local.api_origin_id
+    viewer_protocol_policy   = "redirect-to-https"
   }
 
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 0
+  ordered_cache_behavior {
+    path_pattern             = "/oauth2/*"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+    compress                 = true
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
+    target_origin_id         = local.api_origin_id
+    viewer_protocol_policy   = "redirect-to-https"
+  }
+
+  ordered_cache_behavior {
+    path_pattern             = "/login/oauth2/*"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+    compress                 = true
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
+    target_origin_id         = local.api_origin_id
+    viewer_protocol_policy   = "redirect-to-https"
   }
 
   restrictions {
