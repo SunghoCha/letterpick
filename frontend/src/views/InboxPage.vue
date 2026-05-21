@@ -1,18 +1,21 @@
 <script>
-import { subscriptionsMock, unsubscribe } from '@/mocks/subscriptions'
+import * as newsletterApi from '@/api/newsletter'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+
+const PAGE_SIZE = 20
 
 export default {
   name: 'InboxPage',
   data() {
     return {
-      // 추후 axios.get('/api/v1/newsletters/subscriptions') 응답으로 교체.
-      subscriptions: subscriptionsMock.items,
-      // 구독 해지 확인 다이얼로그.
-      unsubscribeDialogOpen: false,
-      // 다이얼로그가 어떤 카드의 액션인지 기억 (확인 시 newsletterId·name 사용).
-      unsubscribeTarget: null,
+      issues: [],
+      nextPage: 0,
+      hasNext: true,
+      loading: false,
+      loaded: false,
+      keyword: '',
+      listKey: 0,
     }
   },
   computed: {
@@ -26,43 +29,72 @@ export default {
       return this.authStore.isLoggedIn
     },
     isEmpty() {
-      return this.subscriptions.length === 0
+      return this.loaded && this.issues.length === 0
     },
   },
   methods: {
-    onItemClick(subscription) {
-      this.$router.push({
-        name: 'newsletter-issues',
-        params: { newsletterId: subscription.newsletterId },
+    async fetchPage(pageNum) {
+      if (this.loading) return
+      this.loading = true
+      try {
+        const data = await newsletterApi.fetchIssues({
+          keyword: this.keyword,
+          page: pageNum,
+          size: PAGE_SIZE,
+        })
+        if (pageNum === 0) {
+          this.issues = data.items
+        } else {
+          this.issues.push(...data.items)
+        }
+        this.hasNext = data.page.hasNext
+        this.nextPage = data.page.number + 1
+        this.loaded = true
+      } catch {
+        this.toastStore.error('보관함 이슈를 불러오지 못했습니다.')
+        this.loaded = true
+        this.hasNext = false
+      } finally {
+        this.loading = false
+      }
+    },
+    onLoad({ done }) {
+      if (!this.hasNext && this.issues.length > 0) {
+        done('empty')
+        return
+      }
+      this.fetchPage(this.nextPage).then(() => {
+        done(this.hasNext ? 'ok' : 'empty')
       })
     },
-    onUnsubscribeClick(subscription) {
-      this.unsubscribeTarget = subscription
-      this.unsubscribeDialogOpen = true
+    resetList() {
+      this.issues = []
+      this.nextPage = 0
+      this.hasNext = true
+      this.loaded = false
+      this.listKey += 1
     },
-    confirmUnsubscribe() {
-      // 추후 axios.delete(`/api/v1/newsletters/${this.unsubscribeTarget.newsletterId}/subscription`)로 교체.
-      const target = this.unsubscribeTarget
-      unsubscribe(target.newsletterId)
-      this.unsubscribeDialogOpen = false
-      this.unsubscribeTarget = null
-      this.toastStore.success(`${target.name} 구독을 해지했어요.`)
+    applySearch() {
+      this.resetList()
     },
-    // 보관함 항목의 마지막 발행일을 사용자 친화적인 표현으로 변환.
-    // 추후 dayjs 같은 라이브러리 도입 가능 — 지금은 단순 차이 계산으로 충분.
-    formatRelativeDate(isoDate) {
-      const now = Date.now()
-      const then = new Date(isoDate).getTime()
-      const diffMs = now - then
-      const diffMin = Math.floor(diffMs / 60000)
-      const diffHour = Math.floor(diffMs / 3600000)
-      const diffDay = Math.floor(diffMs / 86400000)
-      if (diffMin < 1) return '방금 전'
-      if (diffMin < 60) return `${diffMin}분 전`
-      if (diffHour < 24) return `${diffHour}시간 전`
-      if (diffDay < 7) return `${diffDay}일 전`
-      // 7일 이상은 YYYY-MM-DD 형식.
-      return new Date(isoDate).toISOString().slice(0, 10)
+    clearSearch() {
+      this.keyword = ''
+      this.resetList()
+    },
+    onItemClick(issue) {
+      this.$router.push({
+        name: 'issue-detail',
+        params: { issueId: issue.issueId },
+      })
+    },
+    formatDateTime(isoDate) {
+      const d = new Date(isoDate)
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2, '0')
+      const hh = String(d.getHours()).padStart(2, '0')
+      const mi = String(d.getMinutes()).padStart(2, '0')
+      return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
     },
     goToLogin() {
       this.$router.push({ name: 'login' })
@@ -79,7 +111,7 @@ export default {
     <header class="mb-6">
       <h1 class="text-h5 font-weight-bold mb-2">보관함</h1>
       <p class="text-body-2 text-medium-emphasis">
-        letterPick에서 구독 중인 뉴스레터를 모아 봅니다.
+        내가 구독한 뉴스레터에서 도착한 전체 이슈를 최신순으로 모아 봅니다.
       </p>
     </header>
 
@@ -92,123 +124,141 @@ export default {
       <v-icon size="48" class="mb-3 text-medium-emphasis">mdi-lock-outline</v-icon>
       <div class="text-body-1 font-weight-medium mb-2">로그인이 필요합니다</div>
       <div class="text-body-2 text-medium-emphasis mb-4">
-        보관함은 회원 본인의 구독 정보라 로그인 후 확인할 수 있어요.
+        보관함은 회원 본인의 이슈 목록이라 로그인 후 확인할 수 있어요.
       </div>
       <v-btn color="primary" @click="goToLogin">로그인하기</v-btn>
     </v-sheet>
 
-    <!-- 로그인 + 빈 보관함 -->
-    <v-sheet
-      v-else-if="isEmpty"
-      class="pa-12 text-center"
-      color="transparent"
-    >
-      <v-icon size="48" class="mb-3 text-medium-emphasis">mdi-inbox-outline</v-icon>
-      <div class="text-body-1 font-weight-medium mb-2">아직 구독한 뉴스레터가 없어요</div>
-      <div class="text-body-2 text-medium-emphasis mb-4">
-        뉴스레터 목록에서 마음에 드는 뉴스레터를 찾아 구독을 시작해보세요.
-      </div>
-      <v-btn color="primary" @click="goToNewsletters">뉴스레터 둘러보기</v-btn>
-    </v-sheet>
-
-    <!-- 로그인 + 구독 목록 -->
-    <v-row v-else dense>
-      <v-col
-        v-for="subscription in subscriptions"
-        :key="subscription.newsletterId"
-        cols="12"
-        sm="6"
-      >
-        <v-card
-          class="subscription-card pa-4"
+    <template v-else>
+      <div class="d-flex ga-2 mb-4">
+        <v-text-field
+          v-model="keyword"
+          prepend-inner-icon="mdi-magnify"
+          placeholder="제목·본문 검색"
           variant="outlined"
-          rounded="lg"
-          @click="onItemClick(subscription)"
+          density="compact"
+          hide-details
+          clearable
+          @keydown.enter="applySearch"
+          @click:clear="clearSearch"
+        />
+        <v-btn
+          color="primary"
+          variant="flat"
+          height="40"
+          @click="applySearch"
         >
-          <div class="d-flex align-start">
-            <v-avatar size="48" rounded="md" class="mr-3">
-              <v-img :src="subscription.imageUrl" :alt="subscription.name" />
-            </v-avatar>
-            <div class="flex-grow-1">
-              <div class="d-flex align-center">
-                <h3 class="text-subtitle-1 font-weight-bold mb-0 flex-grow-1">
-                  {{ subscription.name }}
-                </h3>
-                <v-badge
-                  v-if="subscription.unreadCount > 0"
-                  :content="subscription.unreadCount"
-                  color="error"
-                  inline
-                  class="mr-1"
-                />
-                <!-- "..." 메뉴. 카드의 click 이벤트와 분리되도록 .stop 사용. -->
-                <v-menu>
-                  <template #activator="{ props: menuProps }">
-                    <v-btn
-                      v-bind="menuProps"
-                      icon="mdi-dots-vertical"
-                      variant="text"
-                      size="x-small"
-                      @click.stop
-                    />
-                  </template>
-                  <v-list density="compact">
-                    <v-list-item
-                      base-color="error"
-                      @click.stop="onUnsubscribeClick(subscription)"
-                    >
-                      <template #prepend>
-                        <v-icon size="small">mdi-close-circle-outline</v-icon>
-                      </template>
-                      <v-list-item-title>구독 해지</v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-              </div>
-              <div class="mt-1">
-                <v-chip size="x-small" variant="tonal">
-                  {{ subscription.category.label }}
-                </v-chip>
-              </div>
-              <div class="text-caption text-medium-emphasis mt-2">
-                마지막 이슈 · {{ formatRelativeDate(subscription.latestIssueReceivedAt) }}
-              </div>
-            </div>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
+          검색
+        </v-btn>
+      </div>
 
-    <!-- 구독 해지 확인 다이얼로그 -->
-    <v-dialog v-model="unsubscribeDialogOpen" max-width="420">
-      <v-card rounded="lg">
-        <v-card-title class="text-subtitle-1 font-weight-bold">
-          구독을 해지할까요?
-        </v-card-title>
-        <v-card-text class="text-body-2">
-          <strong>{{ unsubscribeTarget?.name }}</strong> 구독을 해지하면 보관함에서 제거되고,
-          앞으로 도착하는 이슈는 letterPick에 저장되지 않아요.
-          외부 사이트의 실제 구독은 별도로 해지해야 합니다.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="unsubscribeDialogOpen = false">취소</v-btn>
-          <v-btn color="error" variant="flat" @click="confirmUnsubscribe">구독 해지</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <!-- 로그인 + 빈 보관함 -->
+      <v-sheet
+        v-if="isEmpty"
+        class="pa-12 text-center"
+        color="transparent"
+      >
+        <v-icon size="48" class="mb-3 text-medium-emphasis">mdi-inbox-outline</v-icon>
+        <div class="text-body-1 font-weight-medium mb-2">아직 보관된 이슈가 없어요</div>
+        <div class="text-body-2 text-medium-emphasis mb-4">
+          뉴스레터를 구독하고 메일이 도착하면 이곳에 쌓입니다.
+        </div>
+        <v-btn color="primary" @click="goToNewsletters">뉴스레터 둘러보기</v-btn>
+      </v-sheet>
+
+      <!-- 로그인 + 전체 이슈 목록 -->
+      <v-infinite-scroll
+        v-else
+        :key="listKey"
+        mode="intersect"
+        empty-text=""
+        class="issue-scroll"
+        @load="onLoad"
+      >
+        <v-list class="issue-list pa-0" lines="three">
+          <v-list-item
+            v-for="(issue, index) in issues"
+            :key="issue.issueId"
+            :class="['issue-item', { 'issue-item--read': issue.read }]"
+            :border="index < issues.length - 1 ? 'b' : ''"
+            @click="onItemClick(issue)"
+          >
+            <template #prepend>
+              <v-avatar size="40" rounded="md" class="mr-2">
+                <v-img :src="issue.newsletterImageUrl" :alt="issue.newsletterName">
+                  <template #error>
+                    <div class="image-fallback">
+                      {{ issue.newsletterName.slice(0, 2) }}
+                    </div>
+                  </template>
+                </v-img>
+              </v-avatar>
+            </template>
+
+            <div class="d-flex align-center mb-1">
+              <span class="text-caption text-medium-emphasis mr-2">
+                {{ issue.newsletterName }}
+              </span>
+              <span class="text-caption text-medium-emphasis">
+                · {{ formatDateTime(issue.receivedAt) }}
+              </span>
+            </div>
+            <div :class="['text-subtitle-2', issue.read ? 'font-weight-regular' : 'font-weight-bold']">
+              {{ issue.subject }}
+            </div>
+            <div class="text-body-2 text-medium-emphasis issue-summary">
+              {{ issue.previewText }}
+            </div>
+          </v-list-item>
+        </v-list>
+      </v-infinite-scroll>
+    </template>
   </v-container>
 </template>
 
 <style scoped>
-.subscription-card {
-  cursor: pointer;
+.issue-scroll {
   background: #fff;
-  transition: background-color 0.15s, border-color 0.15s;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.subscription-card:hover {
+.issue-list {
+  background: transparent;
+}
+
+.issue-item {
+  cursor: pointer;
+  transition: background-color 0.15s;
+  padding: 12px 16px;
+}
+
+.issue-item:hover {
   background: #fafafa;
-  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.issue-item--read :deep(.text-subtitle-2),
+.issue-item--read .issue-summary {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.issue-summary {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.image-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  color: #757575;
+  font-weight: 600;
+  font-size: 13px;
 }
 </style>

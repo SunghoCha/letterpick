@@ -10,9 +10,16 @@
 //   - resubscribe:           PATCH — UNSUBSCRIBED → ACTIVE, 204
 //   - 처음 구독은 별도 API 없음 — fetchSubscriptionInfo에서 받은 externalSubscribeUrl로 외부 이동
 //   - 구독 해지(DELETE)는 다음 사이클 (티켓정제 03)
+//
+// 회원 뉴스레터 이슈 (로그인 필수, /api/v1/me/newsletter-issues):
+//   - fetchTodayIssues: GET /today — 오늘 도착한 이슈 목록
+//   - fetchIssues:      GET        — 보관함 전체 이슈 목록
+//   - fetchIssueDetail: GET /{id}  — 이슈 상세 + 읽음 처리
+//   - deleteIssue:      DELETE /{id}
 import apiClient, { ensureCsrfToken } from './client'
 
 const SUBSCRIPTION_BASE = '/api/v1/me/newsletter-subscriptions'
+const ISSUE_BASE = '/api/v1/me/newsletter-issues'
 
 export async function fetchNewsletters({ category, page = 0, size = 20 } = {}) {
   const params = { page, size }
@@ -37,4 +44,31 @@ export async function fetchSubscriptionInfo(newsletterId) {
 export async function resubscribe(newsletterId) {
   await ensureCsrfToken()
   await apiClient.patch(`${SUBSCRIPTION_BASE}/${newsletterId}`)
+}
+
+export async function fetchTodayIssues({ page = 0, size = 20 } = {}) {
+  const { data } = await apiClient.get(`${ISSUE_BASE}/today`, {
+    params: { page, size },
+  })
+  return data
+}
+
+export async function fetchIssues({ keyword, page = 0, size = 20 } = {}) {
+  const params = { page, size }
+  const trimmedKeyword = keyword?.trim()
+  if (trimmedKeyword) {
+    params.keyword = trimmedKeyword
+  }
+  const { data } = await apiClient.get(ISSUE_BASE, { params })
+  return data
+}
+
+export async function fetchIssueDetail(issueId) {
+  const { data } = await apiClient.get(`${ISSUE_BASE}/${issueId}`)
+  return data
+}
+
+export async function deleteIssue(issueId) {
+  await ensureCsrfToken()
+  await apiClient.delete(`${ISSUE_BASE}/${issueId}`)
 }

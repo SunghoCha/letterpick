@@ -1,5 +1,5 @@
 <script>
-import { fetchIssueDetail, deleteIssue } from '@/mocks/newsletterIssues'
+import * as newsletterApi from '@/api/newsletter'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
@@ -14,12 +14,9 @@ export default {
   },
   data() {
     return {
-      // 추후 axios.get(`/api/v1/newsletters/issues/${this.issueId}`) 응답으로 교체.
       issue: null,
-      // 진입 직후 fetch 완료 전엔 spinner 표시. mock은 동기라 실질 의미는 적지만
-      // 실제 API 시점에 자연스럽도록 구조 유지.
       loading: true,
-      // 삭제 확인 다이얼로그 열림 상태.
+      deleting: false,
       deleteDialogOpen: false,
     }
   },
@@ -45,27 +42,37 @@ export default {
     },
   },
   methods: {
-    loadIssue() {
+    async loadIssue() {
       this.loading = true
-      // 비로그인이면 fetch 자체 의미 없음. 백엔드 시점에도 401 받으니 호출 생략.
       if (!this.isLoggedIn) {
         this.issue = null
         this.loading = false
         return
       }
-      this.issue = fetchIssueDetail(this.issueId)
-      this.loading = false
+      try {
+        this.issue = await newsletterApi.fetchIssueDetail(this.issueId)
+      } catch {
+        this.issue = null
+        this.toastStore.error('이슈를 불러오지 못했습니다.')
+      } finally {
+        this.loading = false
+      }
     },
     onDeleteClick() {
       this.deleteDialogOpen = true
     },
-    confirmDelete() {
-      // 추후 axios.delete(`/api/v1/newsletters/issues/${this.issueId}`)로 교체.
-      // 백엔드는 응답으로 204(또는 200), 클라이언트는 다음 화면으로 이동 + 토스트.
-      deleteIssue(this.issueId)
-      this.deleteDialogOpen = false
-      this.toastStore.success('이슈를 삭제했어요.')
-      this.goBack()
+    async confirmDelete() {
+      this.deleting = true
+      try {
+        await newsletterApi.deleteIssue(this.issueId)
+        this.deleteDialogOpen = false
+        this.toastStore.success('이슈를 삭제했어요.')
+        this.goBack()
+      } catch {
+        this.toastStore.error('이슈를 삭제하지 못했습니다.')
+      } finally {
+        this.deleting = false
+      }
     },
     goBack() {
       if (window.history.length > 1) {
@@ -149,9 +156,9 @@ export default {
         />
       </header>
 
-      <!-- 메타: 뉴스레터 이름 + 발신자 + 발송 시각 -->
+      <!-- 메타: 뉴스레터 이름 + 발송 시각 -->
       <div class="text-caption text-medium-emphasis mb-2">
-        {{ issue.newsletterName }} · {{ issue.sender }} · {{ formatDateTime(issue.receivedAt) }}
+        {{ issue.newsletterName }} · {{ formatDateTime(issue.receivedAt) }}
       </div>
 
       <!-- 제목 -->
@@ -160,7 +167,7 @@ export default {
       <v-divider class="mb-6" />
 
       <!-- 본문: 백엔드가 sanitize한 HTML 문자열을 v-html로 렌더 -->
-      <div class="issue-contents" v-html="issue.contents" />
+      <div class="issue-contents" v-html="issue.content" />
     </template>
 
     <!-- 이슈 삭제 확인 다이얼로그 -->
@@ -175,7 +182,14 @@ export default {
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="deleteDialogOpen = false">취소</v-btn>
-          <v-btn color="error" variant="flat" @click="confirmDelete">삭제</v-btn>
+          <v-btn
+            color="error"
+            variant="flat"
+            :loading="deleting"
+            @click="confirmDelete"
+          >
+            삭제
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
