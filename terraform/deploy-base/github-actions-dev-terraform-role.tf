@@ -68,6 +68,7 @@ data "aws_iam_policy_document" "github_actions_dev_terraform" {
       "ec2:*",
       "ecs:*",
       "elasticloadbalancing:*",
+      "cloudfront:*",
       "iam:*",
       "logs:*",
       "acm:*",

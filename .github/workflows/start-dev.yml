@@ -69,5 +69,7 @@ jobs:
       - name: Summarize dev endpoint
         run: |
           API_URL=$(terraform -chdir=terraform/dev output -raw api_url)
+          FRONTEND_URL=$(terraform -chdir=terraform/dev output -raw frontend_url)
           echo "### Dev runtime" >> "$GITHUB_STEP_SUMMARY"
+          echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "API URL: $API_URL" >> "$GITHUB_STEP_SUMMARY"

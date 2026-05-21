@@ -141,6 +141,26 @@ output "api_url" {
   value = "https://${var.api_domain_name}"
 }
 
+output "frontend_domain_name" {
+  value = var.frontend_domain_name
+}
+
+output "frontend_url" {
+  value = "https://${var.frontend_domain_name}"
+}
+
+output "frontend_bucket_name" {
+  value = aws_s3_bucket.frontend.bucket
+}
+
+output "frontend_cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.frontend.id
+}
+
+output "frontend_cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.frontend.domain_name
+}
+
 output "api_target_group_arn" {
   value = aws_lb_target_group.api.arn
 }
