@@ -16,6 +16,7 @@
 //   - fetchIssues:      GET        — 보관함 전체 이슈 목록
 //   - fetchIssueDetail: GET /{id}  — 이슈 상세 + 읽음 처리
 //   - deleteIssue:      DELETE /{id}
+//   - createDemoIssues: POST /demo — dev 환경 데모 이슈 생성
 import apiClient, { ensureCsrfToken } from './client'
 
 const SUBSCRIPTION_BASE = '/api/v1/me/newsletter-subscriptions'
@@ -71,4 +72,10 @@ export async function fetchIssueDetail(issueId) {
 export async function deleteIssue(issueId) {
   await ensureCsrfToken()
   await apiClient.delete(`${ISSUE_BASE}/${issueId}`)
+}
+
+export async function createDemoIssues() {
+  await ensureCsrfToken()
+  const { data } = await apiClient.post(`${ISSUE_BASE}/demo`)
+  return data
 }

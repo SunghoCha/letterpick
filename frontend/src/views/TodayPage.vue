@@ -1,5 +1,6 @@
 <script>
 import * as newsletterApi from '@/api/newsletter'
+import DevIssueDemoButton from '@/components/DevIssueDemoButton.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
@@ -7,6 +8,9 @@ const PAGE_SIZE = 20
 
 export default {
   name: 'TodayPage',
+  components: {
+    DevIssueDemoButton,
+  },
   data() {
     return {
       issues: [],
@@ -14,6 +18,7 @@ export default {
       hasNext: true,
       loading: false,
       loaded: false,
+      listKey: 0,
     }
   },
   computed: {
@@ -67,6 +72,13 @@ export default {
         done(this.hasNext ? 'ok' : 'empty')
       })
     },
+    resetList() {
+      this.issues = []
+      this.nextPage = 0
+      this.hasNext = true
+      this.loaded = false
+      this.listKey += 1
+    },
     onItemClick(issue) {
       this.$router.push({
         name: 'issue-detail',
@@ -92,14 +104,17 @@ export default {
 
 <template>
   <v-container class="py-8" max-width="900">
-    <header class="mb-6">
-      <h1 class="text-h5 font-weight-bold mb-2">투데이</h1>
-      <p class="text-body-2 text-medium-emphasis">
-        오늘 도착한 뉴스레터 이슈를 한 곳에서 모아 봅니다.
-        <span v-if="isLoggedIn && !isEmpty">
-          · 미열람 <strong>{{ unreadCount }}</strong>개
-        </span>
-      </p>
+    <header class="page-header mb-6">
+      <div>
+        <h1 class="text-h5 font-weight-bold mb-2">투데이</h1>
+        <p class="text-body-2 text-medium-emphasis">
+          오늘 도착한 뉴스레터 이슈를 한 곳에서 모아 봅니다.
+          <span v-if="isLoggedIn && !isEmpty">
+            · 미열람 <strong>{{ unreadCount }}</strong>개
+          </span>
+        </p>
+      </div>
+      <DevIssueDemoButton @created="resetList" />
     </header>
 
     <!-- 비로그인: 로그인 안내 -->
@@ -133,6 +148,7 @@ export default {
     <!-- 로그인 + 이슈 리스트 -->
     <v-infinite-scroll
       v-else
+      :key="listKey"
       mode="intersect"
       empty-text=""
       class="issue-scroll"
@@ -174,6 +190,13 @@ export default {
 </template>
 
 <style scoped>
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .issue-scroll,
 .issue-list {
   background: #fff;
@@ -223,5 +246,11 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   margin-top: 2px;
+}
+
+@media (max-width: 600px) {
+  .page-header {
+    flex-direction: column;
+  }
 }
 </style>
