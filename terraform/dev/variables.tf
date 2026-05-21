@@ -116,6 +116,11 @@ variable "api_domain_name" {
   default = "dev-api.letterpicknews.com"
 }
 
+variable "frontend_domain_name" {
+  type    = string
+  default = "dev.letterpicknews.com"
+}
+
 variable "route53_zone_name" {
   type    = string
   default = "letterpicknews.com"
@@ -211,6 +216,21 @@ variable "raw_mail_bucket_name" {
   default = null
 }
 
+variable "frontend_bucket_name" {
+  type    = string
+  default = null
+}
+
+variable "frontend_cloudfront_price_class" {
+  type    = string
+  default = "PriceClass_100"
+}
+
+variable "frontend_cloudfront_cache_policy_id" {
+  type    = string
+  default = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+}
+
 variable "raw_mail_object_prefix" {
   type    = string
   default = "raw"
@@ -257,7 +277,7 @@ variable "secret_name_prefix" {
 
 variable "frontend_base_url" {
   type    = string
-  default = "http://localhost:5173"
+  default = "https://dev.letterpicknews.com"
 }
 
 variable "newsletter_inbox_address_domain" {

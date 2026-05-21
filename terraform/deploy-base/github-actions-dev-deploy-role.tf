@@ -40,7 +40,8 @@ resource "aws_iam_role" "github_actions_dev_deploy" {
 }
 
 locals {
-  dev_ecs_cluster_arn = "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${local.dev_name_prefix}-cluster"
+  dev_ecs_cluster_arn      = "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${local.dev_name_prefix}-cluster"
+  dev_frontend_bucket_name = "${local.dev_name_prefix}-frontend-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
 
   dev_ecs_service_arns = [
     "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${local.dev_name_prefix}-cluster/${local.dev_name_prefix}-api",
@@ -54,6 +55,30 @@ locals {
 }
 
 data "aws_iam_policy_document" "github_actions_dev_deploy" {
+  statement {
+    sid = "ReadDevTerraformState"
+
+    actions = [
+      "s3:ListBucket",
+    ]
+
+    resources = [
+      "arn:aws:s3:::${var.terraform_state_bucket_name}",
+    ]
+  }
+
+  statement {
+    sid = "ReadDevTerraformStateObject"
+
+    actions = [
+      "s3:GetObject",
+    ]
+
+    resources = [
+      "arn:aws:s3:::${var.terraform_state_bucket_name}/${var.dev_terraform_state_key}",
+    ]
+  }
+
   statement {
     actions = [
       "ecs:DescribeTaskDefinition",
@@ -94,6 +119,47 @@ data "aws_iam_policy_document" "github_actions_dev_deploy" {
       variable = "iam:PassedToService"
       values   = ["ecs-tasks.amazonaws.com"]
     }
+  }
+
+  statement {
+    sid = "DeployDevFrontendBucketObjects"
+
+    actions = [
+      "s3:GetBucketLocation",
+      "s3:ListBucket",
+    ]
+
+    resources = [
+      "arn:aws:s3:::${local.dev_frontend_bucket_name}",
+    ]
+  }
+
+  statement {
+    sid = "DeployDevFrontendObjects"
+
+    actions = [
+      "s3:DeleteObject",
+      "s3:GetObject",
+      "s3:PutObject",
+    ]
+
+    resources = [
+      "arn:aws:s3:::${local.dev_frontend_bucket_name}/*",
+    ]
+  }
+
+  statement {
+    sid = "InvalidateDevFrontendCloudFront"
+
+    actions = [
+      "cloudfront:CreateInvalidation",
+      "cloudfront:GetDistribution",
+      "cloudfront:GetInvalidation",
+    ]
+
+    resources = [
+      "arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:distribution/*",
+    ]
   }
 }
 
