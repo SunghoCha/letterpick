@@ -8,9 +8,17 @@ public record ErrorResponse(
         Instant timestamp
 ) {
     public static ErrorResponse of(BusinessException exception) {
+        return of(exception.getErrorCode(), exception.getMessage());
+    }
+
+    public static ErrorResponse of(ErrorCode errorCode) {
+        return of(errorCode, errorCode.getMessage());
+    }
+
+    public static ErrorResponse of(ErrorCode errorCode, String message) {
         return new ErrorResponse(
-                exception.getErrorCode().getCode(),
-                exception.getMessage(),
+                errorCode.getCode(),
+                message,
                 Instant.now()
         );
     }
