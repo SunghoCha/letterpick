@@ -1,0 +1,107 @@
+name: Deploy Frontend Prod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-frontend-prod:
+    name: Deploy Frontend Prod
+    runs-on: ubuntu-latest
+    environment: prod
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          required_env=(
+            AWS_REGION
+            AWS_DEPLOY_ROLE_ARN
+          )
+
+          for name in "${required_env[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: github-actions-prod-frontend-deploy
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.4
+          terraform_wrapper: false
+
+      - name: Resolve prod frontend outputs
+        run: |
+          terraform -chdir=terraform/prod init -input=false
+
+          FRONTEND_BUCKET=$(terraform -chdir=terraform/prod output -raw frontend_bucket_name)
+          CLOUDFRONT_DISTRIBUTION_ID=$(terraform -chdir=terraform/prod output -raw frontend_cloudfront_distribution_id)
+          FRONTEND_URL=$(terraform -chdir=terraform/prod output -raw frontend_url)
+
+          {
+            echo "FRONTEND_BUCKET=$FRONTEND_BUCKET"
+            echo "CLOUDFRONT_DISTRIBUTION_ID=$CLOUDFRONT_DISTRIBUTION_ID"
+            echo "VITE_API_BASE_URL="
+            echo "FRONTEND_URL=$FRONTEND_URL"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Upload frontend assets
+        run: |
+          aws s3 sync frontend/dist "s3://$FRONTEND_BUCKET" \
+            --delete \
+            --cache-control "public,max-age=300"
+
+          aws s3 cp frontend/dist/index.html "s3://$FRONTEND_BUCKET/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate" \
+            --content-type "text/html"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --id "$INVALIDATION_ID"
+
+      - name: Summarize frontend endpoint
+        run: |
+          echo "### Prod frontend" >> "$GITHUB_STEP_SUMMARY"
+          echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "API URL: $FRONTEND_URL/api" >> "$GITHUB_STEP_SUMMARY"

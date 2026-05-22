@@ -1,0 +1,51 @@
+# 이 파일은 prod 1단계 입력값 예시다.
+# 실제 값은 git에 올리지 않는 prod.tfvars에 두고, 이 파일은 필요한 입력 형태만 보여준다.
+environment = "prod"
+
+vpc_cidr = "10.1.0.0/16"
+
+availability_zone_count = 2
+
+public_subnet_cidrs = [
+  "10.1.0.0/24",
+  "10.1.1.0/24",
+]
+
+private_subnet_cidrs = [
+  "10.1.10.0/24",
+  "10.1.11.0/24",
+]
+
+tags = {}
+
+initial_backend_image_uri = "730335589937.dkr.ecr.ap-northeast-2.amazonaws.com/letterpick-backend:bootstrap"
+
+api_desired_count = 1
+
+worker_desired_count = 1
+
+enable_db_access_host = true
+
+db_access_instance_type = "t4g.nano"
+
+db_access_subnet_index = 0
+
+frontend_domain_name = "letterpicknews.com"
+
+frontend_base_url = "https://letterpicknews.com"
+
+api_domain_name = "api.letterpicknews.com"
+
+route53_zone_name = "letterpicknews.com"
+
+ses_receive_domain_name = "inbound.letterpicknews.com"
+
+google_client_id = "<google-prod-client-id>"
+
+naver_client_id = "<naver-prod-client-id>"
+
+# map key는 ECS 환경변수 이름이면서 Secrets Manager JSON key 이름이다.
+backend_secret_names = {
+  GOOGLE_CLIENT_SECRET = "letterpick/prod/google-client-secret"
+  NAVER_CLIENT_SECRET  = "letterpick/prod/naver-client-secret"
+}
