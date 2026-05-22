@@ -129,18 +129,6 @@ output "api_alb_dns_name" {
   value = aws_lb.api.dns_name
 }
 
-output "api_alb_url" {
-  value = "http://${aws_lb.api.dns_name}"
-}
-
-output "api_domain_name" {
-  value = var.api_domain_name
-}
-
-output "api_url" {
-  value = "https://${var.api_domain_name}"
-}
-
 output "frontend_domain_name" {
   value = var.frontend_domain_name
 }
