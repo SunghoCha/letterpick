@@ -34,8 +34,6 @@ frontend_domain_name = "letterpicknews.com"
 
 frontend_base_url = "https://letterpicknews.com"
 
-api_domain_name = "api.letterpicknews.com"
-
 route53_zone_name = "letterpicknews.com"
 
 ses_receive_domain_name = "inbound.letterpicknews.com"

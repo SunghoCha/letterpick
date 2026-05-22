@@ -91,7 +91,7 @@ resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.api.arn
   port              = 443
   protocol          = "HTTPS"
-  certificate_arn   = aws_acm_certificate_validation.api.certificate_arn
+  certificate_arn   = aws_acm_certificate_validation.frontend_origin.certificate_arn
 
   default_action {
     type = "fixed-response"
@@ -143,9 +143,4 @@ resource "aws_lb_listener_rule" "https_api" {
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-https-api-rule"
   })
-}
-
-resource "aws_lb_listener_certificate" "frontend_origin" {
-  listener_arn    = aws_lb_listener.https.arn
-  certificate_arn = aws_acm_certificate_validation.frontend_origin.certificate_arn
 }

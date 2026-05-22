@@ -137,7 +137,7 @@ resource "aws_cloudfront_distribution" "frontend" {
 
   # Backend requests use the same viewer domain as the frontend.
   # CloudFront forwards the original Host header to ALB so Spring/OAuth can build
-  # redirects and cookies for letterpicknews.com instead of api.letterpicknews.com.
+  # redirects and cookies for the single public domain instead of the ALB DNS name.
   origin {
     domain_name = aws_lb.api.dns_name
     origin_id   = local.api_origin_id

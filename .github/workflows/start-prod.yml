@@ -1,0 +1,83 @@
+name: Start Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_uri:
+        description: Full ECR image URI to use for the initial prod task definitions
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  start-prod:
+    name: Start Prod
+    runs-on: ubuntu-latest
+    environment: prod
+
+    env:
+      IMAGE_URI: ${{ inputs.image_uri }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      NAVER_CLIENT_ID: ${{ vars.NAVER_CLIENT_ID }}
+      BACKEND_SECRET_NAMES: '{"GOOGLE_CLIENT_SECRET":"letterpick/prod/google-client-secret","NAVER_CLIENT_SECRET":"letterpick/prod/naver-client-secret"}'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          required_env=(
+            IMAGE_URI
+            AWS_REGION
+            AWS_TERRAFORM_ROLE_ARN
+            GOOGLE_CLIENT_ID
+            NAVER_CLIENT_ID
+            BACKEND_SECRET_NAMES
+          )
+
+          for name in "${required_env[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_TERRAFORM_ROLE_ARN }}
+          role-session-name: github-actions-start-prod
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.4
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform -chdir=terraform/prod init -input=false
+
+      - name: Terraform validate
+        run: terraform -chdir=terraform/prod validate
+
+      - name: Terraform apply
+        run: |
+          terraform -chdir=terraform/prod apply -auto-approve -input=false \
+            -var="initial_backend_image_uri=$IMAGE_URI" \
+            -var="google_client_id=$GOOGLE_CLIENT_ID" \
+            -var="naver_client_id=$NAVER_CLIENT_ID" \
+            -var="backend_secret_names=$BACKEND_SECRET_NAMES"
+
+      - name: Summarize prod endpoints
+        run: |
+          FRONTEND_URL=$(terraform -chdir=terraform/prod output -raw frontend_url)
+          echo "### Prod runtime" >> "$GITHUB_STEP_SUMMARY"
+          echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "API routes are served through the same CloudFront domain under /api, /oauth2, and /login/oauth2." >> "$GITHUB_STEP_SUMMARY"

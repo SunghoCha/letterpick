@@ -116,11 +116,6 @@ variable "api_blue_green_bake_time_minutes" {
   default = 15
 }
 
-variable "api_domain_name" {
-  type    = string
-  default = "api.letterpicknews.com"
-}
-
 variable "frontend_domain_name" {
   type    = string
   default = "letterpicknews.com"

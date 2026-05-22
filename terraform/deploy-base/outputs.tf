@@ -10,3 +10,7 @@ output "github_actions_dev_terraform_role_arn" {
 output "github_actions_prod_deploy_role_arn" {
   value = aws_iam_role.github_actions_prod_deploy.arn
 }
+
+output "github_actions_prod_terraform_role_arn" {
+  value = aws_iam_role.github_actions_prod_terraform.arn
+}
