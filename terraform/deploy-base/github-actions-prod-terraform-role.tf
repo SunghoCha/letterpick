@@ -55,10 +55,12 @@ data "aws_iam_policy_document" "github_actions_prod_terraform" {
       "s3:DeleteObject",
     ]
 
-    resources = [
-      "arn:aws:s3:::${var.terraform_state_bucket_name}/${var.prod_terraform_state_key}",
-      "arn:aws:s3:::${var.terraform_state_bucket_name}/${var.prod_terraform_state_key}.tflock",
-    ]
+    resources = flatten([
+      for key in local.prod_terraform_state_keys : [
+        "arn:aws:s3:::${var.terraform_state_bucket_name}/${key}",
+        "arn:aws:s3:::${var.terraform_state_bucket_name}/${key}.tflock",
+      ]
+    ])
   }
 
   statement {
