@@ -1,0 +1,123 @@
+name: Stop Prod Runtime On/Off
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  stop-prod-runtime-onoff:
+    name: Stop Prod Runtime On/Off
+    runs-on: ubuntu-latest
+    environment: prod
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      NAVER_CLIENT_ID: ${{ vars.NAVER_CLIENT_ID }}
+      BACKEND_SECRET_NAMES: '{"GOOGLE_CLIENT_SECRET":"letterpick/prod/google-client-secret","NAVER_CLIENT_SECRET":"letterpick/prod/naver-client-secret"}'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate AWS inputs
+        run: |
+          required_env=(
+            AWS_REGION
+            AWS_TERRAFORM_ROLE_ARN
+          )
+
+          for name in "${required_env[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_TERRAFORM_ROLE_ARN }}
+          role-session-name: github-actions-stop-prod-runtime-onoff
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.4
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform -chdir=terraform/prod-runtime init -input=false
+
+      - name: Terraform validate
+        run: terraform -chdir=terraform/prod-runtime validate
+
+      - name: Resolve current runtime inputs
+        id: resolve-runtime-inputs
+        run: |
+          RUNTIME_OUTPUTS=$(terraform -chdir=terraform/prod-runtime output -json)
+          API_TASK_DEFINITION_ARN=$(jq -r '.api_task_definition_arn.value // empty' <<< "$RUNTIME_OUTPUTS")
+
+          if [ -z "$API_TASK_DEFINITION_ARN" ]; then
+            echo "already_stopped=true" >> "$GITHUB_OUTPUT"
+            echo "prod-runtime has no Terraform outputs. Nothing to stop." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          IMAGE_URI=$(aws ecs describe-task-definition \
+            --task-definition "$API_TASK_DEFINITION_ARN" \
+            --query 'taskDefinition.containerDefinitions[0].image' \
+            --output text)
+
+          if [ -z "$IMAGE_URI" ] || [ "$IMAGE_URI" = "None" ]; then
+            echo "IMAGE_URI could not be resolved from $API_TASK_DEFINITION_ARN" >&2
+            exit 1
+          fi
+
+          {
+            echo "already_stopped=false"
+            echo "image_uri=$IMAGE_URI"
+            echo "api_task_definition_arn=$API_TASK_DEFINITION_ARN"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Validate destroy inputs
+        if: steps.resolve-runtime-inputs.outputs.already_stopped != 'true'
+        env:
+          IMAGE_URI: ${{ steps.resolve-runtime-inputs.outputs.image_uri }}
+        run: |
+          required_env=(
+            IMAGE_URI
+            GOOGLE_CLIENT_ID
+            NAVER_CLIENT_ID
+            BACKEND_SECRET_NAMES
+          )
+
+          for name in "${required_env[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+          done
+
+      - name: Terraform destroy
+        if: steps.resolve-runtime-inputs.outputs.already_stopped != 'true'
+        env:
+          IMAGE_URI: ${{ steps.resolve-runtime-inputs.outputs.image_uri }}
+        run: |
+          terraform -chdir=terraform/prod-runtime destroy -auto-approve -input=false \
+            -var="initial_backend_image_uri=$IMAGE_URI" \
+            -var="google_client_id=$GOOGLE_CLIENT_ID" \
+            -var="naver_client_id=$NAVER_CLIENT_ID" \
+            -var="backend_secret_names=$BACKEND_SECRET_NAMES"
+
+      - name: Summarize prod runtime stop
+        if: steps.resolve-runtime-inputs.outputs.already_stopped != 'true'
+        run: |
+          echo "### Prod runtime stopped" >> "$GITHUB_STEP_SUMMARY"
+          echo "Destroyed runtime resources managed by terraform/prod-runtime." >> "$GITHUB_STEP_SUMMARY"
+          echo "Resolved image from: ${{ steps.resolve-runtime-inputs.outputs.api_task_definition_arn }}" >> "$GITHUB_STEP_SUMMARY"

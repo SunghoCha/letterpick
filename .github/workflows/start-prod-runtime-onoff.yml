@@ -1,0 +1,104 @@
+name: Start Prod Runtime On/Off
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_uri:
+        description: Full ECR image URI to use for the prod runtime task definitions
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  start-prod-runtime-onoff:
+    name: Start Prod Runtime On/Off
+    runs-on: ubuntu-latest
+    environment: prod
+
+    env:
+      IMAGE_URI: ${{ inputs.image_uri }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      NAVER_CLIENT_ID: ${{ vars.NAVER_CLIENT_ID }}
+      BACKEND_SECRET_NAMES: '{"GOOGLE_CLIENT_SECRET":"letterpick/prod/google-client-secret","NAVER_CLIENT_SECRET":"letterpick/prod/naver-client-secret"}'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          required_env=(
+            IMAGE_URI
+            AWS_REGION
+            AWS_TERRAFORM_ROLE_ARN
+            GOOGLE_CLIENT_ID
+            NAVER_CLIENT_ID
+            BACKEND_SECRET_NAMES
+          )
+
+          for name in "${required_env[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_TERRAFORM_ROLE_ARN }}
+          role-session-name: github-actions-start-prod-runtime-onoff
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.4
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform -chdir=terraform/prod-runtime init -input=false
+
+      - name: Terraform validate
+        run: terraform -chdir=terraform/prod-runtime validate
+
+      - name: Terraform apply
+        run: |
+          terraform -chdir=terraform/prod-runtime apply -auto-approve -input=false \
+            -var="initial_backend_image_uri=$IMAGE_URI" \
+            -var="google_client_id=$GOOGLE_CLIENT_ID" \
+            -var="naver_client_id=$NAVER_CLIENT_ID" \
+            -var="backend_secret_names=$BACKEND_SECRET_NAMES"
+
+      - name: Wait for runtime stability
+        run: |
+          ECS_CLUSTER_NAME=$(terraform -chdir=terraform/prod-runtime output -raw ecs_cluster_name)
+          API_SERVICE_NAME=$(terraform -chdir=terraform/prod-runtime output -raw api_service_name)
+          WORKER_SERVICE_NAME=$(terraform -chdir=terraform/prod-runtime output -raw worker_service_name)
+          CLOUDFRONT_DISTRIBUTION_ID=$(terraform -chdir=terraform/prod-runtime output -raw frontend_cloudfront_distribution_id)
+
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER_NAME" \
+            --services "$API_SERVICE_NAME" "$WORKER_SERVICE_NAME"
+
+          aws cloudfront wait distribution-deployed \
+            --id "$CLOUDFRONT_DISTRIBUTION_ID"
+
+      - name: Summarize prod runtime
+        run: |
+          FRONTEND_URL=$(terraform -chdir=terraform/prod-runtime output -raw frontend_url)
+          ALB_DNS_NAME=$(terraform -chdir=terraform/prod-runtime output -raw api_alb_dns_name)
+          NAT_GATEWAY_ID=$(terraform -chdir=terraform/prod-runtime output -raw nat_gateway_id)
+          CLOUDFRONT_DISTRIBUTION_ID=$(terraform -chdir=terraform/prod-runtime output -raw frontend_cloudfront_distribution_id)
+
+          echo "### Prod runtime on/off" >> "$GITHUB_STEP_SUMMARY"
+          echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "API URL: $FRONTEND_URL/api" >> "$GITHUB_STEP_SUMMARY"
+          echo "ALB DNS: $ALB_DNS_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "NAT Gateway: $NAT_GATEWAY_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID" >> "$GITHUB_STEP_SUMMARY"
