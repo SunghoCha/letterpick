@@ -4,6 +4,12 @@ locals {
   dev_name_prefix  = "${var.project}-${var.dev_environment}"
   prod_name_prefix = "${var.project}-${var.prod_environment}"
 
+  prod_terraform_state_keys = [
+    var.prod_terraform_state_key,
+    var.prod_persistence_terraform_state_key,
+    var.prod_runtime_terraform_state_key,
+  ]
+
   common_tags = merge(var.tags, {
     Project     = var.project
     Environment = "deploy-base"

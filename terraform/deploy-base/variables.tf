@@ -36,6 +36,16 @@ variable "prod_terraform_state_key" {
   default = "letterpick/prod/terraform.tfstate"
 }
 
+variable "prod_persistence_terraform_state_key" {
+  type    = string
+  default = "letterpick/prod-persistence/terraform.tfstate"
+}
+
+variable "prod_runtime_terraform_state_key" {
+  type    = string
+  default = "letterpick/prod-runtime/terraform.tfstate"
+}
+
 variable "github_repository" {
   type    = string
   default = "SunghoCha/letterpick"
