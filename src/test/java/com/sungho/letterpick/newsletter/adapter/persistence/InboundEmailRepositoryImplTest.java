@@ -4,6 +4,7 @@ import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.ISSUE_C
 import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.RECEIVED;
 import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.RECIPIENT_NOT_FOUND;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.sungho.letterpick.LetterPickTestConfiguration;
 import com.sungho.letterpick.member.adapter.persistence.MemberRepository;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
@@ -84,6 +86,16 @@ class InboundEmailRepositoryImplTest {
                 new InboundEmailStatusCount(RECIPIENT_NOT_FOUND, 1L),
                 new InboundEmailStatusCount(RECEIVED, 1L)
         );
+    }
+
+    @Test
+    @DisplayName("상태별 집계 조회 시 수신 시각 범위가 올바르지 않으면 예외가 발생한다")
+    void countByStatus_throws_exception_when_received_at_range_is_invalid() {
+        Instant receivedAt = Instant.parse("2050-05-12T15:00:00Z");
+
+        assertThatThrownBy(() -> inboundEmailRepository.countByStatus(receivedAt, receivedAt))
+                .isInstanceOf(InvalidDataAccessApiUsageException.class)
+                .hasMessageContaining("receivedFrom must be before receivedTo");
     }
 
     private InboundEmail createInboundEmail(String messageKey, Instant receivedAt) {
