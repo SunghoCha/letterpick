@@ -9,6 +9,7 @@ import InboxPage from '@/views/InboxPage.vue'
 import TodayPage from '@/views/TodayPage.vue'
 import NewsletterIssuesPage from '@/views/NewsletterIssuesPage.vue'
 import IssueDetailPage from '@/views/IssueDetailPage.vue'
+import AdminEmailOperationsPage from '@/views/AdminEmailOperationsPage.vue'
 import NotFoundPage from '@/views/NotFoundPage.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -76,6 +77,13 @@ const routes = [
     name: 'issue-detail',
     component: IssueDetailPage,
     props: (route) => ({ issueId: Number(route.params.issueId) }),
+    meta: { requiresAuth: true },
+  },
+  {
+    // 이메일 운영 콘솔 1차 화면. 관리자 여부는 백엔드 /api/v1/admin/** 403으로 확인한다.
+    path: '/admin/email-operations',
+    name: 'admin-email-operations',
+    component: AdminEmailOperationsPage,
     meta: { requiresAuth: true },
   },
   // 어느 라우트와도 매칭되지 않는 모든 경로는 404로 처리한다.
