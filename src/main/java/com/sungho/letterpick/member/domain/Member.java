@@ -57,6 +57,11 @@ public class Member {
     @Column(nullable = false, length = 20)
     private MemberStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20)
+    private MemberRole role;
+
     private Member(Email email, Nickname nickname, SocialIdentity socialIdentity,
                    NewsletterInboxAddress newsletterInboxAddress) {
         this.email = requireNonNull(email);
@@ -64,6 +69,7 @@ public class Member {
         this.socialIdentity = requireNonNull(socialIdentity);
         this.newsletterInboxAddress = requireNonNull(newsletterInboxAddress);
         this.status = MemberStatus.ACTIVE;
+        this.role = MemberRole.USER;
     }
 
     public static Member register(Email email, Nickname nickname, SocialIdentity socialIdentity,

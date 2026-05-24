@@ -1,7 +1,6 @@
 package com.sungho.letterpick.member.adapter.security;
 
 import static com.sungho.letterpick.common.auth.SecurityAuthorities.ROLE_PENDING_SIGNUP;
-import static com.sungho.letterpick.common.auth.SecurityAuthorities.ROLE_USER;
 
 import com.sungho.letterpick.common.auth.SocialPrincipal;
 import com.sungho.letterpick.common.auth.SocialUserInfo;
@@ -39,7 +38,7 @@ public class CustomOAuth2Principal implements OAuth2User, SocialPrincipal, Seria
                 member,
                 null,
                 delegate,
-                List.of(new SimpleGrantedAuthority(ROLE_USER))
+                MemberRoleAuthorityMapper.from(member.getRole())
         );
     }
 
