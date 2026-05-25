@@ -56,6 +56,7 @@ export default {
       forbidden: false,
       loadError: false,
       actionRequiredError: false,
+      actionRequiredPage: 0,
       expandedActionItemId: null,
     }
   },
@@ -111,6 +112,12 @@ export default {
     hasActionRequiredItems() {
       return this.actionRequiredItems.length > 0
     },
+    canMoveActionRequiredPrevious() {
+      return (this.actionRequired?.page?.number ?? 0) > 0
+    },
+    canMoveActionRequiredNext() {
+      return this.actionRequired?.page?.hasNext ?? false
+    },
     isRefreshing() {
       return this.loading || this.actionRequiredLoading
     },
@@ -121,6 +128,8 @@ export default {
   methods: {
     refreshAll() {
       this.fetchSummary()
+      this.actionRequiredPage = 0
+      this.expandedActionItemId = null
       this.fetchActionRequiredItems()
     },
     async fetchSummary() {
@@ -154,7 +163,7 @@ export default {
       this.actionRequiredError = false
       try {
         this.actionRequired = await emailOperationsApi.fetchActionRequiredItems({
-          page: 0,
+          page: this.actionRequiredPage,
           size: ACTION_REQUIRED_PAGE_SIZE,
         })
       } catch (err) {
@@ -172,8 +181,24 @@ export default {
         this.actionRequiredLoading = false
       }
     },
+    moveActionRequiredPage(delta) {
+      const nextPage = this.actionRequiredPage + delta
+      if (nextPage < 0) return
+      this.actionRequiredPage = nextPage
+      this.expandedActionItemId = null
+      this.fetchActionRequiredItems()
+    },
     toggleActionItem(item) {
       this.expandedActionItemId = item.expanded ? null : item.inboundEmailId
+    },
+    async copyTraceValue(label, value) {
+      if (value == null) return
+      try {
+        await navigator.clipboard.writeText(String(value))
+        this.toastStore.success(`${label} 복사했습니다.`)
+      } catch {
+        this.toastStore.error(`${label} 복사하지 못했습니다.`)
+      }
     },
     findCount(status) {
       return this.summary?.statusCounts?.find((item) => item.status === status)?.count ?? 0
@@ -357,84 +382,122 @@ export default {
           </template>
         </v-alert>
 
-        <v-table v-else class="action-table">
-          <thead>
-            <tr>
-              <th class="text-left">수신 시각</th>
-              <th class="text-left">상태</th>
-              <th class="text-left">발신자</th>
-              <th class="text-left">수신 주소</th>
-              <th class="text-left">제목</th>
-              <th class="text-right">추적</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!actionRequiredLoading && !hasActionRequiredItems">
-              <td colspan="6" class="text-center text-medium-emphasis py-8">
-                최근 조치 필요 메일이 없습니다.
-              </td>
-            </tr>
-            <template
-              v-for="item in actionRequiredItems"
-              :key="item.inboundEmailId"
-            >
+        <div v-else class="table-scroll">
+          <v-table class="action-table">
+            <thead>
               <tr>
-                <td class="text-body-2">{{ item.formattedReceivedAt }}</td>
-                <td>
-                  <v-chip
-                    :color="item.color"
-                    variant="tonal"
-                    size="small"
-                    :prepend-icon="item.icon"
-                  >
-                    {{ item.label }}
-                  </v-chip>
-                </td>
-                <td class="text-body-2">{{ item.senderEmail }}</td>
-                <td class="text-body-2">{{ item.recipientAddress }}</td>
-                <td class="text-body-2 subject-cell">{{ item.subject }}</td>
-                <td class="text-right">
-                  <v-btn
-                    variant="text"
-                    size="small"
-                    :icon="item.expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-                    :aria-label="item.expanded ? '추적 정보 닫기' : '추적 정보 열기'"
-                    @click="toggleActionItem(item)"
-                  />
+                <th class="text-left">수신 시각</th>
+                <th class="text-left">상태</th>
+                <th class="text-left">발신자</th>
+                <th class="text-left">수신 주소</th>
+                <th class="text-left">제목</th>
+                <th class="text-right">추적</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!actionRequiredLoading && !hasActionRequiredItems">
+                <td colspan="6" class="text-center text-medium-emphasis py-8">
+                  최근 조치 필요 메일이 없습니다.
                 </td>
               </tr>
-              <tr v-if="item.expanded" class="trace-row">
-                <td colspan="6">
-                  <div class="trace-grid">
-                    <div>
-                      <div class="trace-label">memberId</div>
-                      <div class="trace-value">{{ item.memberId ?? '-' }}</div>
+              <template
+                v-for="item in actionRequiredItems"
+                :key="item.inboundEmailId"
+              >
+                <tr>
+                  <td class="text-body-2">{{ item.formattedReceivedAt }}</td>
+                  <td>
+                    <v-chip
+                      :color="item.color"
+                      variant="tonal"
+                      size="small"
+                      :prepend-icon="item.icon"
+                    >
+                      {{ item.label }}
+                    </v-chip>
+                  </td>
+                  <td class="text-body-2 email-cell">{{ item.senderEmail }}</td>
+                  <td class="text-body-2 email-cell">{{ item.recipientAddress }}</td>
+                  <td class="text-body-2 subject-cell">{{ item.subject }}</td>
+                  <td class="text-right">
+                    <v-btn
+                      variant="text"
+                      size="small"
+                      :icon="item.expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+                      :aria-label="item.expanded ? '추적 정보 닫기' : '추적 정보 열기'"
+                      @click="toggleActionItem(item)"
+                    />
+                  </td>
+                </tr>
+                <tr v-if="item.expanded" class="trace-row">
+                  <td colspan="6">
+                    <div class="trace-grid">
+                      <div>
+                        <div class="trace-label">memberId</div>
+                        <div class="trace-value">{{ item.memberId ?? '-' }}</div>
+                      </div>
+                      <div>
+                        <div class="trace-label">newsletterId</div>
+                        <div class="trace-value">{{ item.newsletterId ?? '-' }}</div>
+                      </div>
+                      <div>
+                        <div class="trace-label-row">
+                          <span class="trace-label">messageKey</span>
+                          <v-btn
+                            variant="text"
+                            size="x-small"
+                            icon="mdi-content-copy"
+                            aria-label="messageKey 복사"
+                            @click="copyTraceValue('messageKey', item.messageKey)"
+                          />
+                        </div>
+                        <div class="trace-value">{{ item.messageKey }}</div>
+                      </div>
+                      <div>
+                        <div class="trace-label-row">
+                          <span class="trace-label">rawReference</span>
+                          <v-btn
+                            variant="text"
+                            size="x-small"
+                            icon="mdi-content-copy"
+                            aria-label="rawReference 복사"
+                            @click="copyTraceValue('rawReference', item.rawReference)"
+                          />
+                        </div>
+                        <div class="trace-value">{{ item.rawReference }}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div class="trace-label">newsletterId</div>
-                      <div class="trace-value">{{ item.newsletterId ?? '-' }}</div>
-                    </div>
-                    <div>
-                      <div class="trace-label">messageKey</div>
-                      <div class="trace-value">{{ item.messageKey }}</div>
-                    </div>
-                    <div>
-                      <div class="trace-label">rawReference</div>
-                      <div class="trace-value">{{ item.rawReference }}</div>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </v-table>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </v-table>
+        </div>
 
-        <v-card-text
-          v-if="actionRequired?.page?.hasNext"
-          class="text-caption text-medium-emphasis"
+        <v-card-actions
+          v-if="actionRequired"
+          class="justify-end action-pagination"
         >
-          더 많은 조치 필요 메일이 있습니다.
-        </v-card-text>
+          <span class="text-caption text-medium-emphasis">
+            {{ actionRequired.page.number + 1 }} 페이지
+          </span>
+          <v-btn
+            variant="text"
+            size="small"
+            icon="mdi-chevron-left"
+            aria-label="이전 페이지"
+            :disabled="!canMoveActionRequiredPrevious || actionRequiredLoading"
+            @click="moveActionRequiredPage(-1)"
+          />
+          <v-btn
+            variant="text"
+            size="small"
+            icon="mdi-chevron-right"
+            aria-label="다음 페이지"
+            :disabled="!canMoveActionRequiredNext || actionRequiredLoading"
+            @click="moveActionRequiredPage(1)"
+          />
+        </v-card-actions>
       </v-card>
     </template>
   </v-container>
@@ -476,8 +539,19 @@ export default {
   padding-right: 16px;
 }
 
-.action-table {
+.table-scroll {
   overflow-x: auto;
+}
+
+.action-table :deep(table) {
+  min-width: 960px;
+}
+
+.email-cell {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .subject-cell {
@@ -501,6 +575,14 @@ export default {
 .trace-label {
   color: rgba(0, 0, 0, 0.6);
   font-size: 12px;
+}
+
+.trace-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
   margin-bottom: 4px;
 }
 
@@ -508,6 +590,10 @@ export default {
   font-family: ui-monospace, SFMono-Regular, Consolas, Liberation Mono, monospace;
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.action-pagination {
+  gap: 8px;
 }
 
 @media (max-width: 600px) {
