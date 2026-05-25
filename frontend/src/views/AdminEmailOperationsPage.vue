@@ -42,16 +42,21 @@ const STATUS_META = {
 }
 
 const NUMBER_FORMATTER = new Intl.NumberFormat('ko-KR')
+const ACTION_REQUIRED_PAGE_SIZE = 20
 
 export default {
   name: 'AdminEmailOperationsPage',
   data() {
     return {
       summary: null,
+      actionRequired: null,
       loading: false,
+      actionRequiredLoading: false,
       loaded: false,
       forbidden: false,
       loadError: false,
+      actionRequiredError: false,
+      expandedActionItemId: null,
     }
   },
   computed: {
@@ -87,11 +92,37 @@ export default {
         + this.findCount('RECIPIENT_NOT_FOUND')
         + this.findCount('INVALID_RECIPIENT_ADDRESS')
     },
+    actionRequiredItems() {
+      return (this.actionRequired?.items ?? []).map((item) => {
+        const meta = STATUS_META[item.status] ?? {
+          label: item.status,
+          description: '정의되지 않은 상태',
+          color: 'grey',
+          icon: 'mdi-help-circle-outline',
+        }
+        return {
+          ...item,
+          ...meta,
+          formattedReceivedAt: this.formatDateTime(item.receivedAt),
+          expanded: this.expandedActionItemId === item.inboundEmailId,
+        }
+      })
+    },
+    hasActionRequiredItems() {
+      return this.actionRequiredItems.length > 0
+    },
+    isRefreshing() {
+      return this.loading || this.actionRequiredLoading
+    },
   },
   created() {
-    this.fetchSummary()
+    this.refreshAll()
   },
   methods: {
+    refreshAll() {
+      this.fetchSummary()
+      this.fetchActionRequiredItems()
+    },
     async fetchSummary() {
       if (this.loading) return
       this.loading = true
@@ -116,6 +147,33 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+    async fetchActionRequiredItems() {
+      if (this.actionRequiredLoading) return
+      this.actionRequiredLoading = true
+      this.actionRequiredError = false
+      try {
+        this.actionRequired = await emailOperationsApi.fetchActionRequiredItems({
+          page: 0,
+          size: ACTION_REQUIRED_PAGE_SIZE,
+        })
+      } catch (err) {
+        if (err.response?.status === 401) {
+          this.$router.push({ name: 'login' })
+          return
+        }
+        if (err.response?.status === 403) {
+          this.forbidden = true
+          return
+        }
+        this.actionRequiredError = true
+        this.toastStore.error('조치 필요 메일 목록을 불러오지 못했습니다.')
+      } finally {
+        this.actionRequiredLoading = false
+      }
+    },
+    toggleActionItem(item) {
+      this.expandedActionItemId = item.expanded ? null : item.inboundEmailId
     },
     findCount(status) {
       return this.summary?.statusCounts?.find((item) => item.status === status)?.count ?? 0
@@ -151,8 +209,8 @@ export default {
         color="primary"
         variant="tonal"
         prepend-icon="mdi-refresh"
-        :loading="loading"
-        @click="fetchSummary"
+        :loading="isRefreshing"
+        @click="refreshAll"
       >
         새로고침
       </v-btn>
@@ -268,6 +326,116 @@ export default {
           </tbody>
         </v-table>
       </v-card>
+
+      <v-card class="mt-5" variant="outlined">
+        <div class="section-title-row">
+          <div>
+            <v-card-title class="text-subtitle-1 font-weight-bold pb-1">
+              최근 조치 필요 메일
+            </v-card-title>
+            <v-card-subtitle>
+              뉴스레터 매핑, 수신자 식별, 수신 주소 문제를 최신순으로 확인합니다.
+            </v-card-subtitle>
+          </div>
+          <v-progress-circular
+            v-if="actionRequiredLoading"
+            indeterminate
+            color="primary"
+            size="24"
+          />
+        </div>
+
+        <v-alert
+          v-if="actionRequiredError"
+          type="error"
+          variant="tonal"
+          class="ma-4"
+        >
+          조치 필요 메일 목록을 불러오지 못했습니다.
+          <template #append>
+            <v-btn variant="text" size="small" @click="fetchActionRequiredItems">다시 시도</v-btn>
+          </template>
+        </v-alert>
+
+        <v-table v-else class="action-table">
+          <thead>
+            <tr>
+              <th class="text-left">수신 시각</th>
+              <th class="text-left">상태</th>
+              <th class="text-left">발신자</th>
+              <th class="text-left">수신 주소</th>
+              <th class="text-left">제목</th>
+              <th class="text-right">추적</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!actionRequiredLoading && !hasActionRequiredItems">
+              <td colspan="6" class="text-center text-medium-emphasis py-8">
+                최근 조치 필요 메일이 없습니다.
+              </td>
+            </tr>
+            <template
+              v-for="item in actionRequiredItems"
+              :key="item.inboundEmailId"
+            >
+              <tr>
+                <td class="text-body-2">{{ item.formattedReceivedAt }}</td>
+                <td>
+                  <v-chip
+                    :color="item.color"
+                    variant="tonal"
+                    size="small"
+                    :prepend-icon="item.icon"
+                  >
+                    {{ item.label }}
+                  </v-chip>
+                </td>
+                <td class="text-body-2">{{ item.senderEmail }}</td>
+                <td class="text-body-2">{{ item.recipientAddress }}</td>
+                <td class="text-body-2 subject-cell">{{ item.subject }}</td>
+                <td class="text-right">
+                  <v-btn
+                    variant="text"
+                    size="small"
+                    :icon="item.expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+                    :aria-label="item.expanded ? '추적 정보 닫기' : '추적 정보 열기'"
+                    @click="toggleActionItem(item)"
+                  />
+                </td>
+              </tr>
+              <tr v-if="item.expanded" class="trace-row">
+                <td colspan="6">
+                  <div class="trace-grid">
+                    <div>
+                      <div class="trace-label">memberId</div>
+                      <div class="trace-value">{{ item.memberId ?? '-' }}</div>
+                    </div>
+                    <div>
+                      <div class="trace-label">newsletterId</div>
+                      <div class="trace-value">{{ item.newsletterId ?? '-' }}</div>
+                    </div>
+                    <div>
+                      <div class="trace-label">messageKey</div>
+                      <div class="trace-value">{{ item.messageKey }}</div>
+                    </div>
+                    <div>
+                      <div class="trace-label">rawReference</div>
+                      <div class="trace-value">{{ item.rawReference }}</div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </v-table>
+
+        <v-card-text
+          v-if="actionRequired?.page?.hasNext"
+          class="text-caption text-medium-emphasis"
+        >
+          더 많은 조치 필요 메일이 있습니다.
+        </v-card-text>
+      </v-card>
     </template>
   </v-container>
 </template>
@@ -300,9 +468,59 @@ export default {
   line-height: 1.2;
 }
 
+.section-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-right: 16px;
+}
+
+.action-table {
+  overflow-x: auto;
+}
+
+.subject-cell {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trace-row {
+  background: #fafafa;
+}
+
+.trace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  padding: 16px;
+}
+
+.trace-label {
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.trace-value {
+  font-family: ui-monospace, SFMono-Regular, Consolas, Liberation Mono, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 600px) {
   .page-header {
     flex-direction: column;
+  }
+
+  .section-title-row {
+    flex-direction: column;
+  }
+
+  .trace-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

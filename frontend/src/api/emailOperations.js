@@ -6,3 +6,8 @@ export async function fetchStatusSummary() {
   const { data } = await apiClient.get(`${ENDPOINT}/status-summary`)
   return data
 }
+
+export async function fetchActionRequiredItems(params = {}) {
+  const { data } = await apiClient.get(`${ENDPOINT}/action-required`, { params })
+  return data
+}
