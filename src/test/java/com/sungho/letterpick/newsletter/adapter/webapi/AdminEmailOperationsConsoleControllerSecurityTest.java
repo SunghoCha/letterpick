@@ -16,6 +16,7 @@ import com.sungho.letterpick.member.adapter.security.CustomOidcUserService;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginFailureHandler;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginSuccessHandler;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsConsoleFinder;
+import com.sungho.letterpick.newsletter.application.provided.EmailOperationsQueueStatus;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
 import java.time.Instant;
 import java.util.List;
@@ -36,6 +37,7 @@ class AdminEmailOperationsConsoleControllerSecurityTest {
     private static final String STATUS_SUMMARY_PATH = "/api/v1/admin/email-operations/status-summary";
     private static final String ACTION_REQUIRED_PATH = "/api/v1/admin/email-operations/action-required";
     private static final String STALE_RECEIVED_PATH = "/api/v1/admin/email-operations/stale-received";
+    private static final String QUEUE_STATUS_PATH = "/api/v1/admin/email-operations/queue-status";
 
     @Autowired
     MockMvc mockMvc;
@@ -130,5 +132,33 @@ class AdminEmailOperationsConsoleControllerSecurityTest {
                 .andExpect(status().isOk());
 
         verify(emailOperationsConsoleFinder).findStaleReceivedItems(any(Pageable.class));
+    }
+
+    @Test
+    @WithLoginUser(memberId = 42L)
+    @DisplayName("ROLE_ADMIN 없는 사용자가 큐 상태 API 호출 시 403")
+    void queue_status_returns_403_for_non_admin() throws Exception {
+        mockMvc.perform(get(QUEUE_STATUS_PATH))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        verify(emailOperationsConsoleFinder, never()).findQueueStatus();
+    }
+
+    @Test
+    @WithAdminUser
+    @DisplayName("ROLE_ADMIN 있는 사용자가 큐 상태 API 호출 시 권한 통과")
+    void queue_status_passes_for_admin() throws Exception {
+        given(emailOperationsConsoleFinder.findQueueStatus())
+                .willReturn(EmailOperationsQueueStatus.available(
+                        Instant.parse("2050-05-12T03:00:00Z"),
+                        new EmailOperationsQueueStatus.MainQueueSnapshot(0L, 0L, 0L),
+                        new EmailOperationsQueueStatus.DeadLetterQueueSnapshot(0L)
+                ));
+
+        mockMvc.perform(get(QUEUE_STATUS_PATH))
+                .andExpect(status().isOk());
+
+        verify(emailOperationsConsoleFinder).findQueueStatus();
     }
 }

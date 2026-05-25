@@ -1,25 +1,28 @@
 package com.sungho.letterpick.newsletter.application;
 
+import static java.util.Objects.requireNonNull;
+
 import com.sungho.letterpick.newsletter.adapter.persistence.InboundEmailRepository;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsConsoleFinder;
+import com.sungho.letterpick.newsletter.application.provided.EmailOperationsQueueStatus;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
+import com.sungho.letterpick.newsletter.application.required.QueueStatusReadException;
+import com.sungho.letterpick.newsletter.application.required.QueueStatusReader;
+import com.sungho.letterpick.newsletter.application.required.QueueStatusSnapshot;
 import com.sungho.letterpick.newsletter.domain.InboundEmailStatus;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
-
-import static java.util.Objects.requireNonNull;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
@@ -30,6 +33,7 @@ public class EmailOperationsConsoleQueryService implements EmailOperationsConsol
     private static final Duration STALE_RECEIVED_THRESHOLD = Duration.ofMinutes(10);
 
     private final InboundEmailRepository inboundEmailRepository;
+    private final QueueStatusReader queueStatusReader;
     private final Clock clock;
 
     @Override
@@ -59,6 +63,29 @@ public class EmailOperationsConsoleQueryService implements EmailOperationsConsol
         Instant receivedBefore = Instant.now(clock).minus(STALE_RECEIVED_THRESHOLD);
 
         return inboundEmailRepository.findStaleReceived(receivedBefore, pageable);
+    }
+
+    @Override
+    public EmailOperationsQueueStatus findQueueStatus() {
+        Instant checkedAt = Instant.now(clock);
+        QueueStatusSnapshot snapshot;
+        try {
+            snapshot = requireNonNull(queueStatusReader.readQueueStatus());
+        } catch (QueueStatusReadException e) {
+            return EmailOperationsQueueStatus.unavailable(checkedAt, e.getMessage());
+        }
+
+        return EmailOperationsQueueStatus.available(
+                checkedAt,
+                new EmailOperationsQueueStatus.MainQueueSnapshot(
+                        snapshot.mainQueue().availableMessageCount(),
+                        snapshot.mainQueue().inFlightMessageCount(),
+                        snapshot.mainQueue().delayedMessageCount()
+                ),
+                new EmailOperationsQueueStatus.DeadLetterQueueSnapshot(
+                        snapshot.deadLetterQueue().availableMessageCount()
+                )
+        );
     }
 
     private List<InboundEmailStatusCount> fillMissingStatusCounts(List<InboundEmailStatusCount> statusCounts) {

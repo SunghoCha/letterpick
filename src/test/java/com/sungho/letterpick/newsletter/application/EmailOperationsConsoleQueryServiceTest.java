@@ -9,9 +9,13 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.sungho.letterpick.newsletter.adapter.persistence.InboundEmailRepository;
+import com.sungho.letterpick.newsletter.application.provided.EmailOperationsQueueStatus;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
+import com.sungho.letterpick.newsletter.application.required.QueueStatusReadException;
+import com.sungho.letterpick.newsletter.application.required.QueueStatusReader;
+import com.sungho.letterpick.newsletter.application.required.QueueStatusSnapshot;
 import com.sungho.letterpick.newsletter.domain.InboundEmailStatus;
 import java.time.Clock;
 import java.time.Instant;
@@ -32,6 +36,9 @@ class EmailOperationsConsoleQueryServiceTest {
     @Mock
     private InboundEmailRepository inboundEmailRepository;
 
+    @Mock
+    private QueueStatusReader queueStatusReader;
+
     @Test
     @DisplayName("현재 시각 기준 최근 24시간 인입 메일 상태 요약을 조회한다")
     void findStatusSummary_returns_recent_24_hours_status_summary_with_zero_filled_status_counts() {
@@ -40,7 +47,7 @@ class EmailOperationsConsoleQueryServiceTest {
         Instant receivedFrom = Instant.parse("2050-05-11T03:00:00Z");
         Clock clock = Clock.fixed(now, ZoneOffset.UTC);
         EmailOperationsConsoleQueryService service =
-                new EmailOperationsConsoleQueryService(inboundEmailRepository, clock);
+                new EmailOperationsConsoleQueryService(inboundEmailRepository, queueStatusReader, clock);
 
         given(inboundEmailRepository.countByStatus(receivedFrom, now))
                 .willReturn(List.of(
@@ -74,7 +81,7 @@ class EmailOperationsConsoleQueryServiceTest {
         PageRequest pageable = PageRequest.of(0, 20);
 
         EmailOperationsConsoleQueryService service =
-                new EmailOperationsConsoleQueryService(inboundEmailRepository, clock);
+                new EmailOperationsConsoleQueryService(inboundEmailRepository, queueStatusReader, clock);
         Slice<InboundEmailAdminItem> expected = new SliceImpl<>(
                 List.of(new InboundEmailAdminItem(
                         1L,
@@ -111,7 +118,7 @@ class EmailOperationsConsoleQueryServiceTest {
         Clock clock = Clock.fixed(now, ZoneOffset.UTC);
         PageRequest pageable = PageRequest.of(0, 20);
         EmailOperationsConsoleQueryService service =
-                new EmailOperationsConsoleQueryService(inboundEmailRepository, clock);
+                new EmailOperationsConsoleQueryService(inboundEmailRepository, queueStatusReader, clock);
         Slice<InboundEmailAdminItem> expected = new SliceImpl<>(
                 List.of(new InboundEmailAdminItem(
                         1L,
@@ -137,5 +144,56 @@ class EmailOperationsConsoleQueryServiceTest {
         // then
         verify(inboundEmailRepository).findStaleReceived(receivedBefore, pageable);
         assertThat(result).isSameAs(expected);
+    }
+
+    @Test
+    @DisplayName("SQS 큐 상태 조회 결과를 운영 콘솔 큐 상태로 변환한다")
+    void findQueueStatus_returns_available_queue_status() {
+        // given
+        Instant now = Instant.parse("2050-05-12T03:00:00Z");
+        Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+        EmailOperationsConsoleQueryService service =
+                new EmailOperationsConsoleQueryService(inboundEmailRepository, queueStatusReader, clock);
+        given(queueStatusReader.readQueueStatus())
+                .willReturn(new QueueStatusSnapshot(
+                        new QueueStatusSnapshot.MainQueueSnapshot(3L, 2L, 1L),
+                        new QueueStatusSnapshot.DeadLetterQueueSnapshot(4L)
+                ));
+
+        // when
+        EmailOperationsQueueStatus result = service.findQueueStatus();
+
+        // then
+        verify(queueStatusReader).readQueueStatus();
+        assertThat(result.checkedAt()).isEqualTo(now);
+        assertThat(result.status()).isEqualTo(EmailOperationsQueueStatus.QueueStatusCheckStatus.AVAILABLE);
+        assertThat(result.mainQueue().availableMessageCount()).isEqualTo(3L);
+        assertThat(result.mainQueue().inFlightMessageCount()).isEqualTo(2L);
+        assertThat(result.mainQueue().delayedMessageCount()).isEqualTo(1L);
+        assertThat(result.deadLetterQueue().availableMessageCount()).isEqualTo(4L);
+        assertThat(result.failureReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("SQS 큐 상태 조회 실패 결과를 운영 콘솔 조회 실패 상태로 변환한다")
+    void findQueueStatus_returns_unavailable_queue_status() {
+        // given
+        Instant now = Instant.parse("2050-05-12T03:00:00Z");
+        Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+        EmailOperationsConsoleQueryService service =
+                new EmailOperationsConsoleQueryService(inboundEmailRepository, queueStatusReader, clock);
+        given(queueStatusReader.readQueueStatus())
+                .willThrow(new QueueStatusReadException("SQS queue status unavailable"));
+
+        // when
+        EmailOperationsQueueStatus result = service.findQueueStatus();
+
+        // then
+        verify(queueStatusReader).readQueueStatus();
+        assertThat(result.checkedAt()).isEqualTo(now);
+        assertThat(result.status()).isEqualTo(EmailOperationsQueueStatus.QueueStatusCheckStatus.UNAVAILABLE);
+        assertThat(result.mainQueue()).isNull();
+        assertThat(result.deadLetterQueue()).isNull();
+        assertThat(result.failureReason()).isEqualTo("SQS queue status unavailable");
     }
 }

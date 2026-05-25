@@ -1,6 +1,7 @@
 package com.sungho.letterpick.newsletter.adapter.webapi;
 
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsInboundEmailsResponse;
+import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsQueueStatusResponse;
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsStatusSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,4 +41,14 @@ public interface AdminEmailOperationsConsoleControllerApi {
             @ApiResponse(responseCode = "403", description = "관리자 권한 없음")
     })
     EmailOperationsInboundEmailsResponse getStaleReceivedItems(Pageable pageable);
+
+    @Operation(
+            summary = "메일 수신 큐 상태 조회",
+            description = "관리자가 메일 수신 SQS 메인 큐와 DLQ의 현재 메시지 수 스냅샷을 조회한다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공 또는 큐 상태 확인 불가"),
+            @ApiResponse(responseCode = "403", description = "관리자 권한 없음")
+    })
+    EmailOperationsQueueStatusResponse getQueueStatus();
 }

@@ -42,6 +42,8 @@ locals {
   api_environment = [
     for name, value in merge(local.backend_common_environment, {
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "false"
+      LETTERPICK_MAIL_RECEIVE_QUEUE        = local.persistence.mail_receive_queue_name
+      LETTERPICK_MAIL_RECEIVE_DLQ          = local.persistence.mail_receive_dlq_name
       }) : {
       name  = name
       value = value
@@ -72,6 +74,7 @@ resource "aws_ecs_task_definition" "api" {
   cpu                      = var.api_cpu
   memory                   = var.api_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.api_task.arn
 
   container_definitions = jsonencode([
     {
