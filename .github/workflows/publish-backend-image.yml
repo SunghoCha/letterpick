@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/publish-backend-image.yml'
 
 permissions:
   contents: read
