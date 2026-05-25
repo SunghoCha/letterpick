@@ -19,6 +19,9 @@ export default {
     isLoggedIn() {
       return this.authStore.isLoggedIn
     },
+    isAdmin() {
+      return this.authStore.isAdmin
+    },
     memberNickname() {
       return this.authStore.member?.nickname ?? ''
     },
@@ -68,6 +71,14 @@ export default {
         <v-btn :to="{ name: 'inbox' }" variant="text">보관함</v-btn>
 
         <template v-if="isLoggedIn">
+          <v-btn
+            v-if="isAdmin"
+            :to="{ name: 'admin-email-operations' }"
+            variant="text"
+            prepend-icon="mdi-shield-account-outline"
+          >
+            운영
+          </v-btn>
           <v-btn
             :to="{ name: 'my' }"
             variant="text"

@@ -3,7 +3,7 @@
 // 401 응답은 axios 응답 인터셉터가 clear()를 호출해 자동 정리한다.
 //
 // 백엔드 MemberResponse 모양:
-//   { memberId, email, nickname, status, newsletterInboxAddress }
+//   { memberId, email, nickname, status, role, newsletterInboxAddress }
 import { defineStore } from 'pinia'
 import * as memberApi from '@/api/member'
 import * as authApi from '@/api/auth'
@@ -17,6 +17,7 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isLoggedIn: (state) => state.member !== null,
+    isAdmin: (state) => state.member?.role === 'ADMIN',
   },
   actions: {
     // 부팅·OAuth redirect 복귀 시 호출.

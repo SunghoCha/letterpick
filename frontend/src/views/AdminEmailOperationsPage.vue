@@ -1,5 +1,6 @@
 <script>
 import * as emailOperationsApi from '@/api/emailOperations'
+import InboundEmailOperationsTable from '@/components/InboundEmailOperationsTable.vue'
 import { useToastStore } from '@/stores/toast'
 
 const STATUS_META = {
@@ -42,21 +43,30 @@ const STATUS_META = {
 }
 
 const NUMBER_FORMATTER = new Intl.NumberFormat('ko-KR')
-const ACTION_REQUIRED_PAGE_SIZE = 20
+const EMAIL_OPERATIONS_PAGE_SIZE = 20
 
 export default {
   name: 'AdminEmailOperationsPage',
+  components: {
+    InboundEmailOperationsTable,
+  },
   data() {
     return {
       summary: null,
       actionRequired: null,
+      staleReceived: null,
       loading: false,
       actionRequiredLoading: false,
+      staleReceivedLoading: false,
       loaded: false,
       forbidden: false,
       loadError: false,
       actionRequiredError: false,
+      staleReceivedError: false,
+      actionRequiredPage: 0,
+      staleReceivedPage: 0,
       expandedActionItemId: null,
+      expandedStaleReceivedItemId: null,
     }
   },
   computed: {
@@ -93,26 +103,25 @@ export default {
         + this.findCount('INVALID_RECIPIENT_ADDRESS')
     },
     actionRequiredItems() {
-      return (this.actionRequired?.items ?? []).map((item) => {
-        const meta = STATUS_META[item.status] ?? {
-          label: item.status,
-          description: '정의되지 않은 상태',
-          color: 'grey',
-          icon: 'mdi-help-circle-outline',
-        }
-        return {
-          ...item,
-          ...meta,
-          formattedReceivedAt: this.formatDateTime(item.receivedAt),
-          expanded: this.expandedActionItemId === item.inboundEmailId,
-        }
-      })
+      return this.toInboundEmailViewItems(this.actionRequired?.items ?? [], this.expandedActionItemId)
     },
-    hasActionRequiredItems() {
-      return this.actionRequiredItems.length > 0
+    staleReceivedItems() {
+      return this.toInboundEmailViewItems(this.staleReceived?.items ?? [], this.expandedStaleReceivedItemId)
+    },
+    canMoveActionRequiredPrevious() {
+      return (this.actionRequired?.page?.number ?? 0) > 0
+    },
+    canMoveActionRequiredNext() {
+      return this.actionRequired?.page?.hasNext ?? false
+    },
+    canMoveStaleReceivedPrevious() {
+      return (this.staleReceived?.page?.number ?? 0) > 0
+    },
+    canMoveStaleReceivedNext() {
+      return this.staleReceived?.page?.hasNext ?? false
     },
     isRefreshing() {
-      return this.loading || this.actionRequiredLoading
+      return this.loading || this.actionRequiredLoading || this.staleReceivedLoading
     },
   },
   created() {
@@ -121,7 +130,12 @@ export default {
   methods: {
     refreshAll() {
       this.fetchSummary()
+      this.actionRequiredPage = 0
+      this.staleReceivedPage = 0
+      this.expandedActionItemId = null
+      this.expandedStaleReceivedItemId = null
       this.fetchActionRequiredItems()
+      this.fetchStaleReceivedItems()
     },
     async fetchSummary() {
       if (this.loading) return
@@ -154,8 +168,8 @@ export default {
       this.actionRequiredError = false
       try {
         this.actionRequired = await emailOperationsApi.fetchActionRequiredItems({
-          page: 0,
-          size: ACTION_REQUIRED_PAGE_SIZE,
+          page: this.actionRequiredPage,
+          size: EMAIL_OPERATIONS_PAGE_SIZE,
         })
       } catch (err) {
         if (err.response?.status === 401) {
@@ -172,11 +186,77 @@ export default {
         this.actionRequiredLoading = false
       }
     },
+    async fetchStaleReceivedItems() {
+      if (this.staleReceivedLoading) return
+      this.staleReceivedLoading = true
+      this.staleReceivedError = false
+      try {
+        this.staleReceived = await emailOperationsApi.fetchStaleReceivedItems({
+          page: this.staleReceivedPage,
+          size: EMAIL_OPERATIONS_PAGE_SIZE,
+        })
+      } catch (err) {
+        if (err.response?.status === 401) {
+          this.$router.push({ name: 'login' })
+          return
+        }
+        if (err.response?.status === 403) {
+          this.forbidden = true
+          return
+        }
+        this.staleReceivedError = true
+        this.toastStore.error('처리 지연 메일 목록을 불러오지 못했습니다.')
+      } finally {
+        this.staleReceivedLoading = false
+      }
+    },
+    moveActionRequiredPage(delta) {
+      const nextPage = this.actionRequiredPage + delta
+      if (nextPage < 0) return
+      this.actionRequiredPage = nextPage
+      this.expandedActionItemId = null
+      this.fetchActionRequiredItems()
+    },
+    moveStaleReceivedPage(delta) {
+      const nextPage = this.staleReceivedPage + delta
+      if (nextPage < 0) return
+      this.staleReceivedPage = nextPage
+      this.expandedStaleReceivedItemId = null
+      this.fetchStaleReceivedItems()
+    },
     toggleActionItem(item) {
       this.expandedActionItemId = item.expanded ? null : item.inboundEmailId
     },
+    toggleStaleReceivedItem(item) {
+      this.expandedStaleReceivedItemId = item.expanded ? null : item.inboundEmailId
+    },
+    async copyTraceValue(label, value) {
+      if (value == null) return
+      try {
+        await navigator.clipboard.writeText(String(value))
+        this.toastStore.success(`${label} 복사했습니다.`)
+      } catch {
+        this.toastStore.error(`${label} 복사하지 못했습니다.`)
+      }
+    },
     findCount(status) {
       return this.summary?.statusCounts?.find((item) => item.status === status)?.count ?? 0
+    },
+    toInboundEmailViewItems(items, expandedItemId) {
+      return items.map((item) => {
+        const meta = STATUS_META[item.status] ?? {
+          label: item.status,
+          description: '정의되지 않은 상태',
+          color: 'grey',
+          icon: 'mdi-help-circle-outline',
+        }
+        return {
+          ...item,
+          ...meta,
+          formattedReceivedAt: this.formatDateTime(item.receivedAt),
+          expanded: expandedItemId === item.inboundEmailId,
+        }
+      })
     },
     formatNumber(value) {
       return NUMBER_FORMATTER.format(value ?? 0)
@@ -327,115 +407,41 @@ export default {
         </v-table>
       </v-card>
 
-      <v-card class="mt-5" variant="outlined">
-        <div class="section-title-row">
-          <div>
-            <v-card-title class="text-subtitle-1 font-weight-bold pb-1">
-              최근 조치 필요 메일
-            </v-card-title>
-            <v-card-subtitle>
-              뉴스레터 매핑, 수신자 식별, 수신 주소 문제를 최신순으로 확인합니다.
-            </v-card-subtitle>
-          </div>
-          <v-progress-circular
-            v-if="actionRequiredLoading"
-            indeterminate
-            color="primary"
-            size="24"
-          />
-        </div>
+      <InboundEmailOperationsTable
+        class="mt-5"
+        title="처리 지연 메일"
+        subtitle="10분 이상 RECEIVED 상태로 남은 인입 메일을 오래된 순으로 확인합니다."
+        :items="staleReceivedItems"
+        :loading="staleReceivedLoading"
+        :error="staleReceivedError"
+        error-message="처리 지연 메일 목록을 불러오지 못했습니다."
+        empty-message="처리 지연 메일이 없습니다."
+        :page="staleReceived?.page"
+        :can-move-previous="canMoveStaleReceivedPrevious"
+        :can-move-next="canMoveStaleReceivedNext"
+        @retry="fetchStaleReceivedItems"
+        @move-page="moveStaleReceivedPage"
+        @toggle-item="toggleStaleReceivedItem"
+        @copy-trace="copyTraceValue"
+      />
 
-        <v-alert
-          v-if="actionRequiredError"
-          type="error"
-          variant="tonal"
-          class="ma-4"
-        >
-          조치 필요 메일 목록을 불러오지 못했습니다.
-          <template #append>
-            <v-btn variant="text" size="small" @click="fetchActionRequiredItems">다시 시도</v-btn>
-          </template>
-        </v-alert>
-
-        <v-table v-else class="action-table">
-          <thead>
-            <tr>
-              <th class="text-left">수신 시각</th>
-              <th class="text-left">상태</th>
-              <th class="text-left">발신자</th>
-              <th class="text-left">수신 주소</th>
-              <th class="text-left">제목</th>
-              <th class="text-right">추적</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!actionRequiredLoading && !hasActionRequiredItems">
-              <td colspan="6" class="text-center text-medium-emphasis py-8">
-                최근 조치 필요 메일이 없습니다.
-              </td>
-            </tr>
-            <template
-              v-for="item in actionRequiredItems"
-              :key="item.inboundEmailId"
-            >
-              <tr>
-                <td class="text-body-2">{{ item.formattedReceivedAt }}</td>
-                <td>
-                  <v-chip
-                    :color="item.color"
-                    variant="tonal"
-                    size="small"
-                    :prepend-icon="item.icon"
-                  >
-                    {{ item.label }}
-                  </v-chip>
-                </td>
-                <td class="text-body-2">{{ item.senderEmail }}</td>
-                <td class="text-body-2">{{ item.recipientAddress }}</td>
-                <td class="text-body-2 subject-cell">{{ item.subject }}</td>
-                <td class="text-right">
-                  <v-btn
-                    variant="text"
-                    size="small"
-                    :icon="item.expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-                    :aria-label="item.expanded ? '추적 정보 닫기' : '추적 정보 열기'"
-                    @click="toggleActionItem(item)"
-                  />
-                </td>
-              </tr>
-              <tr v-if="item.expanded" class="trace-row">
-                <td colspan="6">
-                  <div class="trace-grid">
-                    <div>
-                      <div class="trace-label">memberId</div>
-                      <div class="trace-value">{{ item.memberId ?? '-' }}</div>
-                    </div>
-                    <div>
-                      <div class="trace-label">newsletterId</div>
-                      <div class="trace-value">{{ item.newsletterId ?? '-' }}</div>
-                    </div>
-                    <div>
-                      <div class="trace-label">messageKey</div>
-                      <div class="trace-value">{{ item.messageKey }}</div>
-                    </div>
-                    <div>
-                      <div class="trace-label">rawReference</div>
-                      <div class="trace-value">{{ item.rawReference }}</div>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </v-table>
-
-        <v-card-text
-          v-if="actionRequired?.page?.hasNext"
-          class="text-caption text-medium-emphasis"
-        >
-          더 많은 조치 필요 메일이 있습니다.
-        </v-card-text>
-      </v-card>
+      <InboundEmailOperationsTable
+        class="mt-5"
+        title="최근 조치 필요 메일"
+        subtitle="뉴스레터 매핑, 수신자 식별, 수신 주소 문제를 최신순으로 확인합니다."
+        :items="actionRequiredItems"
+        :loading="actionRequiredLoading"
+        :error="actionRequiredError"
+        error-message="조치 필요 메일 목록을 불러오지 못했습니다."
+        empty-message="최근 조치 필요 메일이 없습니다."
+        :page="actionRequired?.page"
+        :can-move-previous="canMoveActionRequiredPrevious"
+        :can-move-next="canMoveActionRequiredNext"
+        @retry="fetchActionRequiredItems"
+        @move-page="moveActionRequiredPage"
+        @toggle-item="toggleActionItem"
+        @copy-trace="copyTraceValue"
+      />
     </template>
   </v-container>
 </template>
@@ -468,59 +474,9 @@ export default {
   line-height: 1.2;
 }
 
-.section-title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding-right: 16px;
-}
-
-.action-table {
-  overflow-x: auto;
-}
-
-.subject-cell {
-  max-width: 260px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.trace-row {
-  background: #fafafa;
-}
-
-.trace-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 20px;
-  padding: 16px;
-}
-
-.trace-label {
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 12px;
-  margin-bottom: 4px;
-}
-
-.trace-value {
-  font-family: ui-monospace, SFMono-Regular, Consolas, Liberation Mono, monospace;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
 @media (max-width: 600px) {
   .page-header {
     flex-direction: column;
-  }
-
-  .section-title-row {
-    flex-direction: column;
-  }
-
-  .trace-grid {
-    grid-template-columns: 1fr;
   }
 }
 </style>

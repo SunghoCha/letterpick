@@ -32,6 +32,11 @@ export default {
     member() {
       return this.authStore.member
     },
+    roleLabel() {
+      if (this.member?.role === 'ADMIN') return '관리자'
+      if (this.member?.role === 'USER') return '회원'
+      return '-'
+    },
     isNicknameValid() {
       const v = this.nicknameInput.trim()
       return (
@@ -110,6 +115,14 @@ export default {
           </v-list-item-title>
           <v-list-item-subtitle class="text-body-1 text-high-emphasis">
             {{ member.email }}
+          </v-list-item-subtitle>
+        </v-list-item>
+        <v-list-item>
+          <v-list-item-title class="text-medium-emphasis text-body-2">
+            권한
+          </v-list-item-title>
+          <v-list-item-subtitle class="text-body-1 text-high-emphasis">
+            {{ roleLabel }}
           </v-list-item-subtitle>
         </v-list-item>
         <v-list-item>

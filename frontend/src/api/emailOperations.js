@@ -11,3 +11,8 @@ export async function fetchActionRequiredItems(params = {}) {
   const { data } = await apiClient.get(`${ENDPOINT}/action-required`, { params })
   return data
 }
+
+export async function fetchStaleReceivedItems(params = {}) {
+  const { data } = await apiClient.get(`${ENDPOINT}/stale-received`, { params })
+  return data
+}
