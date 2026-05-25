@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsConsoleFinder;
+import com.sungho.letterpick.newsletter.application.provided.EmailOperationsQueueStatus;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
@@ -158,5 +159,52 @@ class AdminEmailOperationsConsoleControllerTest {
         verify(emailOperationsConsoleFinder).findStaleReceivedItems(pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getPageNumber()).isEqualTo(0);
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("관리자가 큐 상태 조회 시 200과 큐 카운트 응답이 반환된다")
+    void getQueueStatus_returns_200_and_available_queue_status_response() throws Exception {
+        // given
+        given(emailOperationsConsoleFinder.findQueueStatus())
+                .willReturn(EmailOperationsQueueStatus.available(
+                        Instant.parse("2050-05-12T03:00:00Z"),
+                        new EmailOperationsQueueStatus.MainQueueSnapshot(3L, 2L, 1L),
+                        new EmailOperationsQueueStatus.DeadLetterQueueSnapshot(4L)
+                ));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/admin/email-operations/queue-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.checkedAt").value("2050-05-12T03:00:00Z"))
+                .andExpect(jsonPath("$.status").value("AVAILABLE"))
+                .andExpect(jsonPath("$.mainQueue.availableMessageCount").value(3L))
+                .andExpect(jsonPath("$.mainQueue.inFlightMessageCount").value(2L))
+                .andExpect(jsonPath("$.mainQueue.delayedMessageCount").value(1L))
+                .andExpect(jsonPath("$.deadLetterQueue.availableMessageCount").value(4L))
+                .andExpect(jsonPath("$.failureReason").doesNotExist());
+
+        verify(emailOperationsConsoleFinder).findQueueStatus();
+    }
+
+    @Test
+    @DisplayName("관리자가 큐 상태 조회 시 SQS 조회 실패 상태도 200과 조회 불가 응답으로 반환된다")
+    void getQueueStatus_returns_200_and_unavailable_queue_status_response() throws Exception {
+        // given
+        given(emailOperationsConsoleFinder.findQueueStatus())
+                .willReturn(EmailOperationsQueueStatus.unavailable(
+                        Instant.parse("2050-05-12T03:00:00Z"),
+                        "SQS queue status unavailable"
+                ));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/admin/email-operations/queue-status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.checkedAt").value("2050-05-12T03:00:00Z"))
+                .andExpect(jsonPath("$.status").value("UNAVAILABLE"))
+                .andExpect(jsonPath("$.mainQueue").doesNotExist())
+                .andExpect(jsonPath("$.deadLetterQueue").doesNotExist())
+                .andExpect(jsonPath("$.failureReason").value("SQS queue status unavailable"));
+
+        verify(emailOperationsConsoleFinder).findQueueStatus();
     }
 }

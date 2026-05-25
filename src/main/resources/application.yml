@@ -65,5 +65,6 @@ letterpick:
     region: ${LETTERPICK_AWS_REGION:ap-northeast-2}
   mail:
     receive-queue: ${LETTERPICK_MAIL_RECEIVE_QUEUE:letterpick-mail-receive}
+    receive-dlq: ${LETTERPICK_MAIL_RECEIVE_DLQ:${LETTERPICK_MAIL_RECEIVE_QUEUE:letterpick-mail-receive}-dlq}
     sqs-listener:
       enabled: ${LETTERPICK_MAIL_SQS_LISTENER_ENABLED:${LETTERPICK_SQS_ENABLED:false}}

@@ -10,4 +10,6 @@ public interface EmailOperationsConsoleFinder {
     Slice<InboundEmailAdminItem> findActionRequiredItems(Pageable pageable);
 
     Slice<InboundEmailAdminItem> findStaleReceivedItems(Pageable pageable);
+
+    EmailOperationsQueueStatus findQueueStatus();
 }
