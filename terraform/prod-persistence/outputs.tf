@@ -90,6 +90,10 @@ output "mail_receive_dlq_arn" {
   value = aws_sqs_queue.mail_receive_dlq.arn
 }
 
+output "mail_receive_dlq_name" {
+  value = aws_sqs_queue.mail_receive_dlq.name
+}
+
 output "ses_receive_domain_name" {
   value = var.ses_receive_domain_name
 }

@@ -57,6 +57,35 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
   policy = data.aws_iam_policy_document.ecs_execution_secrets.json
 }
 
+resource "aws_iam_role" "api_task" {
+  name               = "${local.name_prefix}-api-task-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-api-task-role"
+  })
+}
+
+data "aws_iam_policy_document" "api_mail_queue_status_access" {
+  statement {
+    actions = [
+      "sqs:GetQueueUrl",
+      "sqs:GetQueueAttributes",
+    ]
+
+    resources = [
+      local.persistence.mail_receive_queue_arn,
+      local.persistence.mail_receive_dlq_arn,
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "api_mail_queue_status_access" {
+  name   = "${local.name_prefix}-api-mail-queue-status-access"
+  role   = aws_iam_role.api_task.id
+  policy = data.aws_iam_policy_document.api_mail_queue_status_access.json
+}
+
 resource "aws_iam_role" "worker_task" {
   name               = "${local.name_prefix}-worker-task-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
