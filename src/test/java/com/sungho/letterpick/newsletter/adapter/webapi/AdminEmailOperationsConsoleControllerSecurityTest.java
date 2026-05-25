@@ -17,6 +17,7 @@ import com.sungho.letterpick.member.adapter.security.OAuth2LoginFailureHandler;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginSuccessHandler;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsConsoleFinder;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsQueueStatus;
+import com.sungho.letterpick.newsletter.application.provided.EmailOperationsSearchCondition;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
 import java.time.Instant;
 import java.util.List;
@@ -65,14 +66,14 @@ class AdminEmailOperationsConsoleControllerSecurityTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
-        verify(emailOperationsConsoleFinder, never()).findStatusSummary();
+        verify(emailOperationsConsoleFinder, never()).findStatusSummary(any(EmailOperationsSearchCondition.class));
     }
 
     @Test
     @WithAdminUser
     @DisplayName("ROLE_ADMIN 있는 사용자가 이메일 운영 콘솔 API 호출 시 권한 통과")
     void status_summary_passes_for_admin() throws Exception {
-        given(emailOperationsConsoleFinder.findStatusSummary())
+        given(emailOperationsConsoleFinder.findStatusSummary(any(EmailOperationsSearchCondition.class)))
                 .willReturn(new InboundEmailStatusSummary(
                         Instant.parse("2050-05-11T03:00:00Z"),
                         Instant.parse("2050-05-12T03:00:00Z"),
@@ -83,7 +84,7 @@ class AdminEmailOperationsConsoleControllerSecurityTest {
         mockMvc.perform(get(STATUS_SUMMARY_PATH))
                 .andExpect(status().isOk());
 
-        verify(emailOperationsConsoleFinder).findStatusSummary();
+        verify(emailOperationsConsoleFinder).findStatusSummary(any(EmailOperationsSearchCondition.class));
     }
 
     @Test
@@ -94,20 +95,29 @@ class AdminEmailOperationsConsoleControllerSecurityTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
-        verify(emailOperationsConsoleFinder, never()).findActionRequiredItems(any(Pageable.class));
+        verify(emailOperationsConsoleFinder, never()).findActionRequiredItems(
+                any(EmailOperationsSearchCondition.class),
+                any(Pageable.class)
+        );
     }
 
     @Test
     @WithAdminUser
     @DisplayName("ROLE_ADMIN 있는 사용자가 조치 필요 목록 API 호출 시 권한 통과")
     void action_required_passes_for_admin() throws Exception {
-        given(emailOperationsConsoleFinder.findActionRequiredItems(any(Pageable.class)))
+        given(emailOperationsConsoleFinder.findActionRequiredItems(
+                any(EmailOperationsSearchCondition.class),
+                any(Pageable.class)
+        ))
                 .willReturn(new SliceImpl<>(List.of()));
 
         mockMvc.perform(get(ACTION_REQUIRED_PATH))
                 .andExpect(status().isOk());
 
-        verify(emailOperationsConsoleFinder).findActionRequiredItems(any(Pageable.class));
+        verify(emailOperationsConsoleFinder).findActionRequiredItems(
+                any(EmailOperationsSearchCondition.class),
+                any(Pageable.class)
+        );
     }
 
     @Test

@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNull;
 import com.sungho.letterpick.newsletter.adapter.persistence.InboundEmailRepository;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsConsoleFinder;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsQueueStatus;
+import com.sungho.letterpick.newsletter.application.provided.EmailOperationsSearchCondition;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
@@ -37,25 +38,36 @@ public class EmailOperationsConsoleQueryService implements EmailOperationsConsol
     private final Clock clock;
 
     @Override
-    public InboundEmailStatusSummary findStatusSummary() {
-        Instant receivedTo = Instant.now(clock);
-        Instant receivedFrom = receivedTo.minus(RECENT_WINDOW);
+    public InboundEmailStatusSummary findStatusSummary(EmailOperationsSearchCondition searchCondition) {
+        EmailOperationsSearchCondition resolvedCondition = resolveSearchCondition(searchCondition);
         List<InboundEmailStatusCount> statusCounts = fillMissingStatusCounts(
-                inboundEmailRepository.countByStatus(receivedFrom, receivedTo)
+                inboundEmailRepository.countByStatus(
+                        resolvedCondition.receivedFrom(),
+                        resolvedCondition.receivedTo()
+                )
         );
         long totalCount = statusCounts.stream()
                 .mapToLong(InboundEmailStatusCount::count)
                 .sum();
 
-        return new InboundEmailStatusSummary(receivedFrom, receivedTo, totalCount, statusCounts);
+        return new InboundEmailStatusSummary(
+                resolvedCondition.receivedFrom(),
+                resolvedCondition.receivedTo(),
+                totalCount,
+                statusCounts
+        );
     }
 
     @Override
-    public Slice<InboundEmailAdminItem> findActionRequiredItems(Pageable pageable) {
-        Instant receivedTo = Instant.now(clock);
-        Instant receivedFrom = receivedTo.minus(RECENT_WINDOW);
+    public Slice<InboundEmailAdminItem> findActionRequiredItems(EmailOperationsSearchCondition searchCondition,
+                                                               Pageable pageable) {
+        EmailOperationsSearchCondition resolvedCondition = resolveSearchCondition(searchCondition);
 
-        return inboundEmailRepository.findActionRequired(receivedFrom, receivedTo, pageable);
+        return inboundEmailRepository.findActionRequired(
+                resolvedCondition.receivedFrom(),
+                resolvedCondition.receivedTo(),
+                pageable
+        );
     }
 
     @Override
@@ -97,5 +109,21 @@ public class EmailOperationsConsoleQueryService implements EmailOperationsConsol
         return Arrays.stream(InboundEmailStatus.values())
                 .map(status -> new InboundEmailStatusCount(status, countByStatus.get(status)))
                 .toList();
+    }
+
+    private EmailOperationsSearchCondition resolveSearchCondition(EmailOperationsSearchCondition searchCondition) {
+        requireNonNull(searchCondition);
+        if (searchCondition.hasReceivedRange()) {
+            return searchCondition;
+        }
+
+        return defaultRecentSearchCondition();
+    }
+
+    private EmailOperationsSearchCondition defaultRecentSearchCondition() {
+        Instant receivedTo = Instant.now(clock);
+        Instant receivedFrom = receivedTo.minus(RECENT_WINDOW);
+
+        return EmailOperationsSearchCondition.receivedAtRange(receivedFrom, receivedTo);
     }
 }
