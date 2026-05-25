@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import com.sungho.letterpick.newsletter.adapter.persistence.InboundEmailRepository;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsQueueStatus;
+import com.sungho.letterpick.newsletter.application.provided.EmailOperationsSearchCondition;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
@@ -56,7 +57,7 @@ class EmailOperationsConsoleQueryServiceTest {
                 ));
 
         // when
-        InboundEmailStatusSummary result = service.findStatusSummary();
+        InboundEmailStatusSummary result = service.findStatusSummary(EmailOperationsSearchCondition.empty());
 
         // then
         verify(inboundEmailRepository).countByStatus(receivedFrom, now);
@@ -69,6 +70,31 @@ class EmailOperationsConsoleQueryServiceTest {
                 new InboundEmailStatusCount(RECIPIENT_NOT_FOUND, 1L),
                 new InboundEmailStatusCount(RECEIVED, 0L)
         );
+    }
+
+    @Test
+    @DisplayName("지정한 수신 시각 범위로 인입 메일 상태 요약을 조회한다")
+    void findStatusSummary_returns_status_summary_with_requested_received_at_range() {
+        // given
+        Instant receivedFrom = Instant.parse("2050-05-10T03:00:00Z");
+        Instant receivedTo = Instant.parse("2050-05-12T03:00:00Z");
+        EmailOperationsSearchCondition searchCondition =
+                EmailOperationsSearchCondition.receivedAtRange(receivedFrom, receivedTo);
+        Clock clock = Clock.fixed(Instant.parse("2050-05-13T03:00:00Z"), ZoneOffset.UTC);
+        EmailOperationsConsoleQueryService service =
+                new EmailOperationsConsoleQueryService(inboundEmailRepository, queueStatusReader, clock);
+
+        given(inboundEmailRepository.countByStatus(receivedFrom, receivedTo))
+                .willReturn(List.of(new InboundEmailStatusCount(ISSUE_CREATED, 5L)));
+
+        // when
+        InboundEmailStatusSummary result = service.findStatusSummary(searchCondition);
+
+        // then
+        verify(inboundEmailRepository).countByStatus(receivedFrom, receivedTo);
+        assertThat(result.receivedFrom()).isEqualTo(receivedFrom);
+        assertThat(result.receivedTo()).isEqualTo(receivedTo);
+        assertThat(result.totalCount()).isEqualTo(5L);
     }
 
     @Test
@@ -102,10 +128,51 @@ class EmailOperationsConsoleQueryServiceTest {
                 .willReturn(expected);
 
         // when
-        Slice<InboundEmailAdminItem> result = service.findActionRequiredItems(pageable);
+        Slice<InboundEmailAdminItem> result =
+                service.findActionRequiredItems(EmailOperationsSearchCondition.empty(), pageable);
 
         // then
         verify(inboundEmailRepository).findActionRequired(receivedFrom, now, pageable);
+        assertThat(result).isSameAs(expected);
+    }
+
+    @Test
+    @DisplayName("지정한 수신 시각 범위로 조치 필요 인입 메일 목록을 조회한다")
+    void findActionRequired_returns_action_required_items_with_requested_received_at_range() {
+        // given
+        Instant receivedFrom = Instant.parse("2050-05-10T03:00:00Z");
+        Instant receivedTo = Instant.parse("2050-05-12T03:00:00Z");
+        EmailOperationsSearchCondition searchCondition =
+                EmailOperationsSearchCondition.receivedAtRange(receivedFrom, receivedTo);
+        Clock clock = Clock.fixed(Instant.parse("2050-05-13T03:00:00Z"), ZoneOffset.UTC);
+        PageRequest pageable = PageRequest.of(0, 20);
+
+        EmailOperationsConsoleQueryService service =
+                new EmailOperationsConsoleQueryService(inboundEmailRepository, queueStatusReader, clock);
+        Slice<InboundEmailAdminItem> expected = new SliceImpl<>(
+                List.of(new InboundEmailAdminItem(
+                        1L,
+                        Instant.parse("2050-05-11T01:00:00Z"),
+                        NEWSLETTER_NOT_FOUND,
+                        "sender@example.com",
+                        "recipient@inbound.letterpick.test",
+                        "subject",
+                        42L,
+                        null,
+                        "message-key",
+                        "raw/message-key"
+                )),
+                pageable,
+                false
+        );
+        given(inboundEmailRepository.findActionRequired(receivedFrom, receivedTo, pageable))
+                .willReturn(expected);
+
+        // when
+        Slice<InboundEmailAdminItem> result = service.findActionRequiredItems(searchCondition, pageable);
+
+        // then
+        verify(inboundEmailRepository).findActionRequired(receivedFrom, receivedTo, pageable);
         assertThat(result).isSameAs(expected);
     }
 

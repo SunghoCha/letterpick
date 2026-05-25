@@ -5,9 +5,10 @@ import org.springframework.data.domain.Slice;
 
 public interface EmailOperationsConsoleFinder {
 
-    InboundEmailStatusSummary findStatusSummary();
+    InboundEmailStatusSummary findStatusSummary(EmailOperationsSearchCondition searchCondition);
 
-    Slice<InboundEmailAdminItem> findActionRequiredItems(Pageable pageable);
+    Slice<InboundEmailAdminItem> findActionRequiredItems(EmailOperationsSearchCondition searchCondition,
+                                                         Pageable pageable);
 
     Slice<InboundEmailAdminItem> findStaleReceivedItems(Pageable pageable);
 
