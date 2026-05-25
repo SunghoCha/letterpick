@@ -44,6 +44,12 @@ const STATUS_META = {
 
 const NUMBER_FORMATTER = new Intl.NumberFormat('ko-KR')
 const EMAIL_OPERATIONS_PAGE_SIZE = 20
+const RANGE_PRESETS = [
+  { value: '1h', label: '1시간', hours: 1 },
+  { value: '6h', label: '6시간', hours: 6 },
+  { value: '24h', label: '24시간', hours: 24 },
+  { value: '7d', label: '7일', hours: 24 * 7 },
+]
 
 export default {
   name: 'AdminEmailOperationsPage',
@@ -67,6 +73,8 @@ export default {
       staleReceivedPage: 0,
       expandedActionItemId: null,
       expandedStaleReceivedItemId: null,
+      selectedRangePreset: '24h',
+      receivedRangeParams: null,
     }
   },
   computed: {
@@ -123,12 +131,19 @@ export default {
     isRefreshing() {
       return this.loading || this.actionRequiredLoading || this.staleReceivedLoading
     },
+    rangePresets() {
+      return RANGE_PRESETS
+    },
+    selectedRangePresetItem() {
+      return this.rangePresets.find((preset) => preset.value === this.selectedRangePreset) ?? this.rangePresets[2]
+    },
   },
   created() {
     this.refreshAll()
   },
   methods: {
     refreshAll() {
+      this.receivedRangeParams = this.createReceivedRangeParams()
       this.fetchSummary()
       this.actionRequiredPage = 0
       this.staleReceivedPage = 0
@@ -137,13 +152,18 @@ export default {
       this.fetchActionRequiredItems()
       this.fetchStaleReceivedItems()
     },
+    changeRangePreset(value) {
+      if (!value || value === this.selectedRangePreset) return
+      this.selectedRangePreset = value
+      this.refreshAll()
+    },
     async fetchSummary() {
       if (this.loading) return
       this.loading = true
       this.forbidden = false
       this.loadError = false
       try {
-        this.summary = await emailOperationsApi.fetchStatusSummary()
+        this.summary = await emailOperationsApi.fetchStatusSummary(this.receivedRangeParams ?? {})
         this.loaded = true
       } catch (err) {
         if (err.response?.status === 401) {
@@ -168,6 +188,7 @@ export default {
       this.actionRequiredError = false
       try {
         this.actionRequired = await emailOperationsApi.fetchActionRequiredItems({
+          ...(this.receivedRangeParams ?? {}),
           page: this.actionRequiredPage,
           size: EMAIL_OPERATIONS_PAGE_SIZE,
         })
@@ -208,6 +229,17 @@ export default {
         this.toastStore.error('처리 지연 메일 목록을 불러오지 못했습니다.')
       } finally {
         this.staleReceivedLoading = false
+      }
+    },
+    createReceivedRangeParams() {
+      const receivedTo = new Date()
+      const receivedFrom = new Date(
+        receivedTo.getTime() - this.selectedRangePresetItem.hours * 60 * 60 * 1000,
+      )
+
+      return {
+        receivedFrom: receivedFrom.toISOString(),
+        receivedTo: receivedTo.toISOString(),
       }
     },
     moveActionRequiredPage(delta) {
@@ -282,7 +314,7 @@ export default {
         <div class="text-caption text-medium-emphasis mb-1">Admin</div>
         <h1 class="text-h5 font-weight-bold mb-2">이메일 운영 콘솔</h1>
         <p class="text-body-2 text-medium-emphasis">
-          최근 24시간 인입 메일이 어떤 상태로 처리됐는지 확인합니다.
+          선택한 조회 범위의 인입 메일이 어떤 상태로 처리됐는지 확인합니다.
         </p>
       </div>
       <v-btn
@@ -328,9 +360,30 @@ export default {
 
     <template v-if="summary && !forbidden">
       <v-sheet class="summary-band pa-4 mb-5" border rounded="lg">
-        <div class="text-caption text-medium-emphasis mb-1">조회 범위</div>
-        <div class="text-body-2">
-          {{ formatDateTime(summary.receivedFrom) }} ~ {{ formatDateTime(summary.receivedTo) }}
+        <div class="range-toolbar">
+          <div>
+            <div class="text-caption text-medium-emphasis mb-1">조회 범위</div>
+            <div class="text-body-2">
+              {{ formatDateTime(summary.receivedFrom) }} ~ {{ formatDateTime(summary.receivedTo) }}
+            </div>
+          </div>
+          <v-btn-toggle
+            :model-value="selectedRangePreset"
+            mandatory
+            divided
+            density="compact"
+            variant="outlined"
+            @update:model-value="changeRangePreset"
+          >
+            <v-btn
+              v-for="preset in rangePresets"
+              :key="preset.value"
+              :value="preset.value"
+              :disabled="isRefreshing"
+            >
+              {{ preset.label }}
+            </v-btn>
+          </v-btn-toggle>
         </div>
       </v-sheet>
 
@@ -458,6 +511,13 @@ export default {
   background: #fff;
 }
 
+.range-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .metric-card {
   height: 100%;
 }
@@ -476,6 +536,11 @@ export default {
 
 @media (max-width: 600px) {
   .page-header {
+    flex-direction: column;
+  }
+
+  .range-toolbar {
+    align-items: stretch;
     flex-direction: column;
   }
 }
