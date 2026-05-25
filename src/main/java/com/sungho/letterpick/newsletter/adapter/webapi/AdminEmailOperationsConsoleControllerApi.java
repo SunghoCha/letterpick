@@ -1,10 +1,12 @@
 package com.sungho.letterpick.newsletter.adapter.webapi;
 
+import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsActionRequiredResponse;
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsStatusSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Pageable;
 
 @Tag(name = "Admin - Email Operations", description = "관리자 이메일 운영 콘솔 API")
 public interface AdminEmailOperationsConsoleControllerApi {
@@ -18,4 +20,14 @@ public interface AdminEmailOperationsConsoleControllerApi {
             @ApiResponse(responseCode = "403", description = "관리자 권한 없음")
     })
     EmailOperationsStatusSummaryResponse getStatusSummary();
+
+    @Operation(
+            summary = "조치 필요 인입 메일 목록 조회",
+            description = "관리자가 최근 24시간 인입 메일 중 운영 조치가 필요한 메일을 최신순으로 조회한다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "403", description = "관리자 권한 없음")
+    })
+    EmailOperationsActionRequiredResponse getActionRequiredItems(Pageable pageable);
 }

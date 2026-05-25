@@ -1,6 +1,7 @@
 package com.sungho.letterpick.newsletter.adapter.webapi;
 
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,6 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class AdminEmailOperationsConsoleControllerSecurityTest {
 
     private static final String STATUS_SUMMARY_PATH = "/api/v1/admin/email-operations/status-summary";
+    private static final String ACTION_REQUIRED_PATH = "/api/v1/admin/email-operations/action-required";
 
     @Autowired
     MockMvc mockMvc;
@@ -77,5 +81,29 @@ class AdminEmailOperationsConsoleControllerSecurityTest {
                 .andExpect(status().isOk());
 
         verify(emailOperationsConsoleFinder).findStatusSummary();
+    }
+
+    @Test
+    @WithLoginUser(memberId = 42L)
+    @DisplayName("ROLE_ADMIN 없는 사용자가 조치 필요 목록 API 호출 시 403")
+    void action_required_returns_403_for_non_admin() throws Exception {
+        mockMvc.perform(get(ACTION_REQUIRED_PATH))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        verify(emailOperationsConsoleFinder, never()).findActionRequiredItems(any(Pageable.class));
+    }
+
+    @Test
+    @WithAdminUser
+    @DisplayName("ROLE_ADMIN 있는 사용자가 조치 필요 목록 API 호출 시 권한 통과")
+    void action_required_passes_for_admin() throws Exception {
+        given(emailOperationsConsoleFinder.findActionRequiredItems(any(Pageable.class)))
+                .willReturn(new SliceImpl<>(List.of()));
+
+        mockMvc.perform(get(ACTION_REQUIRED_PATH))
+                .andExpect(status().isOk());
+
+        verify(emailOperationsConsoleFinder).findActionRequiredItems(any(Pageable.class));
     }
 }

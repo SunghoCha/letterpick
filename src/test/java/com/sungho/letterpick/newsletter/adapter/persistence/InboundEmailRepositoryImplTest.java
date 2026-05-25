@@ -1,6 +1,8 @@
 package com.sungho.letterpick.newsletter.adapter.persistence;
 
+import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.INVALID_RECIPIENT_ADDRESS;
 import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.ISSUE_CREATED;
+import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.NEWSLETTER_NOT_FOUND;
 import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.RECEIVED;
 import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.RECIPIENT_NOT_FOUND;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,6 +12,7 @@ import com.sungho.letterpick.LetterPickTestConfiguration;
 import com.sungho.letterpick.member.adapter.persistence.MemberRepository;
 import com.sungho.letterpick.member.domain.Member;
 import com.sungho.letterpick.member.domain.MemberFixture;
+import com.sungho.letterpick.newsletter.application.provided.InboundEmailActionRequiredItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.domain.InboundEmail;
 import com.sungho.letterpick.newsletter.domain.Newsletter;
@@ -23,6 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
@@ -94,6 +99,78 @@ class InboundEmailRepositoryImplTest {
         Instant receivedAt = Instant.parse("2050-05-12T15:00:00Z");
 
         assertThatThrownBy(() -> inboundEmailRepository.countByStatus(receivedAt, receivedAt))
+                .isInstanceOf(InvalidDataAccessApiUsageException.class)
+                .hasMessageContaining("receivedFrom must be before receivedTo");
+    }
+
+    @Test
+    @DisplayName("수신 시각 범위 안의 조치 필요 인입 메일을 최신순으로 조회한다")
+    void findActionRequired_returns_recent_action_required_inbound_emails() {
+        Instant receivedFrom = Instant.parse("2050-05-11T15:00:00Z");
+        Instant receivedTo = Instant.parse("2050-05-12T15:00:00Z");
+
+        Member member = memberRepository.save(MemberFixture.createMember());
+        Newsletter newsletter = newslettersRepository.save(NewsletterFixture.createNewsletter());
+
+        InboundEmail newsletterNotFound = createInboundEmail("newsletter-not-found", Instant.parse("2050-05-12T14:00:00Z"));
+        newsletterNotFound.markNewsletterNotFound(member.getId());
+
+        InboundEmail invalidRecipientAddress = createInboundEmail("invalid-recipient-address", Instant.parse("2050-05-12T13:00:00Z"));
+        invalidRecipientAddress.markInvalidRecipientAddress();
+
+        InboundEmail recipientNotFound = createInboundEmail("recipient-not-found-action", Instant.parse("2050-05-12T12:00:00Z"));
+        recipientNotFound.markRecipientNotFound();
+
+        InboundEmail issueCreated = createInboundEmail("issue-created-action", Instant.parse("2050-05-12T11:00:00Z"));
+        issueCreated.markIssueCreated(member.getId(), newsletter.getId());
+
+        InboundEmail received = createInboundEmail("received-action", Instant.parse("2050-05-12T10:00:00Z"));
+
+        InboundEmail beforeRange = createInboundEmail("before-range-action", receivedFrom.minusSeconds(1));
+        beforeRange.markRecipientNotFound();
+
+        InboundEmail atReceivedTo = createInboundEmail("at-received-to-action", receivedTo);
+        atReceivedTo.markInvalidRecipientAddress();
+
+        inboundEmailRepository.saveAll(List.of(
+                newsletterNotFound,
+                invalidRecipientAddress,
+                recipientNotFound,
+                issueCreated,
+                received,
+                beforeRange,
+                atReceivedTo
+        ));
+        entityManager.flush();
+        entityManager.clear();
+
+        Slice<InboundEmailActionRequiredItem> result = inboundEmailRepository.findActionRequired(
+                receivedFrom,
+                receivedTo,
+                PageRequest.of(0, 2)
+        );
+
+        assertThat(result.hasNext()).isTrue();
+        assertThat(result.getContent())
+                .extracting(InboundEmailActionRequiredItem::status)
+                .containsExactly(NEWSLETTER_NOT_FOUND, INVALID_RECIPIENT_ADDRESS);
+        assertThat(result.getContent())
+                .extracting(InboundEmailActionRequiredItem::messageKey)
+                .containsExactly("newsletter-not-found", "invalid-recipient-address");
+        assertThat(result.getContent().getFirst().memberId()).isEqualTo(member.getId());
+        assertThat(result.getContent().getFirst().newsletterId()).isNull();
+    }
+
+    @Test
+    @DisplayName("조치 필요 목록 조회 시 수신 시각 범위가 올바르지 않으면 예외가 발생한다")
+    void findActionRequired_throws_exception_when_received_at_range_is_invalid() {
+        Instant receivedAt = Instant.parse("2050-05-12T15:00:00Z");
+
+        assertThatThrownBy(() -> inboundEmailRepository.findActionRequired(
+                receivedAt,
+                receivedAt,
+                PageRequest.of(0, 20)
+        ))
                 .isInstanceOf(InvalidDataAccessApiUsageException.class)
                 .hasMessageContaining("receivedFrom must be before receivedTo");
     }
