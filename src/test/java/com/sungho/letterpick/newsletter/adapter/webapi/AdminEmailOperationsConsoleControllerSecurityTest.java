@@ -35,6 +35,7 @@ class AdminEmailOperationsConsoleControllerSecurityTest {
 
     private static final String STATUS_SUMMARY_PATH = "/api/v1/admin/email-operations/status-summary";
     private static final String ACTION_REQUIRED_PATH = "/api/v1/admin/email-operations/action-required";
+    private static final String STALE_RECEIVED_PATH = "/api/v1/admin/email-operations/stale-received";
 
     @Autowired
     MockMvc mockMvc;
@@ -105,5 +106,29 @@ class AdminEmailOperationsConsoleControllerSecurityTest {
                 .andExpect(status().isOk());
 
         verify(emailOperationsConsoleFinder).findActionRequiredItems(any(Pageable.class));
+    }
+
+    @Test
+    @WithLoginUser(memberId = 42L)
+    @DisplayName("ROLE_ADMIN 없는 사용자가 처리 지연 목록 API 호출 시 403")
+    void stale_received_returns_403_for_non_admin() throws Exception {
+        mockMvc.perform(get(STALE_RECEIVED_PATH))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        verify(emailOperationsConsoleFinder, never()).findStaleReceivedItems(any(Pageable.class));
+    }
+
+    @Test
+    @WithAdminUser
+    @DisplayName("ROLE_ADMIN 있는 사용자가 처리 지연 목록 API 호출 시 권한 통과")
+    void stale_received_passes_for_admin() throws Exception {
+        given(emailOperationsConsoleFinder.findStaleReceivedItems(any(Pageable.class)))
+                .willReturn(new SliceImpl<>(List.of()));
+
+        mockMvc.perform(get(STALE_RECEIVED_PATH))
+                .andExpect(status().isOk());
+
+        verify(emailOperationsConsoleFinder).findStaleReceivedItems(any(Pageable.class));
     }
 }

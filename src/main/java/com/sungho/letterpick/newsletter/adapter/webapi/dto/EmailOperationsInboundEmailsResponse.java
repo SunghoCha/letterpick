@@ -1,6 +1,6 @@
 package com.sungho.letterpick.newsletter.adapter.webapi.dto;
 
-import com.sungho.letterpick.newsletter.application.provided.InboundEmailActionRequiredItem;
+import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import org.springframework.data.domain.Slice;
 
 import java.time.Instant;
@@ -8,28 +8,28 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public record EmailOperationsActionRequiredResponse(
-        List<ActionRequiredItemResponse> items,
+public record EmailOperationsInboundEmailsResponse(
+        List<InboundEmailItemResponse> items,
         PageResponse page
 ) {
 
-    public EmailOperationsActionRequiredResponse {
+    public EmailOperationsInboundEmailsResponse {
         items = List.copyOf(requireNonNull(items));
         requireNonNull(page);
     }
 
-    public static EmailOperationsActionRequiredResponse from(Slice<InboundEmailActionRequiredItem> items) {
+    public static EmailOperationsInboundEmailsResponse from(Slice<InboundEmailAdminItem> items) {
         requireNonNull(items);
 
-        return new EmailOperationsActionRequiredResponse(
+        return new EmailOperationsInboundEmailsResponse(
                 items.getContent().stream()
-                        .map(ActionRequiredItemResponse::from)
+                        .map(InboundEmailItemResponse::from)
                         .toList(),
                 PageResponse.from(items)
         );
     }
 
-    public record ActionRequiredItemResponse(
+    public record InboundEmailItemResponse(
             Long inboundEmailId,
             Instant receivedAt,
             String status,
@@ -42,10 +42,10 @@ public record EmailOperationsActionRequiredResponse(
             String rawReference
     ) {
 
-        public static ActionRequiredItemResponse from(InboundEmailActionRequiredItem item) {
+        public static InboundEmailItemResponse from(InboundEmailAdminItem item) {
             requireNonNull(item);
 
-            return new ActionRequiredItemResponse(
+            return new InboundEmailItemResponse(
                     item.inboundEmailId(),
                     item.receivedAt(),
                     item.status().name(),

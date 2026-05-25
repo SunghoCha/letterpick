@@ -7,5 +7,7 @@ public interface EmailOperationsConsoleFinder {
 
     InboundEmailStatusSummary findStatusSummary();
 
-    Slice<InboundEmailActionRequiredItem> findActionRequiredItems(Pageable pageable);
+    Slice<InboundEmailAdminItem> findActionRequiredItems(Pageable pageable);
+
+    Slice<InboundEmailAdminItem> findStaleReceivedItems(Pageable pageable);
 }

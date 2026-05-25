@@ -6,7 +6,7 @@ import java.time.Instant;
 
 import static java.util.Objects.requireNonNull;
 
-public record InboundEmailActionRequiredItem(
+public record InboundEmailAdminItem(
         Long inboundEmailId,
         Instant receivedAt,
         InboundEmailStatus status,
@@ -19,7 +19,7 @@ public record InboundEmailActionRequiredItem(
         String rawReference
 ) {
 
-    public InboundEmailActionRequiredItem {
+    public InboundEmailAdminItem {
         requireNonNull(inboundEmailId);
         requireNonNull(receivedAt);
         requireNonNull(status);

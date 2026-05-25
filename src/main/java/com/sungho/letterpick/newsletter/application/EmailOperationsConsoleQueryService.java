@@ -2,7 +2,7 @@ package com.sungho.letterpick.newsletter.application;
 
 import com.sungho.letterpick.newsletter.adapter.persistence.InboundEmailRepository;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsConsoleFinder;
-import com.sungho.letterpick.newsletter.application.provided.InboundEmailActionRequiredItem;
+import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
 import com.sungho.letterpick.newsletter.domain.InboundEmailStatus;
@@ -27,6 +27,7 @@ import static java.util.Objects.requireNonNull;
 public class EmailOperationsConsoleQueryService implements EmailOperationsConsoleFinder {
 
     private static final Duration RECENT_WINDOW = Duration.ofHours(24);
+    private static final Duration STALE_RECEIVED_THRESHOLD = Duration.ofMinutes(10);
 
     private final InboundEmailRepository inboundEmailRepository;
     private final Clock clock;
@@ -46,13 +47,18 @@ public class EmailOperationsConsoleQueryService implements EmailOperationsConsol
     }
 
     @Override
-    public Slice<InboundEmailActionRequiredItem> findActionRequiredItems(Pageable pageable) {
-        requireNonNull(pageable);
-
+    public Slice<InboundEmailAdminItem> findActionRequiredItems(Pageable pageable) {
         Instant receivedTo = Instant.now(clock);
         Instant receivedFrom = receivedTo.minus(RECENT_WINDOW);
 
         return inboundEmailRepository.findActionRequired(receivedFrom, receivedTo, pageable);
+    }
+
+    @Override
+    public Slice<InboundEmailAdminItem> findStaleReceivedItems(Pageable pageable) {
+        Instant receivedBefore = Instant.now(clock).minus(STALE_RECEIVED_THRESHOLD);
+
+        return inboundEmailRepository.findStaleReceived(receivedBefore, pageable);
     }
 
     private List<InboundEmailStatusCount> fillMissingStatusCounts(List<InboundEmailStatusCount> statusCounts) {

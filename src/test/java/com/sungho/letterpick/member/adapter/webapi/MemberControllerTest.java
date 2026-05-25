@@ -6,6 +6,7 @@ import com.sungho.letterpick.member.application.provided.MemberFinder;
 import com.sungho.letterpick.member.application.provided.MemberModifier;
 import com.sungho.letterpick.member.application.provided.MemberNicknameChangeRequest;
 import com.sungho.letterpick.member.application.provided.MemberView;
+import com.sungho.letterpick.member.domain.MemberRole;
 import com.sungho.letterpick.member.domain.MemberStatus;
 import com.sungho.letterpick.member.domain.exception.DuplicateNicknameException;
 import com.sungho.letterpick.member.domain.exception.MemberNotFoundException;
@@ -59,6 +60,7 @@ class MemberControllerTest {
                 "member@example.com",
                 "새닉네임",
                 MemberStatus.ACTIVE,
+                MemberRole.ADMIN,
                 "k8x3p9q2m4z1@letterpick.com"
         );
         given(memberFinder.findMember(42L)).willReturn(memberView);
@@ -69,6 +71,7 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.email").value("member@example.com"))
                 .andExpect(jsonPath("$.nickname").value("새닉네임"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andExpect(jsonPath("$.newsletterInboxAddress").value("k8x3p9q2m4z1@letterpick.com"));
 
         verify(memberFinder).findMember(42L);
