@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsConsoleFinder;
-import com.sungho.letterpick.newsletter.application.provided.InboundEmailActionRequiredItem;
+import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusSummary;
 import java.time.Instant;
@@ -74,7 +74,7 @@ class AdminEmailOperationsConsoleControllerTest {
         PageRequest pageable = PageRequest.of(0, 20);
         given(emailOperationsConsoleFinder.findActionRequiredItems(any(Pageable.class)))
                 .willReturn(new SliceImpl<>(
-                        List.of(new InboundEmailActionRequiredItem(
+                        List.of(new InboundEmailAdminItem(
                                 1L,
                                 Instant.parse("2050-05-12T01:00:00Z"),
                                 NEWSLETTER_NOT_FOUND,
@@ -109,6 +109,53 @@ class AdminEmailOperationsConsoleControllerTest {
 
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         verify(emailOperationsConsoleFinder).findActionRequiredItems(pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isEqualTo(0);
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("관리자가 처리 지연 인입 메일 목록 조회 시 200과 목록 응답이 반환된다")
+    void getStaleReceivedItems_returns_200_and_stale_received_items_response() throws Exception {
+        // given
+        PageRequest pageable = PageRequest.of(0, 20);
+        given(emailOperationsConsoleFinder.findStaleReceivedItems(any(Pageable.class)))
+                .willReturn(new SliceImpl<>(
+                        List.of(new InboundEmailAdminItem(
+                                1L,
+                                Instant.parse("2050-05-12T01:00:00Z"),
+                                RECEIVED,
+                                "sender@example.com",
+                                "recipient@inbound.letterpick.test",
+                                "subject",
+                                null,
+                                null,
+                                "message-key",
+                                "raw/message-key"
+                        )),
+                        pageable,
+                        false
+                ));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/admin/email-operations/stale-received"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].inboundEmailId").value(1L))
+                .andExpect(jsonPath("$.items[0].receivedAt").value("2050-05-12T01:00:00Z"))
+                .andExpect(jsonPath("$.items[0].status").value("RECEIVED"))
+                .andExpect(jsonPath("$.items[0].senderEmail").value("sender@example.com"))
+                .andExpect(jsonPath("$.items[0].recipientAddress").value("recipient@inbound.letterpick.test"))
+                .andExpect(jsonPath("$.items[0].subject").value("subject"))
+                .andExpect(jsonPath("$.items[0].memberId").doesNotExist())
+                .andExpect(jsonPath("$.items[0].newsletterId").doesNotExist())
+                .andExpect(jsonPath("$.items[0].messageKey").value("message-key"))
+                .andExpect(jsonPath("$.items[0].rawReference").value("raw/message-key"))
+                .andExpect(jsonPath("$.page.number").value(0))
+                .andExpect(jsonPath("$.page.size").value(20))
+                .andExpect(jsonPath("$.page.hasNext").value(false));
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(emailOperationsConsoleFinder).findStaleReceivedItems(pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getPageNumber()).isEqualTo(0);
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(20);
     }

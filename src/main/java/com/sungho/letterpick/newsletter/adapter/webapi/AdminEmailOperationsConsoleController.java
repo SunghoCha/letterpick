@@ -1,6 +1,6 @@
 package com.sungho.letterpick.newsletter.adapter.webapi;
 
-import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsActionRequiredResponse;
+import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsInboundEmailsResponse;
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsStatusSummaryResponse;
 import com.sungho.letterpick.newsletter.application.provided.EmailOperationsConsoleFinder;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +25,17 @@ public class AdminEmailOperationsConsoleController implements AdminEmailOperatio
 
     @Override
     @GetMapping("/action-required")
-    public EmailOperationsActionRequiredResponse getActionRequiredItems(@PageableDefault(size = 20) Pageable pageable) {
-        return EmailOperationsActionRequiredResponse.from(
+    public EmailOperationsInboundEmailsResponse getActionRequiredItems(@PageableDefault(size = 20) Pageable pageable) {
+        return EmailOperationsInboundEmailsResponse.from(
                 emailOperationsConsoleFinder.findActionRequiredItems(pageable)
+        );
+    }
+
+    @Override
+    @GetMapping("/stale-received")
+    public EmailOperationsInboundEmailsResponse getStaleReceivedItems(@PageableDefault(size = 20) Pageable pageable) {
+        return EmailOperationsInboundEmailsResponse.from(
+                emailOperationsConsoleFinder.findStaleReceivedItems(pageable)
         );
     }
 }

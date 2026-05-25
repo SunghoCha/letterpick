@@ -1,18 +1,18 @@
 package com.sungho.letterpick.newsletter.adapter.persistence;
 
-import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.INVALID_RECIPIENT_ADDRESS;
-import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.NEWSLETTER_NOT_FOUND;
-import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.RECIPIENT_NOT_FOUND;
+import static com.sungho.letterpick.newsletter.domain.InboundEmailStatus.*;
 import static java.util.Objects.requireNonNull;
 
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.sungho.letterpick.newsletter.application.provided.InboundEmailActionRequiredItem;
+import com.sungho.letterpick.newsletter.application.provided.InboundEmailAdminItem;
 import com.sungho.letterpick.newsletter.application.provided.InboundEmailStatusCount;
 import com.sungho.letterpick.newsletter.domain.InboundEmailStatus;
 import com.sungho.letterpick.newsletter.domain.QInboundEmail;
+
 import java.time.Instant;
 import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -54,9 +54,9 @@ public class InboundEmailRepositoryImpl implements CustomInboundEmailRepository 
     }
 
     @Override
-    public Slice<InboundEmailActionRequiredItem> findActionRequired(Instant receivedFrom,
-                                                                    Instant receivedTo,
-                                                                    Pageable pageable) {
+    public Slice<InboundEmailAdminItem> findActionRequired(Instant receivedFrom,
+                                                           Instant receivedTo,
+                                                           Pageable pageable) {
         requireNonNull(receivedFrom, "receivedFrom must not be null");
         requireNonNull(receivedTo, "receivedTo must not be null");
         requireNonNull(pageable, "pageable must not be null");
@@ -64,9 +64,9 @@ public class InboundEmailRepositoryImpl implements CustomInboundEmailRepository 
             throw new IllegalArgumentException("receivedFrom must be before receivedTo");
         }
 
-        List<InboundEmailActionRequiredItem> results = jpaQueryFactory
+        List<InboundEmailAdminItem> results = jpaQueryFactory
                 .select(Projections.constructor(
-                        InboundEmailActionRequiredItem.class,
+                        InboundEmailAdminItem.class,
                         inboundEmail.id,
                         inboundEmail.receivedAt,
                         inboundEmail.status,
@@ -90,7 +90,44 @@ public class InboundEmailRepositoryImpl implements CustomInboundEmailRepository 
                 .fetch();
 
         boolean hasNext = results.size() > pageable.getPageSize();
-        List<InboundEmailActionRequiredItem> content = hasNext ? results.subList(0, pageable.getPageSize()) : results;
+        List<InboundEmailAdminItem> content = hasNext ? results.subList(0, pageable.getPageSize()) : results;
+
+        return new SliceImpl<>(content, pageable, hasNext);
+    }
+
+    @Override
+    public Slice<InboundEmailAdminItem> findStaleReceived(Instant receivedBefore, Pageable pageable) {
+        requireNonNull(receivedBefore, "receivedBefore must not be null");
+        requireNonNull(pageable, "pageable must not be null");
+
+        List<InboundEmailAdminItem> results = jpaQueryFactory
+                .select(
+                        Projections.constructor(
+                                InboundEmailAdminItem.class,
+                                inboundEmail.id,
+                                inboundEmail.receivedAt,
+                                inboundEmail.status,
+                                inboundEmail.senderEmail,
+                                inboundEmail.recipientAddress,
+                                inboundEmail.subject,
+                                inboundEmail.memberId,
+                                inboundEmail.newsletterId,
+                                inboundEmail.messageKey,
+                                inboundEmail.rawReference
+                        )
+                )
+                .from(inboundEmail)
+                .where(
+                        inboundEmail.status.eq(RECEIVED),
+                        inboundEmail.receivedAt.lt(receivedBefore)
+                )
+                .orderBy(inboundEmail.receivedAt.asc(), inboundEmail.id.asc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1L)
+                .fetch();
+
+        boolean hasNext = results.size() > pageable.getPageSize();
+        List<InboundEmailAdminItem> content = hasNext ? results.subList(0, pageable.getPageSize()) : results;
 
         return new SliceImpl<>(content, pageable, hasNext);
     }

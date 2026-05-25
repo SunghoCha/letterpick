@@ -1,6 +1,6 @@
 package com.sungho.letterpick.newsletter.adapter.webapi;
 
-import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsActionRequiredResponse;
+import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsInboundEmailsResponse;
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.EmailOperationsStatusSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -29,5 +29,15 @@ public interface AdminEmailOperationsConsoleControllerApi {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "403", description = "관리자 권한 없음")
     })
-    EmailOperationsActionRequiredResponse getActionRequiredItems(Pageable pageable);
+    EmailOperationsInboundEmailsResponse getActionRequiredItems(Pageable pageable);
+
+    @Operation(
+            summary = "처리 지연 인입 메일 목록 조회",
+            description = "관리자가 10분 이상 RECEIVED 상태로 남은 인입 메일을 오래된 순으로 조회한다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "403", description = "관리자 권한 없음")
+    })
+    EmailOperationsInboundEmailsResponse getStaleReceivedItems(Pageable pageable);
 }
