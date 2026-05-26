@@ -112,6 +112,10 @@ variable "newsletter_inbox_address_domain" {
   default = null
 }
 
+variable "public_feed_collector_inbox_address" {
+  type = string
+}
+
 variable "google_client_id" {
   type = string
 }

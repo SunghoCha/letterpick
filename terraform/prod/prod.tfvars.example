@@ -38,6 +38,8 @@ route53_zone_name = "letterpicknews.com"
 
 ses_receive_domain_name = "inbound.letterpicknews.com"
 
+public_feed_collector_inbox_address = "<public-feed-collector-inbox-address>"
+
 google_client_id = "<google-prod-client-id>"
 
 naver_client_id = "<naver-prod-client-id>"

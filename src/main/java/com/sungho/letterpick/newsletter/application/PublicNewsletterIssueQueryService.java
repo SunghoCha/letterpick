@@ -26,7 +26,7 @@ public class PublicNewsletterIssueQueryService implements PublicNewsletterIssueF
     public PublicNewsletterIssueQueryService(
             MemberRepository memberRepository,
             NewsletterIssueRepository newsletterIssueRepository,
-            @Value("${newsletter.public-feed.collector-inbox-address:aaaaaaaaaaaa@inbound.letterpick.local}")
+            @Value("${newsletter.public-feed.collector-inbox-address}")
             String collectorInboxAddress
     ) {
         this.memberRepository = memberRepository;

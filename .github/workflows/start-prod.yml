@@ -24,6 +24,7 @@ jobs:
       AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
       NAVER_CLIENT_ID: ${{ vars.NAVER_CLIENT_ID }}
+      NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS: ${{ vars.NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS }}
       BACKEND_SECRET_NAMES: '{"GOOGLE_CLIENT_SECRET":"letterpick/prod/google-client-secret","NAVER_CLIENT_SECRET":"letterpick/prod/naver-client-secret"}'
 
     steps:
@@ -38,6 +39,7 @@ jobs:
             AWS_TERRAFORM_ROLE_ARN
             GOOGLE_CLIENT_ID
             NAVER_CLIENT_ID
+            NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS
             BACKEND_SECRET_NAMES
           )
 
@@ -73,6 +75,7 @@ jobs:
             -var="initial_backend_image_uri=$IMAGE_URI" \
             -var="google_client_id=$GOOGLE_CLIENT_ID" \
             -var="naver_client_id=$NAVER_CLIENT_ID" \
+            -var="public_feed_collector_inbox_address=$NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS" \
             -var="backend_secret_names=$BACKEND_SECRET_NAMES"
 
       - name: Summarize prod endpoints
