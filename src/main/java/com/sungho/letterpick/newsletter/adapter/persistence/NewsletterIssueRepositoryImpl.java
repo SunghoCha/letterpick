@@ -6,7 +6,9 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueSearchCondition;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueSearchCondition;
 import com.sungho.letterpick.newsletter.domain.MemberNewsletterStatus;
+import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import com.sungho.letterpick.newsletter.domain.QMemberNewsletter;
 import com.sungho.letterpick.newsletter.domain.QNewsletter;
 import com.sungho.letterpick.newsletter.domain.QNewsletterIssue;
@@ -42,6 +44,7 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
                         newsletterIssue.newsletterId,
                         newsletter.name,
                         newsletter.imageUrl,
+                        newsletter.category,
                         newsletterIssue.subject,
                         newsletterIssue.previewText,
                         newsletterIssue.receivedAt,
@@ -71,6 +74,50 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
         List<NewsletterIssueItem> content = hasNext ? results.subList(0, pageable.getPageSize()) : results;
 
         return new SliceImpl<>(content, pageable, hasNext);
+    }
+
+    @Override
+    public Slice<NewsletterIssueItem> findPublicIssuesByMemberId(Long memberId,
+                                                                 PublicNewsletterIssueSearchCondition condition,
+                                                                 Pageable pageable) {
+        requireNonNull(memberId);
+        requireNonNull(condition);
+        requireNonNull(pageable);
+
+        List<NewsletterIssueItem> results = jpaQueryFactory
+                .select(Projections.constructor(
+                        NewsletterIssueItem.class,
+                        newsletterIssue.id,
+                        newsletterIssue.newsletterId,
+                        newsletter.name,
+                        newsletter.imageUrl,
+                        newsletter.category,
+                        newsletterIssue.subject,
+                        newsletterIssue.previewText,
+                        newsletterIssue.receivedAt,
+                        newsletterIssue.read
+                ))
+                .from(newsletterIssue)
+                .join(newsletter)
+                .on(newsletter.id.eq(newsletterIssue.newsletterId))
+                .where(
+                        newsletterIssue.memberId.eq(memberId),
+                        newsletterIssue.deleted.isFalse(),
+                        categoryEq(condition.category())
+                )
+                .orderBy(newsletterIssue.receivedAt.desc(), newsletterIssue.id.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1)
+                .fetch();
+
+        boolean hasNext = results.size() > pageable.getPageSize();
+        List<NewsletterIssueItem> items = hasNext ? results.subList(0, pageable.getPageSize()) : results;
+
+        return new SliceImpl<>(items, pageable, hasNext);
+    }
+
+    private BooleanExpression categoryEq(NewsletterCategory category) {
+        return category == null ? null : newsletter.category.eq(category);
     }
 
     @Override

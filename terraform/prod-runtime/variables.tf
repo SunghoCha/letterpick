@@ -112,6 +112,15 @@ variable "newsletter_inbox_address_domain" {
   default = null
 }
 
+variable "public_feed_collector_inbox_address" {
+  type = string
+
+  validation {
+    condition     = trimspace(var.public_feed_collector_inbox_address) != ""
+    error_message = "public_feed_collector_inbox_address must not be blank."
+  }
+}
+
 variable "google_client_id" {
   type = string
 }

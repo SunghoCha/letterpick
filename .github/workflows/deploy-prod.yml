@@ -35,6 +35,7 @@ jobs:
       ECS_API_SERVICE: ${{ vars.ECS_API_SERVICE }}
       API_TASK_FAMILY: ${{ vars.API_TASK_FAMILY }}
       API_CONTAINER_NAME: api
+      NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS: ${{ vars.NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS }}
 
     steps:
       - name: Checkout
@@ -50,6 +51,7 @@ jobs:
             ECS_API_SERVICE
             API_TASK_FAMILY
             API_CONTAINER_NAME
+            NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS
           )
 
           for name in "${required_env[@]}"; do
@@ -80,6 +82,8 @@ jobs:
           task-definition: api-current-task-definition.json
           container-name: ${{ env.API_CONTAINER_NAME }}
           image: ${{ env.IMAGE_URI }}
+          environment-variables: |
+            NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS=${{ env.NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS }}
 
       - name: Deploy API with ECS native deployment strategy
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
@@ -110,6 +114,7 @@ jobs:
       ECS_WORKER_SERVICE: ${{ vars.ECS_WORKER_SERVICE }}
       WORKER_TASK_FAMILY: ${{ vars.WORKER_TASK_FAMILY }}
       WORKER_CONTAINER_NAME: worker
+      NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS: ${{ vars.NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS }}
 
     steps:
       - name: Checkout
@@ -125,6 +130,7 @@ jobs:
             ECS_WORKER_SERVICE
             WORKER_TASK_FAMILY
             WORKER_CONTAINER_NAME
+            NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS
           )
 
           for name in "${required_env[@]}"; do
@@ -155,6 +161,8 @@ jobs:
           task-definition: worker-current-task-definition.json
           container-name: ${{ env.WORKER_CONTAINER_NAME }}
           image: ${{ env.IMAGE_URI }}
+          environment-variables: |
+            NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS=${{ env.NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS }}
 
       - name: Deploy Worker with ECS rolling update
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2

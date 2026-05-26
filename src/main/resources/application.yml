@@ -59,6 +59,8 @@ frontend:
 newsletter:
   inbox-address:
     domain: ${NEWSLETTER_INBOX_ADDRESS_DOMAIN:inbound.letterpick.local}
+  public-feed:
+    collector-inbox-address: ${NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS}
 
 letterpick:
   aws:

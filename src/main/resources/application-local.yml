@@ -11,6 +11,8 @@ spring:
 newsletter:
   inbox-address:
     domain: ${NEWSLETTER_INBOX_ADDRESS_DOMAIN:inbound.letterpick.local}
+  public-feed:
+    collector-inbox-address: omcxewctypxo@inbound-dev.letterpicknews.com
 
 letterpick:
   seed:

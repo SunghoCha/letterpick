@@ -6,6 +6,7 @@ import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDeta
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueFinder;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueModifier;
+import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import com.sungho.letterpick.newsletter.domain.exception.NewsletterIssueNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,7 @@ class NewsletterIssueControllerTest {
                         1L,
                         "Example Letter",
                         "https://example.com/image.png",
+                        NewsletterCategory.TECH,
                         "오늘의 뉴스레터",
                         "본문 미리보기",
                         Instant.parse("2050-05-12T01:00:00Z"),
@@ -125,6 +127,7 @@ class NewsletterIssueControllerTest {
                         2L,
                         "Archive Letter",
                         "https://example.com/archive.png",
+                        NewsletterCategory.BIZ,
                         "보관함 뉴스레터",
                         "보관함 미리보기",
                         Instant.parse("2050-05-10T01:00:00Z"),

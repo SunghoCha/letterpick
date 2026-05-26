@@ -15,6 +15,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
@@ -41,6 +42,13 @@ public class ApiControllerAdvice {
         String message = exception.getBindingResult().getFieldErrors().stream()
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
                 .collect(Collectors.joining(", "));
+        return ResponseEntity.status(CommonErrorCode.INVALID_INPUT.getStatus())
+                .body(ErrorResponse.of(CommonErrorCode.INVALID_INPUT, message));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        String message = exception.getName() + ": 요청 값 형식이 올바르지 않습니다.";
         return ResponseEntity.status(CommonErrorCode.INVALID_INPUT.getStatus())
                 .body(ErrorResponse.of(CommonErrorCode.INVALID_INPUT, message));
     }

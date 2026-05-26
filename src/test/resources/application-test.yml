@@ -17,3 +17,5 @@ frontend:
 newsletter:
   inbox-address:
     domain: inbound.letterpick.test
+  public-feed:
+    collector-inbox-address: omcxewctypxo@inbound-dev.letterpicknews.com
