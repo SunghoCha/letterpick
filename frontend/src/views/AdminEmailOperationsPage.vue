@@ -61,14 +61,17 @@ export default {
       summary: null,
       actionRequired: null,
       staleReceived: null,
+      queueStatus: null,
       loading: false,
       actionRequiredLoading: false,
       staleReceivedLoading: false,
+      queueStatusLoading: false,
       loaded: false,
       forbidden: false,
       loadError: false,
       actionRequiredError: false,
       staleReceivedError: false,
+      queueStatusError: false,
       actionRequiredPage: 0,
       staleReceivedPage: 0,
       expandedActionItemId: null,
@@ -116,6 +119,46 @@ export default {
     staleReceivedItems() {
       return this.toInboundEmailViewItems(this.staleReceived?.items ?? [], this.expandedStaleReceivedItemId)
     },
+    queueStatusAvailable() {
+      return this.queueStatus?.status === 'AVAILABLE'
+    },
+    queueStatusLabel() {
+      if (!this.queueStatus) return '조회 전'
+      return this.queueStatusAvailable ? '조회 가능' : '조회 불가'
+    },
+    queueStatusColor() {
+      if (!this.queueStatus) return 'grey'
+      return this.queueStatusAvailable ? 'success' : 'warning'
+    },
+    queueMetricItems() {
+      if (!this.queueStatusAvailable) return []
+      return [
+        {
+          label: '메인 큐 대기',
+          description: 'worker가 아직 가져가지 않은 메시지',
+          value: this.queueStatus.mainQueue?.availableMessageCount,
+          color: 'primary',
+        },
+        {
+          label: '메인 큐 처리 중',
+          description: 'worker가 가져간 뒤 처리 중인 메시지',
+          value: this.queueStatus.mainQueue?.inFlightMessageCount,
+          color: 'warning',
+        },
+        {
+          label: '메인 큐 지연',
+          description: '지연 설정으로 아직 처리 가능하지 않은 메시지',
+          value: this.queueStatus.mainQueue?.delayedMessageCount,
+          color: 'info',
+        },
+        {
+          label: 'DLQ 대기',
+          description: '반복 실패 후 DLQ에 남은 메시지',
+          value: this.queueStatus.deadLetterQueue?.availableMessageCount,
+          color: 'error',
+        },
+      ]
+    },
     canMoveActionRequiredPrevious() {
       return (this.actionRequired?.page?.number ?? 0) > 0
     },
@@ -129,7 +172,7 @@ export default {
       return this.staleReceived?.page?.hasNext ?? false
     },
     isRefreshing() {
-      return this.loading || this.actionRequiredLoading || this.staleReceivedLoading
+      return this.loading || this.actionRequiredLoading || this.staleReceivedLoading || this.queueStatusLoading
     },
     rangePresets() {
       return RANGE_PRESETS
@@ -151,6 +194,7 @@ export default {
       this.expandedStaleReceivedItemId = null
       this.fetchActionRequiredItems()
       this.fetchStaleReceivedItems()
+      this.fetchQueueStatus()
     },
     changeRangePreset(value) {
       if (!value || value === this.selectedRangePreset) return
@@ -229,6 +273,27 @@ export default {
         this.toastStore.error('처리 지연 메일 목록을 불러오지 못했습니다.')
       } finally {
         this.staleReceivedLoading = false
+      }
+    },
+    async fetchQueueStatus() {
+      if (this.queueStatusLoading) return
+      this.queueStatusLoading = true
+      this.queueStatusError = false
+      try {
+        this.queueStatus = await emailOperationsApi.fetchQueueStatus()
+      } catch (err) {
+        if (err.response?.status === 401) {
+          this.$router.push({ name: 'login' })
+          return
+        }
+        if (err.response?.status === 403) {
+          this.forbidden = true
+          return
+        }
+        this.queueStatusError = true
+        this.toastStore.error('메일 수신 큐 상태를 불러오지 못했습니다.')
+      } finally {
+        this.queueStatusLoading = false
       }
     },
     createReceivedRangeParams() {
@@ -422,6 +487,83 @@ export default {
         </v-col>
       </v-row>
 
+      <v-card class="mb-5" variant="outlined">
+        <v-card-title class="queue-card-title">
+          <span class="text-subtitle-1 font-weight-bold">메일 수신 큐 상태</span>
+          <div class="d-flex align-center ga-2">
+            <v-progress-circular
+              v-if="queueStatusLoading"
+              indeterminate
+              color="primary"
+              size="20"
+              width="2"
+            />
+            <v-chip
+              :color="queueStatusColor"
+              variant="tonal"
+              size="small"
+            >
+              {{ queueStatusLabel }}
+            </v-chip>
+          </div>
+        </v-card-title>
+        <v-card-subtitle>
+          SQS 메인 큐와 DLQ에 남은 메시지 수를 현재 시점 기준으로 확인합니다.
+          <span v-if="queueStatus?.checkedAt" class="ml-2">
+            조회 시각 {{ formatDateTime(queueStatus.checkedAt) }}
+          </span>
+        </v-card-subtitle>
+        <v-card-text>
+          <v-alert
+            v-if="queueStatusError"
+            type="error"
+            variant="tonal"
+            density="comfortable"
+          >
+            메일 수신 큐 상태를 불러오지 못했습니다.
+            <template #append>
+              <v-btn variant="text" size="small" @click="fetchQueueStatus">다시 시도</v-btn>
+            </template>
+          </v-alert>
+
+          <v-alert
+            v-else-if="queueStatus && !queueStatusAvailable"
+            type="warning"
+            variant="tonal"
+            density="comfortable"
+          >
+            큐 상태를 조회할 수 없습니다.
+            <span v-if="queueStatus.failureReason" class="ml-1">
+              {{ queueStatus.failureReason }}
+            </span>
+          </v-alert>
+
+          <v-row v-else-if="queueStatusAvailable" density="comfortable">
+            <v-col
+              v-for="item in queueMetricItems"
+              :key="item.label"
+              cols="12"
+              sm="6"
+              md="3"
+            >
+              <v-sheet class="queue-metric pa-3" border rounded="lg">
+                <div class="metric-label">{{ item.label }}</div>
+                <div class="metric-value" :class="`text-${item.color}`">
+                  {{ formatNumber(item.value) }}
+                </div>
+                <div class="text-caption text-medium-emphasis mt-1">
+                  {{ item.description }}
+                </div>
+              </v-sheet>
+            </v-col>
+          </v-row>
+
+          <div v-else class="text-body-2 text-medium-emphasis">
+            큐 상태를 불러오는 중입니다.
+          </div>
+        </v-card-text>
+      </v-card>
+
       <v-card variant="outlined">
         <v-card-title class="text-subtitle-1 font-weight-bold">
           상태별 분포
@@ -519,6 +661,17 @@ export default {
 }
 
 .metric-card {
+  height: 100%;
+}
+
+.queue-card-title {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.queue-metric {
   height: 100%;
 }
 

@@ -16,3 +16,8 @@ export async function fetchStaleReceivedItems(params = {}) {
   const { data } = await apiClient.get(`${ENDPOINT}/stale-received`, { params })
   return data
 }
+
+export async function fetchQueueStatus() {
+  const { data } = await apiClient.get(`${ENDPOINT}/queue-status`)
+  return data
+}
