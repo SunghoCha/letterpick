@@ -4,6 +4,7 @@ import com.sungho.letterpick.LetterPickTestConfiguration;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueSearchCondition;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueSearchCondition;
 import com.sungho.letterpick.newsletter.domain.MemberNewsletter;
 import com.sungho.letterpick.newsletter.domain.Newsletter;
 import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
@@ -274,6 +275,117 @@ class NewsletterIssueRepositoryImplTest {
                         contentMatchedIssue.getId(),
                         subjectMatchedIssue.getId()
                 );
+    }
+
+    @Test
+    @DisplayName("공개 피드 이슈를 카테고리로 필터링하고 수신시각 최신순으로 조회한다")
+    void findPublicIssuesByMemberId_returns_public_issues_filtered_by_category_ordered_by_receivedAt_desc() {
+        // given
+        Long collectorMemberId = 1L;
+        Long otherMemberId = 2L;
+
+        Newsletter techNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("테크 뉴스레터", NewsletterCategory.TECH)
+        );
+        Newsletter secondTechNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("두 번째 테크 뉴스레터", NewsletterCategory.TECH)
+        );
+        Newsletter bizNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("비즈 뉴스레터", NewsletterCategory.BIZ)
+        );
+
+        newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 40L, "오래된 공개 이슈",
+                        "오래된 본문", "오래된 미리보기", Instant.parse("2050-05-12T00:00:00Z"))
+        );
+        NewsletterIssue middleIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, secondTechNewsletter.getId(), 41L, "중간 공개 이슈",
+                        "중간 본문", "중간 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
+        );
+        NewsletterIssue latestIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 42L, "최신 공개 이슈",
+                        "최신 본문", "최신 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
+        );
+        newsletterIssueRepository.save(
+                createIssue(collectorMemberId, bizNewsletter.getId(), 43L, "다른 카테고리 이슈",
+                        "다른 카테고리 본문", "다른 카테고리 미리보기", Instant.parse("2050-05-12T03:00:00Z"))
+        );
+        newsletterIssueRepository.save(
+                createIssue(otherMemberId, techNewsletter.getId(), 44L, "다른 회원 이슈",
+                        "다른 회원 본문", "다른 회원 미리보기", Instant.parse("2050-05-12T04:00:00Z"))
+        );
+
+        NewsletterIssue deletedIssue = createIssue(collectorMemberId, techNewsletter.getId(), 45L, "삭제된 공개 이슈",
+                "삭제된 본문", "삭제된 미리보기", Instant.parse("2050-05-12T05:00:00Z"));
+        deletedIssue.deleteFromList();
+        newsletterIssueRepository.save(deletedIssue);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberId(
+                collectorMemberId,
+                new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH),
+                PageRequest.of(0, 2)
+        );
+
+        // then
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.hasNext()).isTrue();
+        assertThat(result.getContent())
+                .extracting(NewsletterIssueItem::issueId)
+                .containsExactly(latestIssue.getId(), middleIssue.getId());
+
+        NewsletterIssueItem latestIssueItem = result.getContent().get(0);
+        assertThat(latestIssueItem.newsletterId()).isEqualTo(techNewsletter.getId());
+        assertThat(latestIssueItem.newsletterName()).isEqualTo(techNewsletter.getName());
+        assertThat(latestIssueItem.newsletterImageUrl()).isEqualTo(techNewsletter.getImageUrl());
+        assertThat(latestIssueItem.newsletterCategory().code()).isEqualTo(NewsletterCategory.TECH.name());
+        assertThat(latestIssueItem.newsletterCategory().label()).isEqualTo(NewsletterCategory.TECH.label());
+        assertThat(latestIssueItem.subject()).isEqualTo("최신 공개 이슈");
+        assertThat(latestIssueItem.previewText()).isEqualTo("최신 미리보기");
+        assertThat(latestIssueItem.receivedAt()).isEqualTo(Instant.parse("2050-05-12T02:00:00Z"));
+    }
+
+    @Test
+    @DisplayName("카테고리 조건이 없으면 공개 피드 이슈를 전체 카테고리에서 조회한다")
+    void findPublicIssuesByMemberId_returns_public_issues_without_category_filter() {
+        // given
+        Long collectorMemberId = 1L;
+
+        Newsletter techNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("전체 테크 뉴스레터", NewsletterCategory.TECH)
+        );
+        Newsletter bizNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("전체 비즈 뉴스레터", NewsletterCategory.BIZ)
+        );
+
+        NewsletterIssue techIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 50L, "전체 테크 이슈",
+                        "전체 테크 본문", "전체 테크 미리보기", Instant.parse("2050-05-12T00:00:00Z"))
+        );
+        NewsletterIssue bizIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, bizNewsletter.getId(), 51L, "전체 비즈 이슈",
+                        "전체 비즈 본문", "전체 비즈 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
+        );
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberId(
+                collectorMemberId,
+                new PublicNewsletterIssueSearchCondition(null),
+                PageRequest.of(0, 10)
+        );
+
+        // then
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.getContent())
+                .extracting(NewsletterIssueItem::issueId)
+                .containsExactly(bizIssue.getId(), techIssue.getId());
     }
 
     @Test

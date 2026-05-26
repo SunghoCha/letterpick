@@ -37,7 +37,9 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_GET_ENDPOINTS = {
             "/api/v1/newsletters",
-            "/api/v1/newsletters/categories"
+            "/api/v1/newsletters/categories",
+            "/api/v1/newsletter-issues",
+            "/api/v1/newsletter-issues/*"
     };
 
     private static final String ACTUATOR_HEALTH_ENDPOINT = "/actuator/health";
