@@ -44,6 +44,7 @@ locals {
 
   prod_ecs_task_role_arns = [
     "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prod_name_prefix}-ecs-execution-role",
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prod_name_prefix}-api-task-role",
     "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prod_name_prefix}-worker-task-role",
   ]
 }
