@@ -9,6 +9,7 @@ import InboxPage from '@/views/InboxPage.vue'
 import TodayPage from '@/views/TodayPage.vue'
 import NewsletterIssuesPage from '@/views/NewsletterIssuesPage.vue'
 import IssueDetailPage from '@/views/IssueDetailPage.vue'
+import PublicIssueDetailPage from '@/views/PublicIssueDetailPage.vue'
 import AdminEmailOperationsPage from '@/views/AdminEmailOperationsPage.vue'
 import NotFoundPage from '@/views/NotFoundPage.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -78,6 +79,13 @@ const routes = [
     component: IssueDetailPage,
     props: (route) => ({ issueId: Number(route.params.issueId) }),
     meta: { requiresAuth: true },
+  },
+  {
+    // 공개 피드 이슈 상세. 개인 보관함 읽음 처리와 삭제 흐름을 타지 않는다.
+    path: '/newsletter-issues/:issueId',
+    name: 'public-issue-detail',
+    component: PublicIssueDetailPage,
+    props: (route) => ({ issueId: Number(route.params.issueId) }),
   },
   {
     // 이메일 운영 콘솔 1차 화면. 관리자 여부는 백엔드 /api/v1/admin/** 403으로 확인한다.

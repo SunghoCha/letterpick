@@ -17,10 +17,15 @@
 //   - fetchIssueDetail: GET /{id}  — 이슈 상세 + 읽음 처리
 //   - deleteIssue:      DELETE /{id}
 //   - createDemoIssues: POST /demo — dev 환경 데모 이슈 생성
+//
+// 공개 뉴스레터 피드 (비로그인 OK, /api/v1/newsletter-issues):
+//   - fetchPublicIssues:      GET        — 공개 피드 이슈 목록
+//   - fetchPublicIssueDetail: GET /{id}  — 공개 피드 이슈 상세
 import apiClient, { ensureCsrfToken } from './client'
 
 const SUBSCRIPTION_BASE = '/api/v1/me/newsletter-subscriptions'
 const ISSUE_BASE = '/api/v1/me/newsletter-issues'
+const PUBLIC_ISSUE_BASE = '/api/v1/newsletter-issues'
 
 export async function fetchNewsletters({ category, page = 0, size = 20 } = {}) {
   const params = { page, size }
@@ -77,5 +82,19 @@ export async function deleteIssue(issueId) {
 export async function createDemoIssues() {
   await ensureCsrfToken()
   const { data } = await apiClient.post(`${ISSUE_BASE}/demo`)
+  return data
+}
+
+export async function fetchPublicIssues({ category, page = 0, size = 20 } = {}) {
+  const params = { page, size }
+  if (category && category !== 'ALL') {
+    params.category = category
+  }
+  const { data } = await apiClient.get(PUBLIC_ISSUE_BASE, { params })
+  return data
+}
+
+export async function fetchPublicIssueDetail(issueId) {
+  const { data } = await apiClient.get(`${PUBLIC_ISSUE_BASE}/${issueId}`)
   return data
 }
