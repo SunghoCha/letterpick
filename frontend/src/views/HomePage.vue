@@ -22,6 +22,8 @@ export default {
 
       categories: [{ code: 'ALL', label: '전체' }],
       selectedCategory: 'ALL',
+      searchKeyword: '',
+      appliedKeyword: '',
     }
   },
   computed: {
@@ -65,6 +67,7 @@ export default {
       try {
         const data = await newsletterApi.fetchPublicIssues({
           category: this.selectedCategory,
+          keyword: this.appliedKeyword,
           page: pageNum,
           size: PAGE_SIZE,
         })
@@ -107,6 +110,15 @@ export default {
       this.loading = false
       this.loaded = false
       this.listKey += 1
+    },
+    applySearch() {
+      this.appliedKeyword = this.searchKeyword.trim()
+      this.resetList()
+    },
+    clearSearch() {
+      this.searchKeyword = ''
+      this.appliedKeyword = ''
+      this.resetList()
     },
     openIssue(issue) {
       this.$router.push({
@@ -156,23 +168,46 @@ export default {
       </p>
     </header>
 
-    <v-chip-group
-      v-model="selectedCategory"
-      mandatory
-      column
-      selected-class="bg-grey-darken-4 text-white"
-      class="mb-5"
-    >
-      <v-chip
-        v-for="category in categories"
-        :key="category.code"
-        :value="category.code"
-        variant="outlined"
-        size="small"
+    <div class="filters mb-5">
+      <v-chip-group
+        v-model="selectedCategory"
+        mandatory
+        column
+        selected-class="bg-grey-darken-4 text-white"
       >
-        {{ category.label }}
-      </v-chip>
-    </v-chip-group>
+        <v-chip
+          v-for="category in categories"
+          :key="category.code"
+          :value="category.code"
+          variant="outlined"
+          size="small"
+        >
+          {{ category.label }}
+        </v-chip>
+      </v-chip-group>
+
+      <div class="search-row mt-4">
+        <v-text-field
+          v-model="searchKeyword"
+          prepend-inner-icon="mdi-magnify"
+          placeholder="제목·본문 검색"
+          variant="outlined"
+          density="compact"
+          hide-details
+          clearable
+          @keydown.enter="applySearch"
+          @click:clear="clearSearch"
+        />
+        <v-btn
+          color="primary"
+          variant="flat"
+          height="40"
+          @click="applySearch"
+        >
+          검색
+        </v-btn>
+      </div>
+    </div>
 
     <v-sheet
       v-if="isEmpty"
@@ -182,7 +217,7 @@ export default {
       <v-icon size="48" class="mb-3 text-medium-emphasis">mdi-email-outline</v-icon>
       <div class="text-body-1 font-weight-medium mb-2">표시할 이슈가 없습니다</div>
       <div class="text-body-2 text-medium-emphasis">
-        선택한 카테고리에 아직 공개된 뉴스레터 이슈가 없어요.
+        선택한 조건에 아직 공개된 뉴스레터 이슈가 없어요.
       </div>
     </v-sheet>
 
@@ -318,5 +353,21 @@ export default {
   color: #757575;
   font-weight: 600;
   font-size: 13px;
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+@media (max-width: 600px) {
+  .search-row {
+    flex-direction: column;
+  }
+
+  .search-row .v-btn {
+    width: 100%;
+  }
 }
 </style>
