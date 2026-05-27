@@ -17,8 +17,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class PublicNewsletterIssueModifierServiceTest {
 
@@ -62,7 +62,7 @@ class PublicNewsletterIssueModifierServiceTest {
                 .isInstanceOf(IllegalStateException.class);
 
         verify(memberRepository).findByNewsletterInboxAddress(collectorAddress);
-        verify(newsletterIssueModifier, never()).delete(42L, 10L);
+        verifyNoInteractions(newsletterIssueModifier);
     }
 
     private Member collectorMember(Long memberId) {

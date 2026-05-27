@@ -14,6 +14,7 @@ public interface AdminPublicNewsletterIssueControllerApi {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "삭제 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
             @ApiResponse(responseCode = "403", description = "관리자 권한 없음"),
             @ApiResponse(responseCode = "404", description = "공개 피드 이슈를 찾을 수 없음")
     })
