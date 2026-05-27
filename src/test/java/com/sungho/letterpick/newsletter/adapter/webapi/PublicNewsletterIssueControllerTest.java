@@ -42,8 +42,8 @@ class PublicNewsletterIssueControllerTest {
     PublicNewsletterIssueFinder publicNewsletterIssueFinder;
 
     @Test
-    @DisplayName("GET /api/v1/newsletter-issues 요청 시 카테고리와 페이지 조건을 바인딩하고 공개 피드 목록을 반환한다")
-    void getIssues_binds_category_and_pageable_then_returns_public_issue_page_response() throws Exception {
+    @DisplayName("GET /api/v1/newsletter-issues 요청 시 검색 조건과 페이지 조건을 바인딩하고 공개 피드 목록을 반환한다")
+    void getIssues_binds_search_condition_and_pageable_then_returns_public_issue_page_response() throws Exception {
         // given
         PageRequest pageable = PageRequest.of(0, 2);
         List<NewsletterIssueItem> issues = List.of(
@@ -65,6 +65,7 @@ class PublicNewsletterIssueControllerTest {
         // when & then
         mockMvc.perform(get("/api/v1/newsletter-issues")
                         .param("category", "TECH")
+                        .param("keyword", "redis")
                         .param("page", "0")
                         .param("size", "2"))
                 .andExpect(status().isOk())
@@ -88,6 +89,7 @@ class PublicNewsletterIssueControllerTest {
         verify(publicNewsletterIssueFinder).findIssues(conditionCaptor.capture(), pageableCaptor.capture());
 
         assertThat(conditionCaptor.getValue().category()).isEqualTo(NewsletterCategory.TECH);
+        assertThat(conditionCaptor.getValue().keyword()).isEqualTo("redis");
         assertThat(pageableCaptor.getValue().getPageNumber()).isEqualTo(0);
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(2);
     }

@@ -28,10 +28,11 @@ public class PublicNewsletterIssueController implements PublicNewsletterIssueCon
     @GetMapping
     public PublicNewsletterIssuesResponse getIssues(
             @RequestParam(required = false) NewsletterCategory category,
+            @RequestParam(required = false) String keyword,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         Slice<NewsletterIssueItem> issueItems = publicNewsletterIssueFinder.findIssues(
-                new PublicNewsletterIssueSearchCondition(category),
+                new PublicNewsletterIssueSearchCondition(category, keyword),
                 pageable
         );
         return PublicNewsletterIssuesResponse.from(issueItems);

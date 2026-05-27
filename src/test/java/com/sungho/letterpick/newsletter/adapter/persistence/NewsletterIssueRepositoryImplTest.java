@@ -326,7 +326,7 @@ class NewsletterIssueRepositoryImplTest {
         // when
         Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberId(
                 collectorMemberId,
-                new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH),
+                new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH, null),
                 PageRequest.of(0, 2)
         );
 
@@ -376,7 +376,7 @@ class NewsletterIssueRepositoryImplTest {
         // when
         Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberId(
                 collectorMemberId,
-                new PublicNewsletterIssueSearchCondition(null),
+                new PublicNewsletterIssueSearchCondition(null, null),
                 PageRequest.of(0, 10)
         );
 
@@ -386,6 +386,111 @@ class NewsletterIssueRepositoryImplTest {
         assertThat(result.getContent())
                 .extracting(NewsletterIssueItem::issueId)
                 .containsExactly(bizIssue.getId(), techIssue.getId());
+    }
+
+    @Test
+    @DisplayName("공개 피드 검색은 제목과 본문을 대상으로 하고 카테고리 조건과 함께 적용된다")
+    void findPublicIssuesByMemberId_searches_subject_and_content_with_category_filter() {
+        // given
+        Long collectorMemberId = 1L;
+        Long otherMemberId = 2L;
+        String keyword = "redis";
+
+        Newsletter techNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("검색 테크 뉴스레터", NewsletterCategory.TECH)
+        );
+        Newsletter keywordNameNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("redis 뉴스레터", NewsletterCategory.TECH)
+        );
+        Newsletter bizNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("검색 비즈 뉴스레터", NewsletterCategory.BIZ)
+        );
+
+        NewsletterIssue subjectMatchedIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 60L, "redis 운영 사례",
+                        "다른 본문", "제목 매칭 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
+        );
+        NewsletterIssue contentMatchedIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 61L, "다른 제목",
+                        "본문에서 redis 캐시 전략을 다룬다", "본문 매칭 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
+        );
+        newsletterIssueRepository.save(
+                createIssue(collectorMemberId, keywordNameNewsletter.getId(), 62L, "다른 제목",
+                        "다른 본문", "뉴스레터 이름만 매칭 미리보기", Instant.parse("2050-05-12T03:00:00Z"))
+        );
+        newsletterIssueRepository.save(
+                createIssue(collectorMemberId, bizNewsletter.getId(), 63L, "redis 비즈 이슈",
+                        "다른 본문", "다른 카테고리 미리보기", Instant.parse("2050-05-12T04:00:00Z"))
+        );
+        newsletterIssueRepository.save(
+                createIssue(otherMemberId, techNewsletter.getId(), 64L, "redis 다른 회원 이슈",
+                        "다른 본문", "다른 회원 미리보기", Instant.parse("2050-05-12T05:00:00Z"))
+        );
+        NewsletterIssue deletedIssue = createIssue(collectorMemberId, techNewsletter.getId(), 65L, "redis 삭제 이슈",
+                "다른 본문", "삭제 이슈 미리보기", Instant.parse("2050-05-12T06:00:00Z"));
+        deletedIssue.deleteFromList();
+        newsletterIssueRepository.save(deletedIssue);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberId(
+                collectorMemberId,
+                new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH, keyword),
+                PageRequest.of(0, 10)
+        );
+
+        // then
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.getContent())
+                .extracting(NewsletterIssueItem::issueId)
+                .containsExactly(contentMatchedIssue.getId(), subjectMatchedIssue.getId());
+    }
+
+    @Test
+    @DisplayName("공개 피드 검색어가 공백이면 키워드 조건 없이 조회한다")
+    void findPublicIssuesByMemberId_ignores_blank_keyword() {
+        // given
+        Long collectorMemberId = 1L;
+
+        Newsletter techNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("공백 검색 테크 뉴스레터", NewsletterCategory.TECH)
+        );
+        Newsletter bizNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("공백 검색 비즈 뉴스레터", NewsletterCategory.BIZ)
+        );
+
+        NewsletterIssue oldIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 70L, "오래된 공개 이슈",
+                        "오래된 본문", "오래된 미리보기", Instant.parse("2050-05-12T00:00:00Z"))
+        );
+        NewsletterIssue latestIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 71L, "최신 공개 이슈",
+                        "최신 본문", "최신 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
+        );
+        newsletterIssueRepository.save(
+                createIssue(collectorMemberId, bizNewsletter.getId(), 72L, "다른 카테고리 이슈",
+                        "다른 카테고리 본문", "다른 카테고리 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
+        );
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberId(
+                collectorMemberId,
+                new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH, "   "),
+                PageRequest.of(0, 10)
+        );
+
+        // then
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.getContent())
+                .extracting(NewsletterIssueItem::issueId)
+                .containsExactly(latestIssue.getId(), oldIssue.getId());
     }
 
     @Test

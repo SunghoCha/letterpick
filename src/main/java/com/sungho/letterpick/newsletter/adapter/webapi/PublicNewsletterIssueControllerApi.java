@@ -14,13 +14,15 @@ public interface PublicNewsletterIssueControllerApi {
 
     @Operation(
             summary = "공개 뉴스레터 피드 목록 조회",
-            description = "비로그인 사용자를 포함해 공개 뉴스레터 피드 목록을 조회한다. category query parameter가 있으면 해당 카테고리로 필터링한다."
+            description = "비로그인 사용자를 포함해 공개 뉴스레터 피드 목록을 조회한다. category query parameter가 있으면 해당 카테고리로 필터링하고, keyword query parameter가 있으면 제목과 본문을 검색한다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "400", description = "요청 query parameter 형식 오류")
     })
-    PublicNewsletterIssuesResponse getIssues(NewsletterCategory category, Pageable pageable);
+    PublicNewsletterIssuesResponse getIssues(NewsletterCategory category,
+                                             String keyword,
+                                             Pageable pageable);
 
     @Operation(
             summary = "공개 뉴스레터 이슈 상세 조회",
