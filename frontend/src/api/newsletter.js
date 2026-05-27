@@ -87,10 +87,14 @@ export async function createDemoIssues() {
   return data
 }
 
-export async function fetchPublicIssues({ category, page = 0, size = 20 } = {}) {
+export async function fetchPublicIssues({ category, keyword, page = 0, size = 20 } = {}) {
   const params = { page, size }
   if (category && category !== 'ALL') {
     params.category = category
+  }
+  const trimmedKeyword = keyword?.trim()
+  if (trimmedKeyword) {
+    params.keyword = trimmedKeyword
   }
   const { data } = await apiClient.get(PUBLIC_ISSUE_BASE, { params })
   return data
