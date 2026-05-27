@@ -1,5 +1,6 @@
 <script>
 import * as newsletterApi from '@/api/newsletter'
+import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
 const PAGE_SIZE = 20
@@ -15,14 +16,23 @@ export default {
       loaded: false,
       listKey: 0,
       requestToken: 0,
+      deleteDialogOpen: false,
+      issueToDelete: null,
+      deleting: false,
 
       categories: [{ code: 'ALL', label: '전체' }],
       selectedCategory: 'ALL',
     }
   },
   computed: {
+    authStore() {
+      return useAuthStore()
+    },
     toastStore() {
       return useToastStore()
+    },
+    isAdmin() {
+      return this.authStore.isAdmin
     },
     isEmpty() {
       return this.loaded && this.issues.length === 0
@@ -104,6 +114,26 @@ export default {
         params: { issueId: issue.issueId },
       })
     },
+    onDeleteClick(issue) {
+      this.issueToDelete = issue
+      this.deleteDialogOpen = true
+    },
+    async confirmDelete() {
+      if (!this.issueToDelete || this.deleting) return
+
+      this.deleting = true
+      try {
+        await newsletterApi.deletePublicIssueAsAdmin(this.issueToDelete.issueId)
+        this.issues = this.issues.filter((issue) => issue.issueId !== this.issueToDelete.issueId)
+        this.toastStore.success('공개 피드에서 이슈를 삭제했어요.')
+        this.deleteDialogOpen = false
+        this.issueToDelete = null
+      } catch {
+        this.toastStore.error('공개 피드 이슈를 삭제하지 못했습니다.')
+      } finally {
+        this.deleting = false
+      }
+    },
     formatDateTime(isoDate) {
       const d = new Date(isoDate)
       const yyyy = d.getFullYear()
@@ -184,6 +214,18 @@ export default {
             </v-avatar>
           </template>
 
+          <template #append>
+            <v-btn
+              v-if="isAdmin"
+              icon="mdi-delete-outline"
+              variant="text"
+              size="small"
+              color="error"
+              :aria-label="`${issue.subject} 삭제`"
+              @click.stop="onDeleteClick(issue)"
+            />
+          </template>
+
           <div class="d-flex align-center flex-wrap mb-1">
             <span class="text-caption text-medium-emphasis mr-2">
               {{ issue.newsletterName }}
@@ -209,6 +251,29 @@ export default {
         </v-list-item>
       </v-list>
     </v-infinite-scroll>
+
+    <v-dialog v-model="deleteDialogOpen" max-width="420">
+      <v-card rounded="lg">
+        <v-card-title class="text-subtitle-1 font-weight-bold">
+          공개 피드에서 삭제할까요?
+        </v-card-title>
+        <v-card-text class="text-body-2">
+          삭제하면 홈 공개 피드에서 사라집니다.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="deleteDialogOpen = false">취소</v-btn>
+          <v-btn
+            color="error"
+            variant="flat"
+            :loading="deleting"
+            @click="confirmDelete"
+          >
+            삭제
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 

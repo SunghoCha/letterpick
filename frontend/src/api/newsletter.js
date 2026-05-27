@@ -21,11 +21,13 @@
 // 공개 뉴스레터 피드 (비로그인 OK, /api/v1/newsletter-issues):
 //   - fetchPublicIssues:      GET        — 공개 피드 이슈 목록
 //   - fetchPublicIssueDetail: GET /{id}  — 공개 피드 이슈 상세
+//   - deletePublicIssueAsAdmin: DELETE /api/v1/admin/public-newsletter-issues/{id}
 import apiClient, { ensureCsrfToken } from './client'
 
 const SUBSCRIPTION_BASE = '/api/v1/me/newsletter-subscriptions'
 const ISSUE_BASE = '/api/v1/me/newsletter-issues'
 const PUBLIC_ISSUE_BASE = '/api/v1/newsletter-issues'
+const ADMIN_PUBLIC_ISSUE_BASE = '/api/v1/admin/public-newsletter-issues'
 
 export async function fetchNewsletters({ category, page = 0, size = 20 } = {}) {
   const params = { page, size }
@@ -97,4 +99,9 @@ export async function fetchPublicIssues({ category, page = 0, size = 20 } = {}) 
 export async function fetchPublicIssueDetail(issueId) {
   const { data } = await apiClient.get(`${PUBLIC_ISSUE_BASE}/${issueId}`)
   return data
+}
+
+export async function deletePublicIssueAsAdmin(issueId) {
+  await ensureCsrfToken()
+  await apiClient.delete(`${ADMIN_PUBLIC_ISSUE_BASE}/${issueId}`)
 }
