@@ -46,7 +46,7 @@ class PublicNewsletterIssueQueryServiceTest {
     void findIssuesThrowsWhenCollectorMemberNotFound() {
         // given
         PublicNewsletterIssueQueryService service = service();
-        PublicNewsletterIssueSearchCondition condition = new PublicNewsletterIssueSearchCondition(null);
+        PublicNewsletterIssueSearchCondition condition = new PublicNewsletterIssueSearchCondition(null, null);
         Pageable pageable = PageRequest.of(0, 20);
 
         // when & then
@@ -63,7 +63,7 @@ class PublicNewsletterIssueQueryServiceTest {
         PublicNewsletterIssueQueryService service = service();
         Member collector = MemberFixture.createMemberWithId(10L);
         NewsletterInboxAddress collectorAddress = new NewsletterInboxAddress(COLLECTOR_INBOX_ADDRESS);
-        PublicNewsletterIssueSearchCondition condition = new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH);
+        PublicNewsletterIssueSearchCondition condition = new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH, "redis");
         Pageable pageable = PageRequest.of(0, 20);
         Slice<NewsletterIssueItem> expected = new SliceImpl<>(
                 List.of(new NewsletterIssueItem(

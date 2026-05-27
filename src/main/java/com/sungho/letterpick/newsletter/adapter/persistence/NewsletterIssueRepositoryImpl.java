@@ -103,7 +103,8 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
                 .where(
                         newsletterIssue.memberId.eq(memberId),
                         newsletterIssue.deleted.isFalse(),
-                        categoryEq(condition.category())
+                        categoryEq(condition.category()),
+                        publicKeywordContains(condition.keyword())
                 )
                 .orderBy(newsletterIssue.receivedAt.desc(), newsletterIssue.id.desc())
                 .offset(pageable.getOffset())
@@ -168,5 +169,15 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
         return newsletterIssue.subject.contains(trimmedKeyword)
                 .or(newsletterIssue.content.contains(trimmedKeyword))
                 .or(newsletter.name.contains(trimmedKeyword));
+    }
+
+    private BooleanExpression publicKeywordContains(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        String trimmedKeyword = keyword.trim();
+
+        return newsletterIssue.subject.contains(trimmedKeyword)
+                .or(newsletterIssue.content.contains(trimmedKeyword));
     }
 }
