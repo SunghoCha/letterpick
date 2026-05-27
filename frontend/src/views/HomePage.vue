@@ -14,6 +14,7 @@ export default {
       loading: false,
       loaded: false,
       listKey: 0,
+      requestToken: 0,
 
       categories: [{ code: 'ALL', label: '전체' }],
       selectedCategory: 'ALL',
@@ -50,12 +51,15 @@ export default {
     async fetchPage(pageNum) {
       if (this.loading) return
       this.loading = true
+      const requestToken = this.requestToken
       try {
         const data = await newsletterApi.fetchPublicIssues({
           category: this.selectedCategory,
           page: pageNum,
           size: PAGE_SIZE,
         })
+        if (requestToken !== this.requestToken) return
+
         if (pageNum === 0) {
           this.issues = data.items
         } else {
@@ -65,11 +69,15 @@ export default {
         this.nextPage = data.page.number + 1
         this.loaded = true
       } catch {
+        if (requestToken !== this.requestToken) return
+
         this.toastStore.error('공개 피드를 불러오지 못했습니다.')
         this.loaded = true
         this.hasNext = false
       } finally {
-        this.loading = false
+        if (requestToken === this.requestToken) {
+          this.loading = false
+        }
       }
     },
     onLoad({ done }) {
@@ -82,9 +90,11 @@ export default {
       })
     },
     resetList() {
+      this.requestToken += 1
       this.issues = []
       this.nextPage = 0
       this.hasNext = true
+      this.loading = false
       this.loaded = false
       this.listKey += 1
     },
