@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 
 const PAGE_SIZE = 20
+const LOAD_MORE_THRESHOLD_PX = 480
 
 export default {
   name: 'HomePage',
@@ -19,6 +20,7 @@ export default {
       deleteDialogOpen: false,
       issueToDelete: null,
       deleting: false,
+      virtualScrollElement: null,
 
       categories: [{ code: 'ALL', label: '전체' }],
       selectedCategory: 'ALL',
@@ -42,11 +44,21 @@ export default {
   },
   watch: {
     selectedCategory() {
-      this.resetList()
+      this.reloadList()
     },
   },
   async created() {
     await this.loadCategories()
+  },
+  mounted() {
+    this.bindVirtualScroll()
+    this.fetchPage(0)
+  },
+  updated() {
+    this.bindVirtualScroll()
+  },
+  beforeUnmount() {
+    this.unbindVirtualScroll()
   },
   methods: {
     async loadCategories() {
@@ -93,14 +105,37 @@ export default {
         }
       }
     },
-    onLoad({ done }) {
-      if (!this.hasNext && this.issues.length > 0) {
-        done('empty')
-        return
+    getVirtualScrollElement() {
+      return this.$refs.virtualScroll?.$el ?? null
+    },
+    bindVirtualScroll() {
+      const nextElement = this.getVirtualScrollElement()
+      if (!nextElement || nextElement === this.virtualScrollElement) return
+
+      this.unbindVirtualScroll()
+      nextElement.addEventListener('scroll', this.onVirtualScroll, { passive: true })
+      this.virtualScrollElement = nextElement
+    },
+    unbindVirtualScroll() {
+      if (!this.virtualScrollElement) return
+
+      this.virtualScrollElement.removeEventListener('scroll', this.onVirtualScroll)
+      this.virtualScrollElement = null
+    },
+    onVirtualScroll() {
+      const element = this.virtualScrollElement
+      if (!element || this.loading || !this.hasNext) return
+
+      const remainingPx = element.scrollHeight - element.scrollTop - element.clientHeight
+      if (remainingPx <= LOAD_MORE_THRESHOLD_PX) {
+        this.fetchPage(this.nextPage)
       }
-      this.fetchPage(this.nextPage).then(() => {
-        done(this.hasNext ? 'ok' : 'empty')
-      })
+    },
+    scrollListToTop() {
+      const element = this.getVirtualScrollElement()
+      if (element) {
+        element.scrollTop = 0
+      }
     },
     resetList() {
       this.requestToken += 1
@@ -111,14 +146,22 @@ export default {
       this.loaded = false
       this.listKey += 1
     },
+    reloadList() {
+      this.resetList()
+      this.$nextTick(() => {
+        this.bindVirtualScroll()
+        this.scrollListToTop()
+        this.fetchPage(0)
+      })
+    },
     applySearch() {
       this.appliedKeyword = this.searchKeyword.trim()
-      this.resetList()
+      this.reloadList()
     },
     clearSearch() {
       this.searchKeyword = ''
       this.appliedKeyword = ''
-      this.resetList()
+      this.reloadList()
     },
     openIssue(issue) {
       this.$router.push({
@@ -221,71 +264,83 @@ export default {
       </div>
     </v-sheet>
 
-    <v-infinite-scroll
+    <div
       v-else
       :key="listKey"
-      mode="intersect"
-      empty-text=""
-      class="issue-scroll"
-      @load="onLoad"
+      class="issue-scroll-shell"
     >
-      <v-list class="issue-list pa-0" lines="three">
-        <v-list-item
-          v-for="(issue, index) in issues"
-          :key="issue.issueId"
-          class="issue-item"
-          :border="index < issues.length - 1 ? 'b' : ''"
-          @click="openIssue(issue)"
-        >
-          <template #prepend>
-            <v-avatar size="44" rounded="md" class="mr-2">
-              <v-img :src="issue.newsletterImageUrl" :alt="issue.newsletterName">
-                <template #error>
-                  <div class="image-fallback">
-                    {{ issue.newsletterName.slice(0, 2) }}
-                  </div>
-                </template>
-              </v-img>
-            </v-avatar>
-          </template>
+      <v-virtual-scroll
+        ref="virtualScroll"
+        :items="issues"
+        item-key="issueId"
+        :item-height="104"
+        height="720"
+        class="issue-scroll"
+      >
+        <template #default="{ item: issue, index }">
+          <v-list-item
+            :key="issue.issueId"
+            class="issue-item"
+            :border="index < issues.length - 1 ? 'b' : ''"
+            @click="openIssue(issue)"
+          >
+            <template #prepend>
+              <v-avatar size="44" rounded="md" class="mr-2">
+                <v-img :src="issue.newsletterImageUrl" :alt="issue.newsletterName">
+                  <template #error>
+                    <div class="image-fallback">
+                      {{ issue.newsletterName.slice(0, 2) }}
+                    </div>
+                  </template>
+                </v-img>
+              </v-avatar>
+            </template>
 
-          <template #append>
-            <v-btn
-              v-if="isAdmin"
-              icon="mdi-delete-outline"
-              variant="text"
-              size="small"
-              color="error"
-              :aria-label="`${issue.subject} 삭제`"
-              @click.stop="onDeleteClick(issue)"
-            />
-          </template>
+            <template #append>
+              <v-btn
+                v-if="isAdmin"
+                icon="mdi-delete-outline"
+                variant="text"
+                size="small"
+                color="error"
+                :aria-label="`${issue.subject} 삭제`"
+                @click.stop="onDeleteClick(issue)"
+              />
+            </template>
 
-          <div class="d-flex align-center flex-wrap mb-1">
-            <span class="text-caption text-medium-emphasis mr-2">
-              {{ issue.newsletterName }}
-            </span>
-            <v-chip
-              v-if="issue.newsletterCategory"
-              size="x-small"
-              variant="tonal"
-              class="mr-2"
-            >
-              {{ issue.newsletterCategory.label }}
-            </v-chip>
-            <span class="text-caption text-medium-emphasis">
-              {{ formatDateTime(issue.receivedAt) }}
-            </span>
-          </div>
-          <div class="text-subtitle-2 font-weight-bold">
-            {{ issue.subject }}
-          </div>
-          <div class="text-body-2 text-medium-emphasis issue-summary">
-            {{ issue.previewText }}
-          </div>
-        </v-list-item>
-      </v-list>
-    </v-infinite-scroll>
+            <div class="d-flex align-center flex-wrap mb-1">
+              <span class="text-caption text-medium-emphasis mr-2">
+                {{ issue.newsletterName }}
+              </span>
+              <v-chip
+                v-if="issue.newsletterCategory"
+                size="x-small"
+                variant="tonal"
+                class="mr-2"
+              >
+                {{ issue.newsletterCategory.label }}
+              </v-chip>
+              <span class="text-caption text-medium-emphasis">
+                {{ formatDateTime(issue.receivedAt) }}
+              </span>
+            </div>
+            <div class="text-subtitle-2 font-weight-bold">
+              {{ issue.subject }}
+            </div>
+            <div class="text-body-2 text-medium-emphasis issue-summary">
+              {{ issue.previewText }}
+            </div>
+          </v-list-item>
+        </template>
+      </v-virtual-scroll>
+
+      <div
+        v-if="loading"
+        class="issue-scroll-status text-caption text-medium-emphasis"
+      >
+        불러오는 중...
+      </div>
+    </div>
 
     <v-dialog v-model="deleteDialogOpen" max-width="420">
       <v-card rounded="lg">
@@ -313,17 +368,23 @@ export default {
 </template>
 
 <style scoped>
-.issue-scroll,
-.issue-list {
+.issue-scroll-shell,
+.issue-scroll {
   background: #fff;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
+}
+
+.issue-scroll-shell {
   overflow: hidden;
 }
 
-.issue-list {
+.issue-scroll {
   border: 0;
   border-radius: 0;
+  height: 720px;
+  max-height: calc(100vh - 240px);
+  min-height: 420px;
 }
 
 .issue-item {
@@ -353,6 +414,12 @@ export default {
   color: #757575;
   font-weight: 600;
   font-size: 13px;
+}
+
+.issue-scroll-status {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 12px;
+  text-align: center;
 }
 
 .search-row {
