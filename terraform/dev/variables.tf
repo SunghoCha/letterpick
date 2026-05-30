@@ -211,6 +211,31 @@ variable "db_access_subnet_index" {
   }
 }
 
+variable "enable_k6_runner" {
+  type    = bool
+  default = false
+}
+
+variable "k6_runner_instance_type" {
+  type    = string
+  default = "t4g.small"
+}
+
+variable "k6_runner_subnet_index" {
+  type    = number
+  default = 0
+
+  validation {
+    condition     = var.k6_runner_subnet_index >= 0
+    error_message = "k6_runner_subnet_index must be zero or greater."
+  }
+}
+
+variable "enable_perf_observability" {
+  type    = bool
+  default = false
+}
+
 variable "raw_mail_bucket_name" {
   type    = string
   default = null
