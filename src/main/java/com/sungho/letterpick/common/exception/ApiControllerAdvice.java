@@ -82,16 +82,19 @@ public class ApiControllerAdvice {
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNoResource(
+    public ResponseEntity<?> handleNoResource(
             NoResourceFoundException exception,
             HttpServletRequest request
     ) {
+        String uri = request.getRequestURI();
+        if (!uri.startsWith("/api/")) {
+            return ResponseEntity.status(CommonErrorCode.RESOURCE_NOT_FOUND.getStatus()).build();
+        }
+
         log.info(
-                "요청 경로를 찾을 수 없음. method={}, uri={}, userAgent={}, xForwardedFor={}",
+                "API 요청 경로를 찾을 수 없음. method={}, uri={}",
                 request.getMethod(),
-                request.getRequestURI(),
-                request.getHeader("User-Agent"),
-                request.getHeader("X-Forwarded-For")
+                uri
         );
         return ResponseEntity.status(CommonErrorCode.RESOURCE_NOT_FOUND.getStatus())
                 .body(ErrorResponse.of(CommonErrorCode.RESOURCE_NOT_FOUND));
