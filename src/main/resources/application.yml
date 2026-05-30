@@ -63,6 +63,9 @@ newsletter:
     collector-inbox-address: ${NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS}
 
 letterpick:
+  search:
+    public-feed:
+      strategy: ${LETTERPICK_PUBLIC_FEED_SEARCH_STRATEGY:like}
   aws:
     region: ${LETTERPICK_AWS_REGION:ap-northeast-2}
   mail:

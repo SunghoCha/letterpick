@@ -8,6 +8,7 @@ import com.sungho.letterpick.newsletter.adapter.persistence.NewsletterIssueRepos
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueSearchCondition;
+import com.sungho.letterpick.newsletter.application.required.PublicFeedSearchReader;
 import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import com.sungho.letterpick.newsletter.domain.exception.NewsletterIssueNotFoundException;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +42,9 @@ class PublicNewsletterIssueQueryServiceTest {
     @Mock
     private NewsletterIssueRepository newsletterIssueRepository;
 
+    @Mock
+    private PublicFeedSearchReader publicFeedSearchReader;
+
     @Test
     @DisplayName("공개 피드 컬렉터 회원이 없으면 목록 조회를 실패로 드러낸다")
     void findIssuesThrowsWhenCollectorMemberNotFound() {
@@ -53,7 +57,7 @@ class PublicNewsletterIssueQueryServiceTest {
         assertThatThrownBy(() -> service.findIssues(condition, pageable))
                 .isInstanceOf(IllegalStateException.class);
         verify(memberRepository).findByNewsletterInboxAddress(new NewsletterInboxAddress(COLLECTOR_INBOX_ADDRESS));
-        verifyNoInteractions(newsletterIssueRepository);
+        verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader);
     }
 
     @Test
@@ -83,7 +87,7 @@ class PublicNewsletterIssueQueryServiceTest {
 
         given(memberRepository.findByNewsletterInboxAddress(collectorAddress))
                 .willReturn(Optional.of(collector));
-        given(newsletterIssueRepository.findPublicIssuesByMemberId(collector.getId(), condition, pageable))
+        given(publicFeedSearchReader.findIssues(collector.getId(), condition, pageable))
                 .willReturn(expected);
 
         // when
@@ -92,7 +96,8 @@ class PublicNewsletterIssueQueryServiceTest {
         // then
         assertThat(result).isSameAs(expected);
         verify(memberRepository).findByNewsletterInboxAddress(collectorAddress);
-        verify(newsletterIssueRepository).findPublicIssuesByMemberId(collector.getId(), condition, pageable);
+        verify(publicFeedSearchReader).findIssues(collector.getId(), condition, pageable);
+        verifyNoInteractions(newsletterIssueRepository);
     }
 
     @Test
@@ -105,7 +110,7 @@ class PublicNewsletterIssueQueryServiceTest {
         assertThatThrownBy(() -> service.findIssueDetail(1L))
                 .isInstanceOf(IllegalStateException.class);
         verify(memberRepository).findByNewsletterInboxAddress(new NewsletterInboxAddress(COLLECTOR_INBOX_ADDRESS));
-        verifyNoInteractions(newsletterIssueRepository);
+        verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader);
     }
 
     @Test
@@ -138,6 +143,7 @@ class PublicNewsletterIssueQueryServiceTest {
         assertThat(result).isSameAs(expected);
         verify(memberRepository).findByNewsletterInboxAddress(collectorAddress);
         verify(newsletterIssueRepository).findDetailByMemberIdAndIssueId(collector.getId(), 1L);
+        verifyNoInteractions(publicFeedSearchReader);
     }
 
     @Test
@@ -158,12 +164,14 @@ class PublicNewsletterIssueQueryServiceTest {
                 .isInstanceOf(NewsletterIssueNotFoundException.class);
         verify(memberRepository).findByNewsletterInboxAddress(collectorAddress);
         verify(newsletterIssueRepository).findDetailByMemberIdAndIssueId(collector.getId(), 999L);
+        verifyNoInteractions(publicFeedSearchReader);
     }
 
     private PublicNewsletterIssueQueryService service() {
         return new PublicNewsletterIssueQueryService(
                 memberRepository,
                 newsletterIssueRepository,
+                publicFeedSearchReader,
                 COLLECTOR_INBOX_ADDRESS
         );
     }

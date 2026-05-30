@@ -8,6 +8,7 @@ import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDeta
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueFinder;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueSearchCondition;
+import com.sungho.letterpick.newsletter.application.required.PublicFeedSearchReader;
 import com.sungho.letterpick.newsletter.domain.exception.NewsletterIssueNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
@@ -20,17 +21,21 @@ import org.springframework.transaction.annotation.Transactional;
 public class PublicNewsletterIssueQueryService implements PublicNewsletterIssueFinder {
 
     private final MemberRepository memberRepository;
+
     private final NewsletterIssueRepository newsletterIssueRepository;
+
+    private final PublicFeedSearchReader publicFeedSearchReader;
+
     private final String collectorInboxAddress;
 
-    public PublicNewsletterIssueQueryService(
-            MemberRepository memberRepository,
-            NewsletterIssueRepository newsletterIssueRepository,
-            @Value("${newsletter.public-feed.collector-inbox-address}")
-            String collectorInboxAddress
-    ) {
+    public PublicNewsletterIssueQueryService(MemberRepository memberRepository,
+                                             NewsletterIssueRepository newsletterIssueRepository,
+                                             PublicFeedSearchReader publicFeedSearchReader,
+                                             @Value("${newsletter.public-feed.collector-inbox-address}")
+                                             String collectorInboxAddress) {
         this.memberRepository = memberRepository;
         this.newsletterIssueRepository = newsletterIssueRepository;
+        this.publicFeedSearchReader = publicFeedSearchReader;
         this.collectorInboxAddress = collectorInboxAddress;
     }
 
@@ -39,7 +44,7 @@ public class PublicNewsletterIssueQueryService implements PublicNewsletterIssueF
                                                  Pageable pageable) {
         Member member = memberRepository.findByNewsletterInboxAddress(new NewsletterInboxAddress(collectorInboxAddress))
                 .orElseThrow(() -> new IllegalStateException("공개 피드 컬렉터 회원을 찾을 수 없습니다."));
-        return newsletterIssueRepository.findPublicIssuesByMemberId(member.getId(), condition, pageable);
+        return publicFeedSearchReader.findIssues(member.getId(), condition, pageable);
     }
 
     @Override

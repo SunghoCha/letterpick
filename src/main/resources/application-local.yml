@@ -6,7 +6,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
 
 newsletter:
   inbox-address:
@@ -18,7 +18,7 @@ letterpick:
   seed:
     member:
       local-test:
-        enabled: true
+        enabled: false
     newsletter:
       enabled: true
       local-test:
