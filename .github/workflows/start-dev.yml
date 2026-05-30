@@ -20,7 +20,7 @@ on:
       k6_runner_instance_type:
         description: EC2 instance type for the dev k6 runner
         required: true
-        default: t4g.small
+        default: t3.small
         type: string
 
 permissions:

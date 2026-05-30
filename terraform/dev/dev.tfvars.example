@@ -32,7 +32,7 @@ db_access_subnet_index = 0
 
 enable_k6_runner = false
 
-k6_runner_instance_type = "t4g.small"
+k6_runner_instance_type = "t3.small"
 
 k6_runner_subnet_index = 0
 

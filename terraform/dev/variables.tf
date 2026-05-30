@@ -218,7 +218,7 @@ variable "enable_k6_runner" {
 
 variable "k6_runner_instance_type" {
   type    = string
-  default = "t4g.small"
+  default = "t3.small"
 }
 
 variable "k6_runner_subnet_index" {
@@ -248,7 +248,7 @@ variable "frontend_bucket_name" {
 
 variable "frontend_cloudfront_price_class" {
   type    = string
-  default = "PriceClass_100"
+  default = "PriceClass_200"
 }
 
 variable "frontend_cloudfront_cache_policy_id" {
