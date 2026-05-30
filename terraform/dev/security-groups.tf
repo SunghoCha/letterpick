@@ -108,6 +108,28 @@ resource "aws_vpc_security_group_egress_rule" "db_access_host_all_ipv4" {
   cidr_ipv4   = "0.0.0.0/0"
 }
 
+resource "aws_security_group" "k6_runner" {
+  count = var.enable_k6_runner ? 1 : 0
+
+  name        = "${local.name_prefix}-k6-runner-sg"
+  description = "Allow k6 runner outbound traffic"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-k6-runner-sg"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "k6_runner_all_ipv4" {
+  count = var.enable_k6_runner ? 1 : 0
+
+  security_group_id = aws_security_group.k6_runner[0].id
+  description       = "Allow k6 runner outbound traffic"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
 resource "aws_security_group" "rds" {
   name        = "${local.name_prefix}-rds-sg"
   description = "Allow MySQL access from application tasks"

@@ -7,6 +7,21 @@ on:
         description: Full ECR image URI to use for the initial dev task definitions
         required: true
         type: string
+      enable_perf_observability:
+        description: Create the dev CloudWatch performance dashboard
+        required: true
+        default: true
+        type: boolean
+      enable_k6_runner:
+        description: Create the dev k6 runner EC2 instance
+        required: true
+        default: true
+        type: boolean
+      k6_runner_instance_type:
+        description: EC2 instance type for the dev k6 runner
+        required: true
+        default: t4g.small
+        type: string
 
 permissions:
   contents: read
@@ -20,6 +35,9 @@ jobs:
 
     env:
       IMAGE_URI: ${{ inputs.image_uri }}
+      ENABLE_PERF_OBSERVABILITY: ${{ inputs.enable_perf_observability }}
+      ENABLE_K6_RUNNER: ${{ inputs.enable_k6_runner }}
+      K6_RUNNER_INSTANCE_TYPE: ${{ inputs.k6_runner_instance_type }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
       AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -34,6 +52,9 @@ jobs:
         run: |
           required_env=(
             IMAGE_URI
+            ENABLE_PERF_OBSERVABILITY
+            ENABLE_K6_RUNNER
+            K6_RUNNER_INSTANCE_TYPE
             AWS_REGION
             AWS_TERRAFORM_ROLE_ARN
             GOOGLE_CLIENT_ID
@@ -71,6 +92,9 @@ jobs:
         run: |
           terraform -chdir=terraform/dev apply -auto-approve -input=false \
             -var="initial_backend_image_uri=$IMAGE_URI" \
+            -var="enable_perf_observability=$ENABLE_PERF_OBSERVABILITY" \
+            -var="enable_k6_runner=$ENABLE_K6_RUNNER" \
+            -var="k6_runner_instance_type=$K6_RUNNER_INSTANCE_TYPE" \
             -var="google_client_id=$GOOGLE_CLIENT_ID" \
             -var="naver_client_id=$NAVER_CLIENT_ID" \
             -var="backend_secret_names=$BACKEND_SECRET_NAMES"
@@ -79,6 +103,10 @@ jobs:
         run: |
           API_URL=$(terraform -chdir=terraform/dev output -raw api_url)
           FRONTEND_URL=$(terraform -chdir=terraform/dev output -raw frontend_url)
+          PERFORMANCE_DASHBOARD_NAME=$(terraform -chdir=terraform/dev output performance_dashboard_name)
+          K6_RUNNER_INSTANCE_ID=$(terraform -chdir=terraform/dev output k6_runner_instance_id)
           echo "### Dev runtime" >> "$GITHUB_STEP_SUMMARY"
           echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "API URL: $API_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Performance dashboard: $PERFORMANCE_DASHBOARD_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "k6 runner instance id: $K6_RUNNER_INSTANCE_ID" >> "$GITHUB_STEP_SUMMARY"
