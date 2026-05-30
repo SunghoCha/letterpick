@@ -13,13 +13,14 @@ locals {
   newsletter_inbox_address_domain = coalesce(var.newsletter_inbox_address_domain, var.ses_receive_domain_name)
 
   backend_common_environment = {
-    SPRING_PROFILES_ACTIVE          = var.environment
-    LETTERPICK_AWS_REGION           = var.aws_region
-    FRONTEND_BASE_URL               = var.frontend_base_url
-    SPRING_DATASOURCE_URL           = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
-    NEWSLETTER_INBOX_ADDRESS_DOMAIN = local.newsletter_inbox_address_domain
-    GOOGLE_CLIENT_ID                = var.google_client_id
-    NAVER_CLIENT_ID                 = var.naver_client_id
+    SPRING_PROFILES_ACTIVE                 = var.environment
+    LETTERPICK_AWS_REGION                  = var.aws_region
+    FRONTEND_BASE_URL                      = var.frontend_base_url
+    SPRING_DATASOURCE_URL                  = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
+    NEWSLETTER_INBOX_ADDRESS_DOMAIN        = local.newsletter_inbox_address_domain
+    LETTERPICK_PUBLIC_FEED_SEARCH_STRATEGY = var.public_feed_search_strategy
+    GOOGLE_CLIENT_ID                       = var.google_client_id
+    NAVER_CLIENT_ID                        = var.naver_client_id
   }
 
   database_secrets = [

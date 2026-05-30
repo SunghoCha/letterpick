@@ -20,6 +20,8 @@ tags = {}
 
 initial_backend_image_uri = "730335589937.dkr.ecr.ap-northeast-2.amazonaws.com/letterpick-backend:bootstrap"
 
+public_feed_search_strategy = "like"
+
 api_desired_count = 1
 
 worker_desired_count = 1

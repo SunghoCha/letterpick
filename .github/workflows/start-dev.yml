@@ -22,6 +22,14 @@ on:
         required: true
         default: t3.small
         type: string
+      public_feed_search_strategy:
+        description: Public feed search strategy for the dev backend
+        required: true
+        default: like
+        type: choice
+        options:
+          - like
+          - fulltext
 
 permissions:
   contents: read
@@ -38,6 +46,7 @@ jobs:
       ENABLE_PERF_OBSERVABILITY: ${{ inputs.enable_perf_observability }}
       ENABLE_K6_RUNNER: ${{ inputs.enable_k6_runner }}
       K6_RUNNER_INSTANCE_TYPE: ${{ inputs.k6_runner_instance_type }}
+      PUBLIC_FEED_SEARCH_STRATEGY: ${{ inputs.public_feed_search_strategy }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
       AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -55,6 +64,7 @@ jobs:
             ENABLE_PERF_OBSERVABILITY
             ENABLE_K6_RUNNER
             K6_RUNNER_INSTANCE_TYPE
+            PUBLIC_FEED_SEARCH_STRATEGY
             AWS_REGION
             AWS_TERRAFORM_ROLE_ARN
             GOOGLE_CLIENT_ID
@@ -95,6 +105,7 @@ jobs:
             -var="enable_perf_observability=$ENABLE_PERF_OBSERVABILITY" \
             -var="enable_k6_runner=$ENABLE_K6_RUNNER" \
             -var="k6_runner_instance_type=$K6_RUNNER_INSTANCE_TYPE" \
+            -var="public_feed_search_strategy=$PUBLIC_FEED_SEARCH_STRATEGY" \
             -var="google_client_id=$GOOGLE_CLIENT_ID" \
             -var="naver_client_id=$NAVER_CLIENT_ID" \
             -var="backend_secret_names=$BACKEND_SECRET_NAMES"
@@ -108,5 +119,6 @@ jobs:
           echo "### Dev runtime" >> "$GITHUB_STEP_SUMMARY"
           echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "API URL: $API_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Public feed search strategy: $PUBLIC_FEED_SEARCH_STRATEGY" >> "$GITHUB_STEP_SUMMARY"
           echo "Performance dashboard: $PERFORMANCE_DASHBOARD_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "k6 runner instance id: $K6_RUNNER_INSTANCE_ID" >> "$GITHUB_STEP_SUMMARY"

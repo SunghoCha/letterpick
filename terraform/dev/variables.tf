@@ -295,6 +295,17 @@ variable "initial_backend_image_uri" {
   type = string
 }
 
+variable "public_feed_search_strategy" {
+  description = "Public feed search strategy for the backend. Use like for baseline and fulltext for MySQL FULLTEXT/ngram."
+  type        = string
+  default     = "like"
+
+  validation {
+    condition     = contains(["like", "fulltext"], var.public_feed_search_strategy)
+    error_message = "public_feed_search_strategy must be like or fulltext."
+  }
+}
+
 variable "secret_name_prefix" {
   type    = string
   default = null
