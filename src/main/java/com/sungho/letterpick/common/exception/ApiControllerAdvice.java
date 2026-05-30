@@ -1,5 +1,6 @@
 package com.sungho.letterpick.common.exception;
 
+import com.sungho.letterpick.common.logging.MdcInterceptor;
 import com.sungho.letterpick.member.domain.exception.DuplicateEmailException;
 import com.sungho.letterpick.member.domain.exception.DuplicateNicknameException;
 import com.sungho.letterpick.member.domain.exception.DuplicateSocialIdentityException;
@@ -8,6 +9,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -23,8 +25,34 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class ApiControllerAdvice {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException exception) {
-        return ResponseEntity.status(exception.getErrorCode().getStatus())
+    public ResponseEntity<ErrorResponse> handleBusinessException(
+            BusinessException exception,
+            HttpServletRequest request
+    ) {
+        ErrorCode errorCode = exception.getErrorCode();
+        String requestId = MDC.get(MdcInterceptor.REQUEST_ID);
+
+        if (errorCode.getStatus().is4xxClientError()) {
+            log.info(
+                    "비즈니스 거절. code={}, method={}, path={}, requestId={}, message={}",
+                    errorCode.getCode(),
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    requestId,
+                    exception.getMessage()
+            );
+        } else {
+            log.warn(
+                    "비즈니스 예외. code={}, method={}, path={}, requestId={}, message={}",
+                    errorCode.getCode(),
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    requestId,
+                    exception.getMessage()
+            );
+        }
+
+        return ResponseEntity.status(errorCode.getStatus())
                 .body(ErrorResponse.of(exception));
     }
 
@@ -86,13 +114,14 @@ public class ApiControllerAdvice {
     //       다른 도메인의 DB constraint 번역이 필요해지면 MemberControllerAdvice 등 도메인별 advice로 분리한다.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
-            DataIntegrityViolationException exception
+            DataIntegrityViolationException exception,
+            HttpServletRequest request
     ) {
         BusinessException translated = translateUniqueConstraint(exception);
         if (translated != null) {
-            return handleBusinessException(translated);
+            return handleBusinessException(translated, request);
         }
-        return handleUnexpected(exception);
+        return handleUnexpected(exception, request);
     }
 
     private BusinessException translateUniqueConstraint(DataIntegrityViolationException exception) {
@@ -127,8 +156,18 @@ public class ApiControllerAdvice {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
-        log.error("예상치 못한 예외", exception);
+    public ResponseEntity<ErrorResponse> handleUnexpected(
+            Exception exception,
+            HttpServletRequest request
+    ) {
+        String requestId = MDC.get(MdcInterceptor.REQUEST_ID);
+        log.error(
+                "예상치 못한 예외. method={}, path={}, requestId={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                requestId,
+                exception
+        );
         return ResponseEntity.status(CommonErrorCode.INTERNAL_SERVER_ERROR.getStatus())
                 .body(ErrorResponse.of(CommonErrorCode.INTERNAL_SERVER_ERROR));
     }
