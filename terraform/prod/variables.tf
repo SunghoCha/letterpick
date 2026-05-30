@@ -223,7 +223,7 @@ variable "frontend_bucket_name" {
 
 variable "frontend_cloudfront_price_class" {
   type    = string
-  default = "PriceClass_100"
+  default = "PriceClass_200"
 }
 
 variable "frontend_cloudfront_cache_policy_id" {

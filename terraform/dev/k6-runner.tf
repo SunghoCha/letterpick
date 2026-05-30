@@ -2,6 +2,36 @@
 // DB access host와 역할을 섞지 않기 위해 별도 인스턴스로 분리한다.
 // 외부 ingress 없이 SSM Session Manager로만 접속한다.
 
+data "aws_ami" "al2023_x86_64" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023.*-kernel-6.1-x86_64"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 data "aws_iam_policy_document" "k6_runner_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -45,7 +75,7 @@ resource "aws_iam_instance_profile" "k6_runner" {
 resource "aws_instance" "k6_runner" {
   count = var.enable_k6_runner ? 1 : 0
 
-  ami                         = data.aws_ami.al2023_arm64.id
+  ami                         = data.aws_ami.al2023_x86_64.id
   instance_type               = var.k6_runner_instance_type
   subnet_id                   = aws_subnet.private[var.k6_runner_subnet_index].id
   vpc_security_group_ids      = [aws_security_group.k6_runner[0].id]
