@@ -306,6 +306,17 @@ variable "public_feed_search_strategy" {
   }
 }
 
+variable "public_feed_fulltext_query_mode" {
+  description = "Public feed FULLTEXT query mode for the backend. Use raw for baseline and all_terms to require every token."
+  type        = string
+  default     = "raw"
+
+  validation {
+    condition     = contains(["raw", "all_terms"], var.public_feed_fulltext_query_mode)
+    error_message = "public_feed_fulltext_query_mode must be raw or all_terms."
+  }
+}
+
 variable "secret_name_prefix" {
   type    = string
   default = null
