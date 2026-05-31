@@ -70,6 +70,7 @@ letterpick:
   search:
     public-feed:
       strategy: ${LETTERPICK_PUBLIC_FEED_SEARCH_STRATEGY:like}
+      fulltext-query-mode: ${LETTERPICK_PUBLIC_FEED_FULLTEXT_QUERY_MODE:raw}
   aws:
     region: ${LETTERPICK_AWS_REGION:ap-northeast-2}
   mail:

@@ -23,6 +23,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -124,15 +125,38 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
     }
 
     @Override
-    public Slice<NewsletterIssueItem> findPublicIssuesByMemberIdWithFullText(Long memberId,
-                                                                             PublicNewsletterIssueSearchCondition condition,
-                                                                             Pageable pageable) {
+    public Slice<NewsletterIssueItem> findPublicIssuesByMemberIdWithFullTextRaw(Long memberId,
+                                                                                PublicNewsletterIssueSearchCondition condition,
+                                                                                Pageable pageable) {
         requireNonNull(memberId);
         requireNonNull(condition);
         requireNonNull(pageable);
 
-        String booleanQuery = toFullTextBooleanQuery(condition.keyword());
-        Query query = createPublicFullTextQuery(memberId, condition.category(), booleanQuery, pageable);
+        String booleanQuery = toRawFullTextBooleanQuery(condition.keyword());
+        Query query = createPublicFullTextRawQuery(memberId, condition.category(), booleanQuery, pageable);
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = query.getResultList();
+        List<NewsletterIssueItem> results = rows.stream()
+                .map(this::toNewsletterIssueItem)
+                .toList();
+
+        boolean hasNext = results.size() > pageable.getPageSize();
+        List<NewsletterIssueItem> items = hasNext ? results.subList(0, pageable.getPageSize()) : results;
+
+        return new SliceImpl<>(items, pageable, hasNext);
+    }
+
+    @Override
+    public Slice<NewsletterIssueItem> findPublicIssuesByMemberIdWithFullTextAllTerms(Long memberId,
+                                                                                     PublicNewsletterIssueSearchCondition condition,
+                                                                                     Pageable pageable) {
+        requireNonNull(memberId);
+        requireNonNull(condition);
+        requireNonNull(pageable);
+
+        String booleanQuery = toAllTermsFullTextBooleanQuery(condition.keyword());
+        Query query = createPublicFullTextAllTermsQuery(memberId, condition.category(), booleanQuery, pageable);
 
         @SuppressWarnings("unchecked")
         List<Object[]> rows = query.getResultList();
@@ -210,10 +234,57 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
                 .or(newsletterIssue.content.contains(trimmedKeyword));
     }
 
-    private Query createPublicFullTextQuery(Long memberId,
-                                            NewsletterCategory category,
-                                            String booleanQuery,
-                                            Pageable pageable) {
+    private Query createPublicFullTextRawQuery(Long memberId,
+                                               NewsletterCategory category,
+                                               String booleanQuery,
+                                               Pageable pageable) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    ni.id,
+                    ni.newsletter_id,
+                    n.name,
+                    n.image_url,
+                    n.category,
+                    ni.subject,
+                    ni.preview_text,
+                    ni.received_at,
+                    ni.read_status
+                FROM newsletter_issue ni
+                JOIN newsletter n
+                    ON n.id = ni.newsletter_id
+                WHERE ni.member_id = :memberId
+                    AND ni.deleted = false
+                """);
+
+        if (category != null) {
+            sql.append(" AND n.category = :category");
+        }
+        if (booleanQuery != null) {
+            sql.append(" AND MATCH(ni.subject, ni.content) AGAINST (:keyword IN BOOLEAN MODE)");
+        }
+
+        sql.append("""
+                ORDER BY ni.received_at DESC, ni.id DESC
+                """);
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        query.setParameter("memberId", memberId);
+        if (category != null) {
+            query.setParameter("category", category.name());
+        }
+        if (booleanQuery != null) {
+            query.setParameter("keyword", booleanQuery);
+        }
+        query.setMaxResults(pageable.getPageSize() + 1);
+        query.setFirstResult(Math.toIntExact(pageable.getOffset()));
+
+        return query;
+    }
+
+    private Query createPublicFullTextAllTermsQuery(Long memberId,
+                                                    NewsletterCategory category,
+                                                    String booleanQuery,
+                                                    Pageable pageable) {
         StringBuilder sql = new StringBuilder("""
                 SELECT
                     ni.id,
@@ -271,7 +342,7 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
         );
     }
 
-    private String toFullTextBooleanQuery(String keyword) {
+    private String toRawFullTextBooleanQuery(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
         }
@@ -281,7 +352,28 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
                 .replaceAll("\\s+", " ")
                 .trim();
 
-        return query.isBlank() ? null : query;
+        if (query.isBlank()) {
+            return null;
+        }
+
+        return query;
+    }
+
+    private String toAllTermsFullTextBooleanQuery(String keyword) {
+        String query = toRawFullTextBooleanQuery(keyword);
+        if (query == null) {
+            return null;
+        }
+
+        return toAllTermsBooleanQuery(query);
+    }
+
+    private String toAllTermsBooleanQuery(String query) {
+        return Arrays.stream(query.split("\\s+"))
+                .filter(token -> !token.isBlank())
+                .map(token -> "+" + token)
+                .reduce((left, right) -> left + " " + right)
+                .orElse(null);
     }
 
     private Long toLong(Object value) {
