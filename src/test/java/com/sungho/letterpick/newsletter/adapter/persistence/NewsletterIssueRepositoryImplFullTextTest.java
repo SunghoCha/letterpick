@@ -93,7 +93,7 @@ class NewsletterIssueRepositoryImplFullTextTest {
         newsletterIssueRepository.save(deletedIssue);
 
         // when
-        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullText(
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullTextRaw(
                 collectorMemberId,
                 new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH, "redis"),
                 PageRequest.of(0, 10)

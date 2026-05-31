@@ -30,7 +30,7 @@ class FullTextPublicFeedSearchReaderTest {
     @DisplayName("FULLTEXT 공개 피드 검색 reader는 FULLTEXT repository 쿼리에 위임한다")
     void findIssuesDelegatesToRepository() {
         // given
-        FullTextPublicFeedSearchReader reader = new FullTextPublicFeedSearchReader(newsletterIssueRepository);
+        FullTextPublicFeedSearchReader reader = new FullTextPublicFeedSearchReader(newsletterIssueRepository, "raw");
         Long memberId = 10L;
         PublicNewsletterIssueSearchCondition condition = new PublicNewsletterIssueSearchCondition(
                 NewsletterCategory.TECH,
@@ -53,7 +53,7 @@ class FullTextPublicFeedSearchReaderTest {
                 false
         );
 
-        given(newsletterIssueRepository.findPublicIssuesByMemberIdWithFullText(memberId, condition, pageable))
+        given(newsletterIssueRepository.findPublicIssuesByMemberIdWithFullTextRaw(memberId, condition, pageable))
                 .willReturn(expected);
 
         // when
@@ -61,6 +61,6 @@ class FullTextPublicFeedSearchReaderTest {
 
         // then
         assertThat(result).isSameAs(expected);
-        verify(newsletterIssueRepository).findPublicIssuesByMemberIdWithFullText(memberId, condition, pageable);
+        verify(newsletterIssueRepository).findPublicIssuesByMemberIdWithFullTextRaw(memberId, condition, pageable);
     }
 }
