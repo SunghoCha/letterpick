@@ -68,15 +68,13 @@ locals {
         height = 6
 
         properties = {
-          title  = "RDS CPU / Connections / FreeableMemory"
+          title  = "RDS CPU"
           region = var.aws_region
           view   = "timeSeries"
           period = 60
           stat   = "Average"
           metrics = [
             ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", aws_db_instance.main.identifier],
-            ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", aws_db_instance.main.identifier],
-            ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", aws_db_instance.main.identifier],
           ]
         }
       },
@@ -84,6 +82,42 @@ locals {
         type   = "metric"
         x      = 0
         y      = 12
+        width  = 12
+        height = 6
+
+        properties = {
+          title  = "RDS Connections"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 60
+          stat   = "Average"
+          metrics = [
+            ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", aws_db_instance.main.identifier],
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 12
+        width  = 12
+        height = 6
+
+        properties = {
+          title  = "RDS FreeableMemory"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 60
+          stat   = "Average"
+          metrics = [
+            ["AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", aws_db_instance.main.identifier],
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 18
         width  = 12
         height = 6
 
@@ -102,7 +136,7 @@ locals {
       {
         type   = "metric"
         x      = 12
-        y      = 12
+        y      = 18
         width  = 12
         height = 6
 
@@ -123,7 +157,7 @@ locals {
       {
         type   = "metric"
         x      = 0
-        y      = 18
+        y      = 24
         width  = 12
         height = 6
 
@@ -141,7 +175,7 @@ locals {
       {
         type   = "metric"
         x      = 12
-        y      = 18
+        y      = 24
         width  = 12
         height = 6
 
