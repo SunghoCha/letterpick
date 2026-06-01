@@ -1,6 +1,6 @@
-// 이 파일은 ECS task 실행과 worker AWS SDK 호출에 필요한 IAM 역할을 만든다.
+// 이 파일은 ECS task 실행과 애플리케이션 코드의 AWS SDK 호출에 필요한 IAM 역할을 만든다.
 // execution role은 ECR pull, CloudWatch Logs, Secrets Manager 주입에 쓰이고,
-// worker task role은 애플리케이션 코드가 SQS/S3를 호출할 때 쓰인다.
+// api/worker task role은 컨테이너 안의 애플리케이션 코드가 AWS API를 호출할 때 쓰인다.
 
 locals {
   secret_name_prefix          = coalesce(var.secret_name_prefix, "${var.project}/${var.environment}")
@@ -59,6 +59,37 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
   name   = "${local.name_prefix}-ecs-execution-secrets"
   role   = aws_iam_role.ecs_execution.id
   policy = data.aws_iam_policy_document.ecs_execution_secrets.json
+}
+
+resource "aws_iam_role" "api_task" {
+  name               = "${local.name_prefix}-api-task-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-api-task-role"
+  })
+}
+
+data "aws_iam_policy_document" "api_cloudwatch_metrics" {
+  statement {
+    actions = [
+      "cloudwatch:PutMetricData",
+    ]
+
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "cloudwatch:namespace"
+      values   = [local.application_metrics_namespace]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "api_cloudwatch_metrics" {
+  name   = "${local.name_prefix}-api-cloudwatch-metrics"
+  role   = aws_iam_role.api_task.id
+  policy = data.aws_iam_policy_document.api_cloudwatch_metrics.json
 }
 
 resource "aws_iam_role" "worker_task" {

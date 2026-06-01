@@ -1,5 +1,5 @@
 // 이 파일은 dev 성능 실험 중 볼 CloudWatch dashboard를 만든다.
-// 애플리케이션 내부 지표(Hikari/JVM)는 아직 포함하지 않고, AWS 기본 메트릭만 묶는다.
+// AWS 기본 메트릭과 API 애플리케이션 내부 지표를 함께 묶는다.
 
 locals {
   performance_dashboard_widgets = concat(
@@ -152,12 +152,90 @@ locals {
           ]
         }
       },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 24
+        width  = 12
+        height = 6
+
+        properties = {
+          title  = "API Hikari Connections"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 60
+          stat   = "Average"
+          metrics = [
+            [local.application_metrics_namespace, "hikaricp.connections.active", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { label = "active" }],
+            [local.application_metrics_namespace, "hikaricp.connections.idle", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { label = "idle" }],
+            [local.application_metrics_namespace, "hikaricp.connections.max", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { label = "max" }],
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 24
+        width  = 12
+        height = 6
+
+        properties = {
+          title  = "API Hikari Pending / Timeouts"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 60
+          metrics = [
+            [local.application_metrics_namespace, "hikaricp.connections.pending", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { stat = "Average", label = "pending" }],
+            [local.application_metrics_namespace, "hikaricp.connections.timeout", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { stat = "Sum", label = "timeouts" }],
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 30
+        width  = 12
+        height = 6
+
+        properties = {
+          title  = "API Tomcat Threads"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 60
+          stat   = "Average"
+          metrics = [
+            [local.application_metrics_namespace, "tomcat.threads.busy", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "busy" }],
+            [local.application_metrics_namespace, "tomcat.threads.current", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "current" }],
+            [local.application_metrics_namespace, "tomcat.threads.config.max", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "max" }],
+          ]
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 30
+        width  = 12
+        height = 6
+
+        properties = {
+          title  = "API JVM Heap Memory"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 60
+          stat   = "Average"
+          metrics = [
+            [local.application_metrics_namespace, "jvm.memory.used", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "G1 Eden Space", { label = "eden used" }],
+            [local.application_metrics_namespace, "jvm.memory.used", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "G1 Old Gen", { label = "old used" }],
+            [local.application_metrics_namespace, "jvm.memory.used", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "G1 Survivor Space", { label = "survivor used" }],
+          ]
+        }
+      },
     ],
     var.enable_k6_runner ? [
       {
         type   = "metric"
         x      = 0
-        y      = 24
+        y      = 36
         width  = 12
         height = 6
 
@@ -175,7 +253,7 @@ locals {
       {
         type   = "metric"
         x      = 12
-        y      = 24
+        y      = 36
         width  = 12
         height = 6
 
