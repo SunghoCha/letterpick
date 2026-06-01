@@ -267,9 +267,15 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
                     """);
         }
 
-        sql.append("""
-                ORDER BY ni.received_at DESC, ni.id DESC
-                """);
+        if (booleanQuery != null) {
+            sql.append("""
+                    ORDER BY MATCH(ni.subject, ni.content) AGAINST (:keyword IN BOOLEAN MODE) DESC
+                    """);
+        } else {
+            sql.append("""
+                    ORDER BY ni.received_at DESC, ni.id DESC
+                    """);
+        }
 
         Query query = entityManager.createNativeQuery(sql.toString());
         query.setParameter("memberId", memberId);
@@ -318,9 +324,15 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
                     """);
         }
 
-        sql.append("""
-                ORDER BY ni.received_at DESC, ni.id DESC
-                """);
+        if (booleanQuery != null) {
+            sql.append("""
+                    ORDER BY MATCH(ni.subject, ni.content) AGAINST (:keyword IN BOOLEAN MODE) DESC
+                    """);
+        } else {
+            sql.append("""
+                    ORDER BY ni.received_at DESC, ni.id DESC
+                    """);
+        }
 
         Query query = entityManager.createNativeQuery(sql.toString());
         query.setParameter("memberId", memberId);

@@ -63,7 +63,7 @@ class NewsletterIssueRepositoryImplFullTextTest {
     }
 
     @Test
-    @DisplayName("FULLTEXT 공개 피드 검색은 제목과 본문을 대상으로 하고 카테고리 조건과 함께 최신순으로 조회한다")
+    @DisplayName("FULLTEXT 공개 피드 검색은 제목과 본문을 대상으로 하고 카테고리 조건과 함께 관련도순으로 조회한다")
     void findPublicIssuesByMemberIdWithFullTextSearchesSubjectAndContentWithCategoryFilter() {
         // given
         Long collectorMemberId = 1L;
@@ -79,13 +79,13 @@ class NewsletterIssueRepositoryImplFullTextTest {
                 NewsletterFixture.createNewsletter("검색 비즈 뉴스레터", NewsletterCategory.BIZ)
         );
 
-        NewsletterIssue subjectMatchedIssue = newsletterIssueRepository.save(
-                createIssue(collectorMemberId, techNewsletter.getId(), 1L, "redis 운영 사례",
-                        "다른 본문", "제목 매칭 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
+        NewsletterIssue highScoreIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 1L, "redis redis 운영 사례",
+                        "redis 캐시 운영 본문", "높은 관련도 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
         );
-        NewsletterIssue contentMatchedIssue = newsletterIssueRepository.save(
+        NewsletterIssue lowScoreIssue = newsletterIssueRepository.save(
                 createIssue(collectorMemberId, techNewsletter.getId(), 2L, "다른 제목",
-                        "본문에서 redis 캐시 전략을 다룬다", "본문 매칭 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
+                        "본문에서 redis 캐시 전략을 다룬다", "낮은 관련도 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
         );
         newsletterIssueRepository.save(
                 createIssue(collectorMemberId, keywordNameNewsletter.getId(), 3L, "다른 제목",
@@ -116,7 +116,7 @@ class NewsletterIssueRepositoryImplFullTextTest {
         assertThat(result.hasNext()).isFalse();
         assertThat(result.getContent())
                 .extracting(NewsletterIssueItem::issueId)
-                .containsExactly(contentMatchedIssue.getId(), subjectMatchedIssue.getId());
+                .containsExactly(highScoreIssue.getId(), lowScoreIssue.getId());
     }
 
     @Test
