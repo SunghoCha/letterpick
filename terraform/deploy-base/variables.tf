@@ -51,6 +51,16 @@ variable "github_repository" {
   default = "SunghoCha/letterpick"
 }
 
+variable "performance_dataset_bucket_name" {
+  type    = string
+  default = null
+}
+
+variable "performance_dataset_bucket_force_destroy" {
+  type    = bool
+  default = false
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

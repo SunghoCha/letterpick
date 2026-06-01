@@ -4,6 +4,11 @@ locals {
   dev_name_prefix  = "${var.project}-${var.dev_environment}"
   prod_name_prefix = "${var.project}-${var.prod_environment}"
 
+  performance_dataset_bucket_name = coalesce(
+    var.performance_dataset_bucket_name,
+    "${local.dev_name_prefix}-performance-datasets-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
+  )
+
   prod_terraform_state_keys = [
     var.prod_terraform_state_key,
     var.prod_persistence_terraform_state_key,
