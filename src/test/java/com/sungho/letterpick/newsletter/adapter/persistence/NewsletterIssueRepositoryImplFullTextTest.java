@@ -7,6 +7,7 @@ import com.sungho.letterpick.newsletter.domain.Newsletter;
 import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import com.sungho.letterpick.newsletter.domain.NewsletterFixture;
 import com.sungho.letterpick.newsletter.domain.NewsletterIssue;
+import com.sungho.letterpick.support.database.CleanDatabase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import({LetterPickTestConfiguration.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@CleanDatabase
 class NewsletterIssueRepositoryImplFullTextTest {
 
     @Autowired
@@ -43,11 +45,21 @@ class NewsletterIssueRepositoryImplFullTextTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("""
-                ALTER TABLE newsletter_issue
-                    ADD FULLTEXT INDEX ft_newsletter_issue_subject_content_ngram (subject, content)
-                        WITH PARSER ngram
-                """);
+        Integer indexCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                    AND table_name = 'newsletter_issue'
+                    AND index_name = 'ft_newsletter_issue_subject_content_ngram'
+                """, Integer.class);
+
+        if (indexCount == null || indexCount == 0) {
+            jdbcTemplate.execute("""
+                    ALTER TABLE newsletter_issue
+                        ADD FULLTEXT INDEX ft_newsletter_issue_subject_content_ngram (subject, content)
+                            WITH PARSER ngram
+                    """);
+        }
     }
 
     @Test
@@ -105,6 +117,74 @@ class NewsletterIssueRepositoryImplFullTextTest {
         assertThat(result.getContent())
                 .extracting(NewsletterIssueItem::issueId)
                 .containsExactly(contentMatchedIssue.getId(), subjectMatchedIssue.getId());
+    }
+
+    @Test
+    @DisplayName("FULLTEXT all_terms 공개 피드 조회는 검색어 없이 카테고리만 있어도 조회한다")
+    void findPublicIssuesByMemberIdWithFullTextAllTermsFiltersByCategoryWithoutKeyword() {
+        // given
+        Long collectorMemberId = 1L;
+
+        Newsletter techNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("기술 뉴스레터", NewsletterCategory.TECH)
+        );
+        Newsletter bizNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("비즈 뉴스레터", NewsletterCategory.BIZ)
+        );
+
+        newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 1L, "기술 이슈",
+                        "기술 본문", "기술 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
+        );
+        NewsletterIssue bizIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, bizNewsletter.getId(), 2L, "비즈 이슈",
+                        "비즈 본문", "비즈 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
+        );
+
+        // when
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullTextAllTerms(
+                collectorMemberId,
+                new PublicNewsletterIssueSearchCondition(NewsletterCategory.BIZ, null),
+                PageRequest.of(0, 10)
+        );
+
+        // then
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().getFirst().issueId()).isEqualTo(bizIssue.getId());
+    }
+
+    @Test
+    @DisplayName("FULLTEXT raw 공개 피드 조회는 검색어 없이 카테고리만 있어도 조회한다")
+    void findPublicIssuesByMemberIdWithFullTextRawFiltersByCategoryWithoutKeyword() {
+        // given
+        Long collectorMemberId = 1L;
+
+        Newsletter techNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("기술 뉴스레터", NewsletterCategory.TECH)
+        );
+        Newsletter bizNewsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("비즈 뉴스레터", NewsletterCategory.BIZ)
+        );
+
+        newsletterIssueRepository.save(
+                createIssue(collectorMemberId, techNewsletter.getId(), 1L, "기술 이슈",
+                        "기술 본문", "기술 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
+        );
+        NewsletterIssue bizIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, bizNewsletter.getId(), 2L, "비즈 이슈",
+                        "비즈 본문", "비즈 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
+        );
+
+        // when
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullTextRaw(
+                collectorMemberId,
+                new PublicNewsletterIssueSearchCondition(NewsletterCategory.BIZ, null),
+                PageRequest.of(0, 10)
+        );
+
+        // then
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().getFirst().issueId()).isEqualTo(bizIssue.getId());
     }
 
     private NewsletterIssue createIssue(Long memberId, Long newsletterId, Long inboundEmailId,
