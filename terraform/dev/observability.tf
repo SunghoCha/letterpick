@@ -160,33 +160,16 @@ locals {
         height = 6
 
         properties = {
-          title  = "API Hikari Connections"
+          title  = "API JDBC Connections"
           region = var.aws_region
           view   = "timeSeries"
           period = 60
           stat   = "Average"
           metrics = [
-            [local.application_metrics_namespace, "hikaricp.connections.active", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { label = "active" }],
-            [local.application_metrics_namespace, "hikaricp.connections.idle", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { label = "idle" }],
-            [local.application_metrics_namespace, "hikaricp.connections.max", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { label = "max" }],
-          ]
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 24
-        width  = 12
-        height = 6
-
-        properties = {
-          title  = "API Hikari Pending / Timeouts"
-          region = var.aws_region
-          view   = "timeSeries"
-          period = 60
-          metrics = [
-            [local.application_metrics_namespace, "hikaricp.connections.pending", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { stat = "Average", label = "pending" }],
-            [local.application_metrics_namespace, "hikaricp.connections.timeout", "application", "letterPick", "environment", var.environment, "service", "api", "pool", "letterpick-api", { stat = "Sum", label = "timeouts" }],
+            [local.application_metrics_namespace, "jdbc.connections.active.value", "application", "letterPick", "environment", var.environment, "service", "api", "name", "dataSource", { label = "active" }],
+            [local.application_metrics_namespace, "jdbc.connections.idle.value", "application", "letterPick", "environment", var.environment, "service", "api", "name", "dataSource", { label = "idle" }],
+            [local.application_metrics_namespace, "jdbc.connections.max.value", "application", "letterPick", "environment", var.environment, "service", "api", "name", "dataSource", { label = "max" }],
+            [local.application_metrics_namespace, "jdbc.connections.min.value", "application", "letterPick", "environment", var.environment, "service", "api", "name", "dataSource", { label = "min" }],
           ]
         }
       },
@@ -204,16 +187,16 @@ locals {
           period = 60
           stat   = "Average"
           metrics = [
-            [local.application_metrics_namespace, "tomcat.threads.busy", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "busy" }],
-            [local.application_metrics_namespace, "tomcat.threads.current", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "current" }],
-            [local.application_metrics_namespace, "tomcat.threads.config.max", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "max" }],
+            [local.application_metrics_namespace, "tomcat.threads.busy.value", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "busy" }],
+            [local.application_metrics_namespace, "tomcat.threads.current.value", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "current" }],
+            [local.application_metrics_namespace, "tomcat.threads.config.max.value", "application", "letterPick", "environment", var.environment, "service", "api", "name", "http-nio-8080", { label = "max" }],
           ]
         }
       },
       {
         type   = "metric"
         x      = 12
-        y      = 30
+        y      = 24
         width  = 12
         height = 6
 
@@ -224,9 +207,9 @@ locals {
           period = 60
           stat   = "Average"
           metrics = [
-            [local.application_metrics_namespace, "jvm.memory.used", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "G1 Eden Space", { label = "eden used" }],
-            [local.application_metrics_namespace, "jvm.memory.used", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "G1 Old Gen", { label = "old used" }],
-            [local.application_metrics_namespace, "jvm.memory.used", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "G1 Survivor Space", { label = "survivor used" }],
+            [local.application_metrics_namespace, "jvm.memory.used.value", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "Eden Space", { label = "eden used" }],
+            [local.application_metrics_namespace, "jvm.memory.used.value", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "Tenured Gen", { label = "tenured used" }],
+            [local.application_metrics_namespace, "jvm.memory.used.value", "application", "letterPick", "environment", var.environment, "service", "api", "area", "heap", "id", "Survivor Space", { label = "survivor used" }],
           ]
         }
       },
