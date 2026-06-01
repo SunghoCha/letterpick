@@ -14,12 +14,12 @@ class LikePublicFeedSearchReaderConditionTest {
             .withUserConfiguration(LikePublicFeedSearchReader.class);
 
     @Test
-    @DisplayName("검색 strategy 설정이 없으면 LIKE 공개 피드 검색 reader bean을 등록한다")
-    void registerLikeReaderWhenStrategyMissing() {
+    @DisplayName("검색 strategy 설정이 없으면 LIKE 공개 피드 검색 reader bean을 등록하지 않는다")
+    void doesNotRegisterLikeReaderWhenStrategyMissing() {
         // when
         contextRunner.run(context -> {
             // then
-            assertThat(context).hasSingleBean(LikePublicFeedSearchReader.class);
+            assertThat(context).doesNotHaveBean(LikePublicFeedSearchReader.class);
         });
     }
 

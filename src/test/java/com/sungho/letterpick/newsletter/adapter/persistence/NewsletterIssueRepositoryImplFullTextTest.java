@@ -105,7 +105,7 @@ class NewsletterIssueRepositoryImplFullTextTest {
         newsletterIssueRepository.save(deletedIssue);
 
         // when
-        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullTextRaw(
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullText(
                 collectorMemberId,
                 new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH, "redis"),
                 PageRequest.of(0, 10)
@@ -120,8 +120,8 @@ class NewsletterIssueRepositoryImplFullTextTest {
     }
 
     @Test
-    @DisplayName("FULLTEXT all_terms 공개 피드 조회는 검색어 없이 카테고리만 있어도 조회한다")
-    void findPublicIssuesByMemberIdWithFullTextAllTermsFiltersByCategoryWithoutKeyword() {
+    @DisplayName("FULLTEXT 공개 피드 조회는 검색어 없이 카테고리만 있어도 조회한다")
+    void findPublicIssuesByMemberIdWithFullTextFiltersByCategoryWithoutKeyword() {
         // given
         Long collectorMemberId = 1L;
 
@@ -142,41 +142,7 @@ class NewsletterIssueRepositoryImplFullTextTest {
         );
 
         // when
-        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullTextAllTerms(
-                collectorMemberId,
-                new PublicNewsletterIssueSearchCondition(NewsletterCategory.BIZ, null),
-                PageRequest.of(0, 10)
-        );
-
-        // then
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().getFirst().issueId()).isEqualTo(bizIssue.getId());
-    }
-
-    @Test
-    @DisplayName("FULLTEXT raw 공개 피드 조회는 검색어 없이 카테고리만 있어도 조회한다")
-    void findPublicIssuesByMemberIdWithFullTextRawFiltersByCategoryWithoutKeyword() {
-        // given
-        Long collectorMemberId = 1L;
-
-        Newsletter techNewsletter = newslettersRepository.save(
-                NewsletterFixture.createNewsletter("기술 뉴스레터", NewsletterCategory.TECH)
-        );
-        Newsletter bizNewsletter = newslettersRepository.save(
-                NewsletterFixture.createNewsletter("비즈 뉴스레터", NewsletterCategory.BIZ)
-        );
-
-        newsletterIssueRepository.save(
-                createIssue(collectorMemberId, techNewsletter.getId(), 1L, "기술 이슈",
-                        "기술 본문", "기술 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
-        );
-        NewsletterIssue bizIssue = newsletterIssueRepository.save(
-                createIssue(collectorMemberId, bizNewsletter.getId(), 2L, "비즈 이슈",
-                        "비즈 본문", "비즈 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
-        );
-
-        // when
-        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullTextRaw(
+        Slice<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdWithFullText(
                 collectorMemberId,
                 new PublicNewsletterIssueSearchCondition(NewsletterCategory.BIZ, null),
                 PageRequest.of(0, 10)

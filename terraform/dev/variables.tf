@@ -296,24 +296,13 @@ variable "initial_backend_image_uri" {
 }
 
 variable "public_feed_search_strategy" {
-  description = "Public feed search strategy for the backend. Use like for baseline and fulltext for MySQL FULLTEXT/ngram."
+  description = "Public feed search strategy for the backend. fulltext is the default; like remains for fallback and baseline comparison."
   type        = string
-  default     = "like"
+  default     = "fulltext"
 
   validation {
     condition     = contains(["like", "fulltext"], var.public_feed_search_strategy)
     error_message = "public_feed_search_strategy must be like or fulltext."
-  }
-}
-
-variable "public_feed_fulltext_query_mode" {
-  description = "Public feed FULLTEXT query mode for the backend. Use raw for baseline and all_terms to require every token."
-  type        = string
-  default     = "raw"
-
-  validation {
-    condition     = contains(["raw", "all_terms"], var.public_feed_fulltext_query_mode)
-    error_message = "public_feed_fulltext_query_mode must be raw or all_terms."
   }
 }
 

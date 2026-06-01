@@ -18,13 +18,9 @@ public interface CustomNewsletterIssueRepository {
                                                           PublicNewsletterIssueSearchCondition condition,
                                                           Pageable pageable);
 
-    Slice<NewsletterIssueItem> findPublicIssuesByMemberIdWithFullTextRaw(Long memberId,
-                                                                         PublicNewsletterIssueSearchCondition condition,
-                                                                         Pageable pageable);
-
-    Slice<NewsletterIssueItem> findPublicIssuesByMemberIdWithFullTextAllTerms(Long memberId,
-                                                                              PublicNewsletterIssueSearchCondition condition,
-                                                                              Pageable pageable);
+    Slice<NewsletterIssueItem> findPublicIssuesByMemberIdWithFullText(Long memberId,
+                                                                      PublicNewsletterIssueSearchCondition condition,
+                                                                      Pageable pageable);
 
     Optional<NewsletterIssueDetail> findDetailByMemberIdAndIssueId(Long memberId, Long issueId);
 }

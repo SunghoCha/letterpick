@@ -17,11 +17,11 @@ import static java.util.Objects.requireNonNull;
 @ConditionalOnProperty(
         prefix = "letterpick.search.public-feed",
         name = "strategy",
-        havingValue = "like",
-        matchIfMissing = true
+        havingValue = "like"
 )
 @RequiredArgsConstructor
 @Slf4j
+@Deprecated(since = "0.0.1", forRemoval = false)
 public class LikePublicFeedSearchReader implements PublicFeedSearchReader {
 
     private final NewsletterIssueRepository newsletterIssueRepository;
