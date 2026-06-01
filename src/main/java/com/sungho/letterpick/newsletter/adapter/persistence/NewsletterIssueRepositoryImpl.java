@@ -257,10 +257,14 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
                 """);
 
         if (category != null) {
-            sql.append(" AND n.category = :category");
+            sql.append("""
+                     AND n.category = :category
+                    """);
         }
         if (booleanQuery != null) {
-            sql.append(" AND MATCH(ni.subject, ni.content) AGAINST (:keyword IN BOOLEAN MODE)");
+            sql.append("""
+                     AND MATCH(ni.subject, ni.content) AGAINST (:keyword IN BOOLEAN MODE)
+                    """);
         }
 
         sql.append("""
@@ -304,10 +308,14 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
                 """);
 
         if (category != null) {
-            sql.append(" AND n.category = :category");
+            sql.append("""
+                     AND n.category = :category
+                    """);
         }
         if (booleanQuery != null) {
-            sql.append(" AND MATCH(ni.subject, ni.content) AGAINST (:keyword IN BOOLEAN MODE)");
+            sql.append("""
+                     AND MATCH(ni.subject, ni.content) AGAINST (:keyword IN BOOLEAN MODE)
+                    """);
         }
 
         sql.append("""
