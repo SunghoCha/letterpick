@@ -7,6 +7,9 @@ spring:
     aws:
       region:
         static: ${LETTERPICK_AWS_REGION:ap-northeast-2}
+      cloudwatch:
+        enabled: ${LETTERPICK_CLOUDWATCH_METRICS_ENABLED:false}
+        region: ${LETTERPICK_AWS_REGION:ap-northeast-2}
       sqs:
         enabled: ${LETTERPICK_MAIL_SQS_LISTENER_ENABLED:${LETTERPICK_SQS_ENABLED:false}}
         queue-not-found-strategy: FAIL
@@ -16,6 +19,9 @@ spring:
   jpa:
     properties:
       hibernate.jdbc.time_zone: UTC
+  datasource:
+    hikari:
+      pool-name: letterpick-api
   security:
     oauth2:
       client:
@@ -46,6 +52,11 @@ logging:
     level: "%5p [req:%X{requestId:-}]"
 
 management:
+  cloudwatch:
+    metrics:
+      export:
+        namespace: ${LETTERPICK_CLOUDWATCH_METRICS_NAMESPACE:LetterPick/Local/Application}
+        step: ${LETTERPICK_CLOUDWATCH_METRICS_STEP:1m}
   endpoint:
     health:
       probes:
@@ -54,6 +65,11 @@ management:
     web:
       exposure:
         include: health
+  metrics:
+    tags:
+      application: ${spring.application.name:letterPick}
+      environment: ${LETTERPICK_ENV:local}
+      service: api
 
 # OAuth 가입/로그인 후 redirect 대상 + CORS allowed origin.
 # 배포 환경은 FRONTEND_BASE_URL 환경변수로 주입한다.

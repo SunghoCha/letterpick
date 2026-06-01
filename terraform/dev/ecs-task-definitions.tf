@@ -14,7 +14,9 @@ locals {
 
   backend_common_environment = {
     SPRING_PROFILES_ACTIVE                     = var.environment
+    LETTERPICK_ENV                             = var.environment
     LETTERPICK_AWS_REGION                      = var.aws_region
+    LETTERPICK_CLOUDWATCH_METRICS_NAMESPACE    = local.application_metrics_namespace
     FRONTEND_BASE_URL                          = var.frontend_base_url
     SPRING_DATASOURCE_URL                      = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
     NEWSLETTER_INBOX_ADDRESS_DOMAIN            = local.newsletter_inbox_address_domain
@@ -46,7 +48,8 @@ locals {
 
   api_environment = [
     for name, value in merge(local.backend_common_environment, {
-      LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "false"
+      LETTERPICK_MAIL_SQS_LISTENER_ENABLED  = "false"
+      LETTERPICK_CLOUDWATCH_METRICS_ENABLED = tostring(var.enable_perf_observability)
       }) : {
       name  = name
       value = value
@@ -77,6 +80,7 @@ resource "aws_ecs_task_definition" "api" {
   cpu                      = var.api_cpu
   memory                   = var.api_memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.api_task.arn
 
   container_definitions = jsonencode([
     {
