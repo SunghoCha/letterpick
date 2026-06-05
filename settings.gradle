@@ -1,1 +1,3 @@
 rootProject.name = 'letterPick'
+include 'event-contract'
+include 'trending-service'
