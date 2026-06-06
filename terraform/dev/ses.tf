@@ -1,6 +1,9 @@
-// 이 파일은 외부 메일이 dev 수신 도메인으로 들어오는 입구를 만든다.
+// 이 파일은 dev 메일 수신 파이프라인 리소스를 만든다.
 // SES receipt rule은 메일을 받은 뒤 S3에 raw MIME을 저장하고,
 // 같은 S3 action의 notification을 SNS topic으로 발행한다.
+//
+// SES active receipt rule set은 계정/리전 단일 설정이므로 dev가 소유하지 않는다.
+// prod 수신을 방해하지 않도록 실제 활성화는 prod-persistence에서만 관리한다.
 
 locals {
   ses_receipt_rule_set_name = coalesce(var.ses_receipt_rule_set_name, "${local.name_prefix}-receive-rules")
@@ -102,8 +105,12 @@ resource "aws_ses_receipt_rule_set" "mail_receive" {
   rule_set_name = local.ses_receipt_rule_set_name
 }
 
-resource "aws_ses_active_receipt_rule_set" "mail_receive" {
-  rule_set_name = aws_ses_receipt_rule_set.mail_receive.rule_set_name
+removed {
+  from = aws_ses_active_receipt_rule_set.mail_receive
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 resource "aws_ses_receipt_rule" "store_and_notify" {
@@ -137,6 +144,5 @@ resource "aws_route53_record" "ses_mx" {
 
   depends_on = [
     aws_ses_receipt_rule.store_and_notify,
-    aws_ses_active_receipt_rule_set.mail_receive,
   ]
 }
