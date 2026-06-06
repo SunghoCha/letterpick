@@ -1,7 +1,5 @@
 package com.sungho.letterpick.newsletter.domain;
 
-import java.util.Arrays;
-
 public enum NewsletterCategory {
 
     BIZ("비즈·재테크"),

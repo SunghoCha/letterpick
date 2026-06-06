@@ -1,0 +1,17 @@
+spring:
+  cloud:
+    aws:
+      credentials:
+        access-key: ${LETTERPICK_LOCAL_AWS_ACCESS_KEY:test}
+        secret-key: ${LETTERPICK_LOCAL_AWS_SECRET_KEY:test}
+      sqs:
+        enabled: true
+        endpoint: ${LETTERPICK_LOCAL_SQS_ENDPOINT:http://localhost:4566}
+
+letterpick:
+  mail:
+    sqs-listener:
+      enabled: true
+  outbox:
+    publish:
+      enabled: true

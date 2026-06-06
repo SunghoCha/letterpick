@@ -25,6 +25,7 @@ repositories {
 }
 
 dependencies {
+    implementation project(':event-contract')
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
@@ -41,6 +42,8 @@ dependencies {
     implementation 'software.amazon.awssdk:s3'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'
     implementation 'io.micrometer:micrometer-registry-cloudwatch2'
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0'
 
     // querydsl
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
@@ -58,6 +61,8 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
     testImplementation 'org.testcontainers:testcontainers-mysql'
+    testImplementation 'org.testcontainers:testcontainers-localstack'
+    testImplementation 'io.awspring.cloud:spring-cloud-aws-testcontainers'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

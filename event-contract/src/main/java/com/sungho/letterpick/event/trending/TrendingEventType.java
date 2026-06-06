@@ -1,12 +1,12 @@
 package com.sungho.letterpick.event.trending;
 
-public enum TrendingEventTypes {
+public enum TrendingEventType {
 
     PUBLIC_ISSUE_AVAILABLE("PUBLIC_ISSUE_AVAILABLE");
 
     private final String value;
 
-    TrendingEventTypes(String value) {
+    TrendingEventType(String value) {
         this.value = value;
     }
 

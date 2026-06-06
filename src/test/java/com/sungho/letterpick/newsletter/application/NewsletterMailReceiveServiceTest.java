@@ -4,6 +4,7 @@ import com.sungho.letterpick.newsletter.adapter.persistence.InboundEmailReposito
 import com.sungho.letterpick.newsletter.adapter.persistence.MemberNewsletterRepository;
 import com.sungho.letterpick.newsletter.adapter.persistence.NewsletterIssueRepository;
 import com.sungho.letterpick.newsletter.adapter.persistence.NewslettersRepository;
+import com.sungho.letterpick.newsletter.application.event.PublicIssueAvailableEvent;
 import com.sungho.letterpick.newsletter.domain.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
@@ -44,6 +46,12 @@ class NewsletterMailReceiveServiceTest {
 
     @Mock
     private NewsletterIssuePreviewGenerator newsletterIssuePreviewGenerator;
+
+    @Mock
+    private PublicFeedCollectorAccount publicFeedCollectorAccount;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Test
     @DisplayName("새로운 receivedMail이 들어오면 수신 이력이 저장된다")
@@ -239,6 +247,60 @@ class NewsletterMailReceiveServiceTest {
         assertThat(newsletterIssue.getReceivedAt()).isEqualTo(receivedMail.receivedAt());
         assertThat(newsletterIssue.isRead()).isFalse();
         assertThat(newsletterIssue.isDeleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("공개 피드 컬렉터 회원의 뉴스레터 이슈가 생성되면 공개 이슈 생성 이벤트를 발행한다")
+    void receive_publishes_public_issue_available_event_when_collector_issue_is_created() {
+        // given
+        Long memberId = 1L;
+        Long newsletterId = 2L;
+        Long inboundEmailId = 100L;
+        Long issueId = 200L;
+        String previewText = "뉴스레터 본문 미리보기";
+        ReceivedMail receivedMail = ReceivedMailFixture.create();
+
+        given(inboundEmailRepository.save(any(InboundEmail.class)))
+                .willAnswer(invocation -> {
+                    InboundEmail inboundEmail = invocation.getArgument(0, InboundEmail.class);
+                    ReflectionTestUtils.setField(inboundEmail, "id", inboundEmailId);
+                    return inboundEmail;
+                });
+
+        given(recipientAddressResolver.resolve(receivedMail.recipientAddress()))
+                .willReturn(RecipientAddressResolution.found(memberId));
+
+        Newsletter newsletter = NewsletterFixture.createNewsletterWithId(newsletterId);
+        given(newslettersRepository.findByEmailAddress(receivedMail.senderEmail()))
+                .willReturn(Optional.of(newsletter));
+
+        MemberNewsletter memberNewsletter = MemberNewsletter.create(memberId, newsletterId);
+        given(memberNewsletterRepository.findByMemberIdAndNewsletterId(memberId, newsletterId))
+                .willReturn(Optional.of(memberNewsletter));
+        given(newsletterIssuePreviewGenerator.generate(receivedMail.content()))
+                .willReturn(previewText);
+        given(newsletterIssueRepository.save(any(NewsletterIssue.class)))
+                .willAnswer(invocation -> {
+                    NewsletterIssue issue = invocation.getArgument(0, NewsletterIssue.class);
+                    ReflectionTestUtils.setField(issue, "id", issueId);
+                    return issue;
+                });
+        given(publicFeedCollectorAccount.isCollectorInboxAddress(receivedMail.recipientAddress()))
+                .willReturn(true);
+
+        // when
+        newsletterMailReceiveService.receive(receivedMail);
+
+        // then
+        ArgumentCaptor<PublicIssueAvailableEvent> eventCaptor = ArgumentCaptor.forClass(PublicIssueAvailableEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+        PublicIssueAvailableEvent event = eventCaptor.getValue();
+        assertThat(event.eventId()).isNotBlank();
+        assertThat(event.issueId()).isEqualTo(issueId);
+        assertThat(event.newsletterId()).isEqualTo(newsletterId);
+        assertThat(event.category()).isEqualTo(newsletter.getCategory());
+        assertThat(event.publicFeedCollectedAt()).isEqualTo(receivedMail.receivedAt());
     }
 
     @Test

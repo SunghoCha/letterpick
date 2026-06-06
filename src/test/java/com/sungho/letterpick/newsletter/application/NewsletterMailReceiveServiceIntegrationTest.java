@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import({
         LetterPickTestConfiguration.class,
         RecipientAddressResolver.class,
+        PublicFeedCollectorAccount.class,
         NewsletterMailReceiveService.class,
         NewsletterIssuePreviewGenerator.class
 })

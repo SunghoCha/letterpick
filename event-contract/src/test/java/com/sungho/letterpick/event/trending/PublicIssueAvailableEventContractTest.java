@@ -28,7 +28,7 @@ class PublicIssueAvailableEventContractTest {
         );
         EventEnvelope<PublicIssueAvailablePayload> event = new EventEnvelope<>(
                 "event-1",
-                TrendingEventTypes.PUBLIC_ISSUE_AVAILABLE.value(),
+                TrendingEventType.PUBLIC_ISSUE_AVAILABLE.value(),
                 1,
                 "letterpick",
                 Instant.parse("2050-06-05T01:00:00Z"),
