@@ -1,13 +1,17 @@
 package com.sungho.letterpick.newsletter.adapter.mail;
 
+import com.sungho.letterpick.common.logging.MdcInterceptor;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -24,6 +28,11 @@ class SesMailSqsListenerTest {
             .withBean(SesMailReceiveProcessor.class, () -> mock(SesMailReceiveProcessor.class))
             .withUserConfiguration(SesMailSqsListener.class);
 
+    @AfterEach
+    void tearDown() {
+        MDC.remove(MdcInterceptor.REQUEST_ID);
+    }
+
     @Test
     @DisplayName("SQS message body를 SES mail receive processor에 전달한다")
     void receive_delegates_sqs_message_body_to_processor() {
@@ -35,6 +44,23 @@ class SesMailSqsListenerTest {
 
         // then
         verify(processor).process(SQS_MESSAGE_BODY);
+    }
+
+    @Test
+    @DisplayName("메일 수신 처리 동안 requestId를 MDC에 저장하고 처리 후 제거한다")
+    void receive_sets_and_clears_mdc_request_id() {
+        // given
+        SesMailSqsListener listener = new SesMailSqsListener(processor);
+        doAnswer(invocation -> {
+            assertThat(MDC.get(MdcInterceptor.REQUEST_ID)).isNotBlank();
+            return null;
+        }).when(processor).process(SQS_MESSAGE_BODY);
+
+        // when
+        listener.receive(SQS_MESSAGE_BODY);
+
+        // then
+        assertThat(MDC.get(MdcInterceptor.REQUEST_ID)).isNull();
     }
 
     @Test

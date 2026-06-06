@@ -4,15 +4,18 @@ import com.sungho.letterpick.newsletter.adapter.persistence.InboundEmailReposito
 import com.sungho.letterpick.newsletter.adapter.persistence.MemberNewsletterRepository;
 import com.sungho.letterpick.newsletter.adapter.persistence.NewsletterIssueRepository;
 import com.sungho.letterpick.newsletter.adapter.persistence.NewslettersRepository;
+import com.sungho.letterpick.newsletter.application.event.PublicIssueAvailableEvent;
 import com.sungho.letterpick.newsletter.domain.InboundEmail;
 import com.sungho.letterpick.newsletter.domain.MemberNewsletter;
 import com.sungho.letterpick.newsletter.domain.Newsletter;
 import com.sungho.letterpick.newsletter.domain.NewsletterIssue;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -25,6 +28,8 @@ public class NewsletterMailReceiveService {
     private final MemberNewsletterRepository memberNewsletterRepository;
     private final NewsletterIssueRepository newsletterIssueRepository;
     private final NewsletterIssuePreviewGenerator newsletterIssuePreviewGenerator;
+    private final PublicFeedCollectorAccount publicFeedCollectorAccount;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void receive(ReceivedMail receivedMail) {
         if (inboundEmailRepository.existsByMessageKey(receivedMail.messageKey())) return;
@@ -52,8 +57,8 @@ public class NewsletterMailReceiveService {
             return;
         }
 
-        Long newsletterId = newsletterOpt.get().getId();
-        processSubscriptionReceive(memberId, newsletterId, receivedMail.content(), inboundEmail);
+        Newsletter newsletter = newsletterOpt.get();
+        processSubscriptionReceive(memberId, newsletter, receivedMail.content(), inboundEmail);
 
     }
 
@@ -71,16 +76,17 @@ public class NewsletterMailReceiveService {
 
     private void processSubscriptionReceive(
             Long memberId,
-            Long newsletterId,
+            Newsletter newsletter,
             String content,
             InboundEmail inboundEmail
     ) {
+        Long newsletterId = newsletter.getId();
         Optional<MemberNewsletter> memberNewsletterOpt = memberNewsletterRepository
                 .findByMemberIdAndNewsletterId(memberId, newsletterId);
 
         if (memberNewsletterOpt.isEmpty()) {
             memberNewsletterRepository.save(MemberNewsletter.create(memberId, newsletterId));
-            completeIssueCreation(memberId, newsletterId, content, inboundEmail);
+            completeIssueCreation(memberId, newsletter, content, inboundEmail);
             return;
         }
 
@@ -91,14 +97,15 @@ public class NewsletterMailReceiveService {
         }
 
         if (memberNewsletter.isActive()) {
-            completeIssueCreation(memberId, newsletterId, content, inboundEmail);
+            completeIssueCreation(memberId, newsletter, content, inboundEmail);
             return;
         }
 
         throw new IllegalStateException("지원하지 않는 구독 상태입니다.");
     }
 
-    private void completeIssueCreation(Long memberId, Long newsletterId, String content, InboundEmail inboundEmail) {
+    private void completeIssueCreation(Long memberId, Newsletter newsletter, String content, InboundEmail inboundEmail) {
+        Long newsletterId = newsletter.getId();
         String previewText = newsletterIssuePreviewGenerator.generate(content);
         NewsletterIssue newsletterIssue = NewsletterIssue.create(
                 memberId,
@@ -109,7 +116,21 @@ public class NewsletterMailReceiveService {
                 previewText,
                 inboundEmail.getReceivedAt()
         );
-        newsletterIssueRepository.save(newsletterIssue);
+        NewsletterIssue savedIssue = newsletterIssueRepository.save(newsletterIssue);
         inboundEmail.markIssueCreated(memberId, newsletterId);
+
+        if (publicFeedCollectorAccount.isCollectorInboxAddress(inboundEmail.getRecipientAddress())) {
+            publishPublicIssueAvailableEvent(newsletter, inboundEmail, savedIssue);
+        }
+    }
+
+    private void publishPublicIssueAvailableEvent(Newsletter newsletter, InboundEmail inboundEmail, NewsletterIssue savedIssue) {
+        eventPublisher.publishEvent(new PublicIssueAvailableEvent(
+                UUID.randomUUID().toString(),
+                savedIssue.getId(),
+                newsletter.getId(),
+                newsletter.getCategory(),
+                inboundEmail.getReceivedAt()
+        ));
     }
 }

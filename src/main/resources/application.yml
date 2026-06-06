@@ -11,7 +11,7 @@ spring:
         enabled: ${LETTERPICK_CLOUDWATCH_METRICS_ENABLED:false}
         region: ${LETTERPICK_AWS_REGION:ap-northeast-2}
       sqs:
-        enabled: ${LETTERPICK_MAIL_SQS_LISTENER_ENABLED:${LETTERPICK_SQS_ENABLED:false}}
+        enabled: ${LETTERPICK_SQS_ENABLED:false}
         queue-not-found-strategy: FAIL
         region: ${LETTERPICK_AWS_REGION:ap-northeast-2}
   flyway:
@@ -92,4 +92,9 @@ letterpick:
     receive-queue: ${LETTERPICK_MAIL_RECEIVE_QUEUE:letterpick-mail-receive}
     receive-dlq: ${LETTERPICK_MAIL_RECEIVE_DLQ:${LETTERPICK_MAIL_RECEIVE_QUEUE:letterpick-mail-receive}-dlq}
     sqs-listener:
-      enabled: ${LETTERPICK_MAIL_SQS_LISTENER_ENABLED:${LETTERPICK_SQS_ENABLED:false}}
+      enabled: ${LETTERPICK_MAIL_SQS_LISTENER_ENABLED:false}
+  outbox:
+    publish:
+      enabled: ${LETTERPICK_OUTBOX_PUBLISH_ENABLED:false}
+    retry:
+      enabled: ${LETTERPICK_OUTBOX_RETRY_ENABLED:false}

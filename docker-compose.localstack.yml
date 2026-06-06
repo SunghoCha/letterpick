@@ -1,0 +1,37 @@
+services:
+  localstack:
+    image: localstack/localstack:4.4.0
+    environment:
+      SERVICES: sqs
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: ap-northeast-2
+      DEFAULT_REGION: ap-northeast-2
+    ports:
+      - "4566:4566"
+    volumes:
+      - letterpick-localstack-data:/var/lib/localstack
+
+  localstack-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      - localstack
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: ap-northeast-2
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until aws --endpoint-url=http://localstack:4566 sqs list-queues --region ap-northeast-2 >/dev/null 2>&1; do
+          sleep 1
+        done
+
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name letterpick-mail-receive --region ap-northeast-2
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name letterpick-mail-receive-dlq --region ap-northeast-2
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name TRENDING_LIFECYCLE_EVENTS --region ap-northeast-2
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name TRENDING_SCORE_EVENTS --region ap-northeast-2
+
+volumes:
+  letterpick-localstack-data:

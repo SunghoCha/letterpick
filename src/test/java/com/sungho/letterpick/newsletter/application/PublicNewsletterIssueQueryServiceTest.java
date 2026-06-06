@@ -1,9 +1,5 @@
 package com.sungho.letterpick.newsletter.application;
 
-import com.sungho.letterpick.member.adapter.persistence.MemberRepository;
-import com.sungho.letterpick.member.domain.Member;
-import com.sungho.letterpick.member.domain.MemberFixture;
-import com.sungho.letterpick.member.domain.NewsletterInboxAddress;
 import com.sungho.letterpick.newsletter.adapter.persistence.NewsletterIssueRepository;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
@@ -28,16 +24,15 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class PublicNewsletterIssueQueryServiceTest {
 
-    private static final String COLLECTOR_INBOX_ADDRESS = "aaaaaaaaaaaa@inbound.letterpick.test";
-
     @Mock
-    private MemberRepository memberRepository;
+    private PublicFeedCollectorAccount publicFeedCollectorAccount;
 
     @Mock
     private NewsletterIssueRepository newsletterIssueRepository;
@@ -53,10 +48,13 @@ class PublicNewsletterIssueQueryServiceTest {
         PublicNewsletterIssueSearchCondition condition = new PublicNewsletterIssueSearchCondition(null, null);
         Pageable pageable = PageRequest.of(0, 20);
 
+        willThrow(new IllegalStateException("공개 피드 컬렉터 회원을 찾을 수 없습니다."))
+                .given(publicFeedCollectorAccount).collectorMemberId();
+
         // when & then
         assertThatThrownBy(() -> service.findIssues(condition, pageable))
                 .isInstanceOf(IllegalStateException.class);
-        verify(memberRepository).findByNewsletterInboxAddress(new NewsletterInboxAddress(COLLECTOR_INBOX_ADDRESS));
+        verify(publicFeedCollectorAccount).collectorMemberId();
         verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader);
     }
 
@@ -65,8 +63,7 @@ class PublicNewsletterIssueQueryServiceTest {
     void findIssuesReturnsCollectorMemberIssues() {
         // given
         PublicNewsletterIssueQueryService service = service();
-        Member collector = MemberFixture.createMemberWithId(10L);
-        NewsletterInboxAddress collectorAddress = new NewsletterInboxAddress(COLLECTOR_INBOX_ADDRESS);
+        Long collectorMemberId = 10L;
         PublicNewsletterIssueSearchCondition condition = new PublicNewsletterIssueSearchCondition(NewsletterCategory.TECH, "redis");
         Pageable pageable = PageRequest.of(0, 20);
         Slice<NewsletterIssueItem> expected = new SliceImpl<>(
@@ -85,9 +82,8 @@ class PublicNewsletterIssueQueryServiceTest {
                 false
         );
 
-        given(memberRepository.findByNewsletterInboxAddress(collectorAddress))
-                .willReturn(Optional.of(collector));
-        given(publicFeedSearchReader.findIssues(collector.getId(), condition, pageable))
+        given(publicFeedCollectorAccount.collectorMemberId()).willReturn(collectorMemberId);
+        given(publicFeedSearchReader.findIssues(collectorMemberId, condition, pageable))
                 .willReturn(expected);
 
         // when
@@ -95,8 +91,8 @@ class PublicNewsletterIssueQueryServiceTest {
 
         // then
         assertThat(result).isSameAs(expected);
-        verify(memberRepository).findByNewsletterInboxAddress(collectorAddress);
-        verify(publicFeedSearchReader).findIssues(collector.getId(), condition, pageable);
+        verify(publicFeedCollectorAccount).collectorMemberId();
+        verify(publicFeedSearchReader).findIssues(collectorMemberId, condition, pageable);
         verifyNoInteractions(newsletterIssueRepository);
     }
 
@@ -106,10 +102,13 @@ class PublicNewsletterIssueQueryServiceTest {
         // given
         PublicNewsletterIssueQueryService service = service();
 
+        willThrow(new IllegalStateException("공개 피드 컬렉터 회원을 찾을 수 없습니다."))
+                .given(publicFeedCollectorAccount).collectorMemberId();
+
         // when & then
         assertThatThrownBy(() -> service.findIssueDetail(1L))
                 .isInstanceOf(IllegalStateException.class);
-        verify(memberRepository).findByNewsletterInboxAddress(new NewsletterInboxAddress(COLLECTOR_INBOX_ADDRESS));
+        verify(publicFeedCollectorAccount).collectorMemberId();
         verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader);
     }
 
@@ -118,8 +117,7 @@ class PublicNewsletterIssueQueryServiceTest {
     void findIssueDetailReturnsCollectorMemberIssueDetail() {
         // given
         PublicNewsletterIssueQueryService service = service();
-        Member collector = MemberFixture.createMemberWithId(10L);
-        NewsletterInboxAddress collectorAddress = new NewsletterInboxAddress(COLLECTOR_INBOX_ADDRESS);
+        Long collectorMemberId = 10L;
         NewsletterIssueDetail expected = new NewsletterIssueDetail(
                 1L,
                 2L,
@@ -131,9 +129,8 @@ class PublicNewsletterIssueQueryServiceTest {
                 true
         );
 
-        given(memberRepository.findByNewsletterInboxAddress(collectorAddress))
-                .willReturn(Optional.of(collector));
-        given(newsletterIssueRepository.findDetailByMemberIdAndIssueId(collector.getId(), 1L))
+        given(publicFeedCollectorAccount.collectorMemberId()).willReturn(collectorMemberId);
+        given(newsletterIssueRepository.findDetailByMemberIdAndIssueId(collectorMemberId, 1L))
                 .willReturn(Optional.of(expected));
 
         // when
@@ -141,8 +138,8 @@ class PublicNewsletterIssueQueryServiceTest {
 
         // then
         assertThat(result).isSameAs(expected);
-        verify(memberRepository).findByNewsletterInboxAddress(collectorAddress);
-        verify(newsletterIssueRepository).findDetailByMemberIdAndIssueId(collector.getId(), 1L);
+        verify(publicFeedCollectorAccount).collectorMemberId();
+        verify(newsletterIssueRepository).findDetailByMemberIdAndIssueId(collectorMemberId, 1L);
         verifyNoInteractions(publicFeedSearchReader);
     }
 
@@ -151,28 +148,26 @@ class PublicNewsletterIssueQueryServiceTest {
     void findIssueDetailThrowsWhenIssueNotFound() {
         // given
         PublicNewsletterIssueQueryService service = service();
-        Member collector = MemberFixture.createMemberWithId(10L);
-        NewsletterInboxAddress collectorAddress = new NewsletterInboxAddress(COLLECTOR_INBOX_ADDRESS);
+        Long collectorMemberId = 10L;
 
-        given(memberRepository.findByNewsletterInboxAddress(collectorAddress))
-                .willReturn(Optional.of(collector));
-        given(newsletterIssueRepository.findDetailByMemberIdAndIssueId(collector.getId(), 999L))
+        given(publicFeedCollectorAccount.collectorMemberId()).willReturn(collectorMemberId);
+        given(newsletterIssueRepository.findDetailByMemberIdAndIssueId(collectorMemberId, 999L))
                 .willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> service.findIssueDetail(999L))
                 .isInstanceOf(NewsletterIssueNotFoundException.class);
-        verify(memberRepository).findByNewsletterInboxAddress(collectorAddress);
-        verify(newsletterIssueRepository).findDetailByMemberIdAndIssueId(collector.getId(), 999L);
+        verify(publicFeedCollectorAccount).collectorMemberId();
+        verify(newsletterIssueRepository).findDetailByMemberIdAndIssueId(collectorMemberId, 999L);
         verifyNoInteractions(publicFeedSearchReader);
     }
 
     private PublicNewsletterIssueQueryService service() {
         return new PublicNewsletterIssueQueryService(
-                memberRepository,
+                publicFeedCollectorAccount,
                 newsletterIssueRepository,
-                publicFeedSearchReader,
-                COLLECTOR_INBOX_ADDRESS
+                publicFeedSearchReader
+
         );
     }
 }
