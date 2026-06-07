@@ -30,8 +30,8 @@ services:
 
         aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name letterpick-mail-receive --region ap-northeast-2
         aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name letterpick-mail-receive-dlq --region ap-northeast-2
-        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name TRENDING_LIFECYCLE_EVENTS --region ap-northeast-2
-        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name TRENDING_SCORE_EVENTS --region ap-northeast-2
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name letterpick-local-trending-lifecycle-events --region ap-northeast-2
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name letterpick-local-trending-score-events --region ap-northeast-2
 
 volumes:
   letterpick-localstack-data:

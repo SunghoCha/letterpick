@@ -20,13 +20,16 @@ public class OutboxMessageRecorder {
     private final OutboxMessageRepository outboxMessageRepository;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final OutboxQueueNameResolver outboxQueueNameResolver;
 
     public OutboxMessageRecorder(OutboxMessageRepository outboxMessageRepository,
                                  ObjectMapper objectMapper,
-                                 Clock clock) {
+                                 Clock clock,
+                                 OutboxQueueNameResolver outboxQueueNameResolver) {
         this.outboxMessageRepository = outboxMessageRepository;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.outboxQueueNameResolver = outboxQueueNameResolver;
     }
 
     public OutboxMessage record(OutboxMessageRecordRequest request) {
@@ -37,7 +40,7 @@ public class OutboxMessageRecorder {
 
         OutboxMessage message = OutboxMessage.create(
                 request.eventId(),
-                type.destination(),
+                outboxQueueNameResolver.resolveQueueName(type),
                 type.eventType(),
                 type.schemaVersion(),
                 SOURCE,
