@@ -14,14 +14,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import com.sungho.letterpick.LetterPickDataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@DataJpaTest
+@LetterPickDataJpaTest
 @ActiveProfiles("test")
 @Import({LetterPickTestConfiguration.class, MemberModifyService.class,
         NewsletterInboxAddressGenerator.class})
@@ -53,6 +53,8 @@ class MemberModifierTest {
         assertThat(member.getNickname().name()).isEqualTo("nickname");
         assertThat(member.getNewsletterInboxAddress().address())
                 .matches("^[a-z0-9]{12}@inbound\\.letterpick\\.test$");
+        assertThat(member.getCreatedAt()).isNotNull();
+        assertThat(member.getUpdatedAt()).isNotNull();
     }
 
     @Test

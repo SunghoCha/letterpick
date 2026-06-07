@@ -10,14 +10,14 @@ import com.sungho.letterpick.newsletter.domain.exception.NewsletterNotFoundExcep
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import com.sungho.letterpick.LetterPickDataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@DataJpaTest
+@LetterPickDataJpaTest
 @ActiveProfiles("test")
 @Import({LetterPickTestConfiguration.class, MemberNewsletterQueryService.class})
 class MemberNewsletterQueryServiceTest {

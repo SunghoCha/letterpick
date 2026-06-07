@@ -25,11 +25,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import com.sungho.letterpick.LetterPickDataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
-@DataJpaTest
+@LetterPickDataJpaTest
 @ActiveProfiles("test")
 @Import(LetterPickTestConfiguration.class)
 class DevNewsletterIssueDemoServiceIntegrationTest {
