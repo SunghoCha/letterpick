@@ -19,3 +19,8 @@ newsletter:
     domain: inbound.letterpick.test
   public-feed:
     collector-inbox-address: omcxewctypxo@inbound-dev.letterpicknews.com
+
+letterpick:
+  outbox:
+    queue:
+      trending-lifecycle-events: letterpick-test-trending-lifecycle-events

@@ -11,11 +11,15 @@ public class OutboxQueueNameResolver {
     private final Map<OutboxMessageType, String> queueNames;
 
     public OutboxQueueNameResolver(
-            @Value("${letterpick.outbox.queue.trending-lifecycle-events:trending-lifecycle-events}")
+            @Value("${letterpick.outbox.queue.trending-lifecycle-events}")
             String trendingLifecycleEventsQueue
     ) {
+        if (trendingLifecycleEventsQueue == null || trendingLifecycleEventsQueue.isBlank()) {
+            throw new IllegalStateException("outbox queue name is not configured: "
+                    + OutboxMessageType.PUBLIC_ISSUE_AVAILABLE);
+        }
         this.queueNames = Map.of(
-                OutboxMessageType.PUBLIC_ISSUE_AVAILABLE, trendingLifecycleEventsQueue
+                OutboxMessageType.PUBLIC_ISSUE_AVAILABLE, trendingLifecycleEventsQueue.trim()
         );
     }
 

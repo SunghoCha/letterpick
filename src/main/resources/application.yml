@@ -95,7 +95,7 @@ letterpick:
       enabled: ${LETTERPICK_MAIL_SQS_LISTENER_ENABLED:false}
   outbox:
     queue:
-      trending-lifecycle-events: ${LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE:trending-lifecycle-events}
+      trending-lifecycle-events: ${LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE}
     publish:
       enabled: ${LETTERPICK_OUTBOX_PUBLISH_ENABLED:false}
     retry:
