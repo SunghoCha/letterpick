@@ -1,5 +1,6 @@
 package com.sungho.letterpick.member.domain;
 
+import com.sungho.letterpick.common.domain.BaseEntity;
 import com.sungho.letterpick.common.domain.Email;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -22,7 +23,7 @@ import static java.util.Objects.requireNonNull;
         @UniqueConstraint(name = "uk_member_social_identity",
                 columnNames = {"social_provider", "social_provider_id"})
 })
-public class Member {
+public class Member extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

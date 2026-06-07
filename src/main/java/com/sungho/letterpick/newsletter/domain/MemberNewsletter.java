@@ -1,5 +1,6 @@
 package com.sungho.letterpick.newsletter.domain;
 
+import com.sungho.letterpick.common.domain.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -19,7 +20,7 @@ import static java.util.Objects.requireNonNull;
                 columnNames = {"member_id", "newsletter_id"}
         )
 })
-public class MemberNewsletter {
+public class MemberNewsletter extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

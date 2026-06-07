@@ -1,5 +1,6 @@
 package com.sungho.letterpick.newsletter.domain;
 
+import com.sungho.letterpick.common.domain.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -15,7 +16,7 @@ import static java.util.Objects.requireNonNull;
 @Table(name = "newsletter_issue", uniqueConstraints = {
         @UniqueConstraint(name = "uk_newsletter_issue_inbound_email_id", columnNames = "inbound_email_id")
 })
-public class NewsletterIssue {
+public class NewsletterIssue extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
