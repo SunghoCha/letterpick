@@ -118,7 +118,7 @@ class DefaultOutboxMessageRelayTest {
     private OutboxMessage outboxMessage(String eventId) {
         return OutboxMessage.create(
                 eventId,
-                "TRENDING_LIFECYCLE_EVENTS",
+                "letterpick-test-trending-lifecycle-events",
                 "PUBLIC_ISSUE_AVAILABLE",
                 1,
                 "letterpick",

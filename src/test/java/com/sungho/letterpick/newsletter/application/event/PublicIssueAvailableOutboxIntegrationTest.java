@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "letterpick.outbox.publish.enabled=false",
         "letterpick.outbox.retry.enabled=false",
         "letterpick.mail.sqs-listener.enabled=false",
+        "letterpick.outbox.queue.trending-lifecycle-events=letterpick-test-trending-lifecycle-events",
         "newsletter.public-feed.collector-inbox-address=abcd1234efgh@inbound.letterpick.test"
 })
 @ActiveProfiles("test")
@@ -102,7 +103,7 @@ class PublicIssueAvailableOutboxIntegrationTest {
 
         OutboxMessage message = messages.getFirst();
         assertThat(message.getEventId()).isNotBlank();
-        assertThat(message.getDestination()).isEqualTo(OutboxMessageType.PUBLIC_ISSUE_AVAILABLE.destination());
+        assertThat(message.getDestination()).isEqualTo("letterpick-test-trending-lifecycle-events");
         assertThat(message.getEventType()).isEqualTo(OutboxMessageType.PUBLIC_ISSUE_AVAILABLE.eventType());
         assertThat(message.getSchemaVersion()).isEqualTo(OutboxMessageType.PUBLIC_ISSUE_AVAILABLE.schemaVersion());
         assertThat(message.getSource()).isEqualTo("letterpick");

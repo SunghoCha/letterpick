@@ -38,7 +38,8 @@ class OutboxMessageRecorderTest {
         OutboxMessageRecorder recorder = new OutboxMessageRecorder(
                 outboxMessageRepository,
                 new ObjectMapper(),
-                CLOCK
+                CLOCK,
+                new OutboxQueueNameResolver("letterpick-test-trending-lifecycle-events")
         );
         Instant occurredAt = Instant.parse("2050-06-06T00:59:00Z");
         MDC.put(MdcInterceptor.REQUEST_ID, "trace-1");
@@ -53,7 +54,7 @@ class OutboxMessageRecorderTest {
 
         OutboxMessage saved = outboxMessageRepository.findAll().getFirst();
         assertThat(saved.getEventId()).isEqualTo("event-1");
-        assertThat(saved.getDestination()).isEqualTo("TRENDING_LIFECYCLE_EVENTS");
+        assertThat(saved.getDestination()).isEqualTo("letterpick-test-trending-lifecycle-events");
         assertThat(saved.getEventType()).isEqualTo("PUBLIC_ISSUE_AVAILABLE");
         assertThat(saved.getSchemaVersion()).isEqualTo(1);
         assertThat(saved.getSource()).isEqualTo("letterpick");

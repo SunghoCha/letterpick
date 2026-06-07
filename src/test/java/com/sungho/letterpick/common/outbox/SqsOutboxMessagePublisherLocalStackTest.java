@@ -31,6 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 class SqsOutboxMessagePublisherLocalStackTest {
 
+    private static final String TRENDING_LIFECYCLE_QUEUE_NAME = "letterpick-test-trending-lifecycle-events";
+
     @Autowired
     private SqsAsyncClient sqsAsyncClient;
 
@@ -46,7 +48,7 @@ class SqsOutboxMessagePublisherLocalStackTest {
     @BeforeEach
     void setUp() {
         sqsAsyncClient.createQueue(CreateQueueRequest.builder()
-                        .queueName(OutboxMessageType.PUBLIC_ISSUE_AVAILABLE.destination())
+                        .queueName(TRENDING_LIFECYCLE_QUEUE_NAME)
                         .build())
                 .join();
     }
@@ -57,7 +59,7 @@ class SqsOutboxMessagePublisherLocalStackTest {
         Instant occurredAt = Instant.parse("2026-06-06T00:00:00Z");
         OutboxMessage message = OutboxMessage.create(
                 "event-1",
-                OutboxMessageType.PUBLIC_ISSUE_AVAILABLE.destination(),
+                TRENDING_LIFECYCLE_QUEUE_NAME,
                 OutboxMessageType.PUBLIC_ISSUE_AVAILABLE.eventType(),
                 OutboxMessageType.PUBLIC_ISSUE_AVAILABLE.schemaVersion(),
                 "letterpick",
@@ -93,7 +95,7 @@ class SqsOutboxMessagePublisherLocalStackTest {
 
     private String receiveMessageBody() {
         return sqsOperations.receive(options -> options
-                        .queue(OutboxMessageType.PUBLIC_ISSUE_AVAILABLE.destination())
+                        .queue(TRENDING_LIFECYCLE_QUEUE_NAME)
                         .pollTimeout(Duration.ofSeconds(1)), String.class)
                 .orElseThrow(() -> new AssertionError("SQS 메시지를 수신하지 못했습니다."))
                 .getPayload();
