@@ -1,10 +1,10 @@
 package com.sungho.letterpick.trending.inbox;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.sungho.letterpick.event.EventEnvelope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
 
 import java.time.Clock;
 

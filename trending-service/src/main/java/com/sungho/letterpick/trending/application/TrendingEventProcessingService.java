@@ -1,7 +1,7 @@
 package com.sungho.letterpick.trending.application;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.sungho.letterpick.event.EventEnvelope;
+import tools.jackson.databind.JsonNode;
 
 public interface TrendingEventProcessingService {
 

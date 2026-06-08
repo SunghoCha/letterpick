@@ -1,14 +1,14 @@
 package com.sungho.letterpick.trending.publicissue;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.event.trending.PublicIssueAvailablePayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.application.TrendingEventHandler;
 import com.sungho.letterpick.trending.application.TrendingMessageProcessingException;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 
@@ -53,7 +53,7 @@ public class PublicIssueAvailableHandler implements TrendingEventHandler {
     private PublicIssueAvailablePayload readPayload(JsonNode payload) {
         try {
             return objectMapper.treeToValue(payload, PublicIssueAvailablePayload.class);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new TrendingMessageProcessingException("failed to deserialize PUBLIC_ISSUE_AVAILABLE payload", e);
         }
     }

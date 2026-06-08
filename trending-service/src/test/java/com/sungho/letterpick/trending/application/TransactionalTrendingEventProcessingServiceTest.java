@@ -1,7 +1,5 @@
 package com.sungho.letterpick.trending.application;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.trending.inbox.InboxEvent;
 import com.sungho.letterpick.trending.inbox.InboxEventRepository;
@@ -12,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 import java.time.Clock;
 import java.time.Instant;

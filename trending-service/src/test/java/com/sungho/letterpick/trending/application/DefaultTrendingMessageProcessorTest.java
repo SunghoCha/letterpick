@@ -1,7 +1,5 @@
 package com.sungho.letterpick.trending.application;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.event.trending.PublicIssueAvailablePayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
@@ -14,6 +12,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 

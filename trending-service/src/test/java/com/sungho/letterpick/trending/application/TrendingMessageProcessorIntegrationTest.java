@@ -1,7 +1,5 @@
 package com.sungho.letterpick.trending.application;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.event.trending.PublicIssueAvailablePayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
@@ -22,6 +20,8 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
 import java.util.Map;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
