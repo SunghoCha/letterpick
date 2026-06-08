@@ -18,6 +18,7 @@ letterpick:
   outbox:
     queue:
       trending-lifecycle-events: letterpick-local-trending-lifecycle-events
+      trending-score-events: letterpick-local-trending-score-events
   seed:
     member:
       local-test:

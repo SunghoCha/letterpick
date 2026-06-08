@@ -24,3 +24,4 @@ letterpick:
   outbox:
     queue:
       trending-lifecycle-events: letterpick-test-trending-lifecycle-events
+      trending-score-events: letterpick-test-trending-score-events

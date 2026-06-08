@@ -8,6 +8,11 @@ public enum OutboxMessageType {
             TrendingEventType.PUBLIC_ISSUE_AVAILABLE.value(),
             1,
             "NEWSLETTER_ISSUE"
+    ),
+    ISSUE_VIEW_COUNT_UPDATED(
+            TrendingEventType.ISSUE_VIEW_COUNT_UPDATED.value(),
+            1,
+            "NEWSLETTER_ISSUE"
     );
 
     private final String eventType;

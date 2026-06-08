@@ -1,0 +1,37 @@
+package com.sungho.letterpick.newsletter.application;
+
+import com.sungho.letterpick.common.outbox.OutboxMessageRecordRequest;
+import com.sungho.letterpick.common.outbox.OutboxMessageRecorder;
+import com.sungho.letterpick.common.outbox.OutboxMessageType;
+import com.sungho.letterpick.event.trending.IssueViewCountUpdatedPayload;
+import com.sungho.letterpick.newsletter.adapter.persistence.PublicIssueViewCountRepository;
+import com.sungho.letterpick.newsletter.application.required.PublicIssueViewCountSnapshotRecorder;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+@Component
+@RequiredArgsConstructor
+public class PublicIssueViewCountSnapshotRecorderService implements PublicIssueViewCountSnapshotRecorder {
+
+    private final PublicIssueViewCountRepository publicIssueViewCountRepository;
+    private final OutboxMessageRecorder outboxMessageRecorder;
+    private final Clock clock;
+
+    @Override
+    @Transactional
+    public void recordSnapshot(Long issueId, long viewCount) {
+        Instant occurredAt = clock.instant();
+        publicIssueViewCountRepository.upsertSnapshot(issueId, viewCount, occurredAt);
+        outboxMessageRecorder.record(new OutboxMessageRecordRequest(
+                UUID.randomUUID().toString(),
+                OutboxMessageType.ISSUE_VIEW_COUNT_UPDATED,
+                String.valueOf(issueId),
+                new IssueViewCountUpdatedPayload(issueId, viewCount),
+                occurredAt
+        ));
+    }
+}
