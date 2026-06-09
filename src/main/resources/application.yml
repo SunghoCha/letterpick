@@ -88,6 +88,8 @@ letterpick:
       snapshot-interval: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL:50}
       dedupe-ttl: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_DEDUPE_TTL:PT30M}
       redis-key-prefix: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_REDIS_KEY_PREFIX:letterpick:public-issue}
+      anonymous-cookie-name: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_ANONYMOUS_COOKIE_NAME:letterpick_anonymous_id}
+      anonymous-cookie-max-age: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_ANONYMOUS_COOKIE_MAX_AGE:P90D}
   search:
     public-feed:
       strategy: ${LETTERPICK_PUBLIC_FEED_SEARCH_STRATEGY:fulltext}

@@ -138,7 +138,13 @@ class PublicNewsletterIssueViewCountRecordServiceTest {
                 newsletterIssueRepository,
                 publicIssueViewCountStore,
                 publicIssueViewCountSnapshotRecorder,
-                new PublicIssueViewCountProperties(SNAPSHOT_INTERVAL, Duration.ofMinutes(30), "letterpick:public-issue")
+                new PublicIssueViewCountProperties(
+                        SNAPSHOT_INTERVAL,
+                        Duration.ofMinutes(30),
+                        "letterpick:public-issue",
+                        "letterpick_anonymous_id",
+                        Duration.ofDays(90)
+                )
         );
     }
 }

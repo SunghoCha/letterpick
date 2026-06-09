@@ -45,6 +45,7 @@ public class SecurityConfig {
     private static final String ACTUATOR_HEALTH_ENDPOINT = "/actuator/health";
     private static final String CSRF_ENDPOINT = "/api/v1/csrf";
     private static final String LOGOUT_ENDPOINT = "/api/v1/auth/logout";
+    private static final String PUBLIC_ISSUE_VIEW_COUNT_ENDPOINT = "/api/v1/newsletter-issues/*/views";
 
     private final String frontendBaseUrl;
 
@@ -99,6 +100,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, CSRF_ENDPOINT).permitAll()
                         .requestMatchers(HttpMethod.POST, LOGOUT_ENDPOINT).permitAll()
+                        .requestMatchers(HttpMethod.POST, PUBLIC_ISSUE_VIEW_COUNT_ENDPOINT).permitAll()
                         .requestMatchers("/api/v1/admin/**").hasAuthority(ROLE_ADMIN)
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers("/api/v1/auth/signup").hasAuthority(ROLE_PENDING_SIGNUP)

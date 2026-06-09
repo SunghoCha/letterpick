@@ -8,12 +8,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record PublicIssueViewCountProperties(
         int snapshotInterval,
         Duration dedupeTtl,
-        String redisKeyPrefix
+        String redisKeyPrefix,
+        String anonymousCookieName,
+        Duration anonymousCookieMaxAge
 ) {
 
     public PublicIssueViewCountProperties {
         Objects.requireNonNull(dedupeTtl, "dedupeTtl must not be null");
         Objects.requireNonNull(redisKeyPrefix, "redisKeyPrefix must not be null");
+        Objects.requireNonNull(anonymousCookieName, "anonymousCookieName must not be null");
+        Objects.requireNonNull(anonymousCookieMaxAge, "anonymousCookieMaxAge must not be null");
 
         if (snapshotInterval <= 0) {
             throw new IllegalArgumentException("snapshotInterval must be positive");
@@ -27,6 +31,13 @@ public record PublicIssueViewCountProperties(
         if (redisKeyPrefix.isBlank()) {
             throw new IllegalArgumentException("redisKeyPrefix must not be blank");
         }
+        if (anonymousCookieName.isBlank()) {
+            throw new IllegalArgumentException("anonymousCookieName must not be blank");
+        }
+        if (anonymousCookieMaxAge.isZero() || anonymousCookieMaxAge.isNegative()) {
+            throw new IllegalArgumentException("anonymousCookieMaxAge must be positive");
+        }
         redisKeyPrefix = redisKeyPrefix.trim();
+        anonymousCookieName = anonymousCookieName.trim();
     }
 }

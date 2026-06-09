@@ -23,15 +23,20 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private final MdcInterceptor mdcInterceptor;
 
     private final AccessLogInterceptor accessLogInterceptor;
+    private final List<HandlerMethodArgumentResolverRegistrar> argumentResolverRegistrars;
 
-    public WebMvcConfig(MdcInterceptor mdcInterceptor, AccessLogInterceptor accessLogInterceptor) {
+    public WebMvcConfig(MdcInterceptor mdcInterceptor,
+                        AccessLogInterceptor accessLogInterceptor,
+                        List<HandlerMethodArgumentResolverRegistrar> argumentResolverRegistrars) {
         this.mdcInterceptor = mdcInterceptor;
         this.accessLogInterceptor = accessLogInterceptor;
+        this.argumentResolverRegistrars = argumentResolverRegistrars;
     }
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(new CurrentUserArgumentResolver());
+        argumentResolverRegistrars.forEach(registrar -> registrar.addArgumentResolvers(resolvers));
     }
 
     @Override
