@@ -1,12 +1,15 @@
 package com.sungho.letterpick.newsletter.adapter.webapi;
 
 import com.sungho.letterpick.common.config.SecurityConfig;
+import com.sungho.letterpick.common.config.WebMvcConfig;
 import com.sungho.letterpick.member.adapter.security.CustomOAuth2UserService;
 import com.sungho.letterpick.member.adapter.security.CustomOidcUserService;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginFailureHandler;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginSuccessHandler;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueFinder;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecordRequest;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecorder;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,18 +26,33 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(PublicNewsletterIssueController.class)
-@Import(SecurityConfig.class)
+@Import({
+        SecurityConfig.class,
+        WebMvcConfig.class,
+        PublicIssueViewActorArgumentResolverRegistrar.class
+})
 class PublicNewsletterIssueControllerSecurityTest {
+
+    private static final String VIEW_COUNT_PATH = "/api/v1/newsletter-issues/{issueId}/views";
 
     @Autowired
     MockMvc mockMvc;
 
     @MockitoBean
     PublicNewsletterIssueFinder publicNewsletterIssueFinder;
+
+    @MockitoBean
+    PublicNewsletterIssueViewCountRecorder publicNewsletterIssueViewCountRecorder;
+
+    @MockitoBean
+    PublicIssueViewActorResolver publicIssueViewActorResolver;
 
     @MockitoBean
     CustomOidcUserService customOidcUserService;
@@ -83,5 +101,33 @@ class PublicNewsletterIssueControllerSecurityTest {
                 .andExpect(status().isOk());
 
         verify(publicNewsletterIssueFinder).findIssueDetail(10L);
+    }
+
+    @Test
+    @DisplayName("익명 사용자가 CSRF와 함께 공개 이슈 조회수 기록을 요청할 수 있다")
+    void recordIssueView_passes_for_anonymous_with_csrf() throws Exception {
+        // given
+        given(publicIssueViewActorResolver.resolveActorKey(any(), any(), any()))
+                .willReturn("anonymous:visitor-1");
+
+        // when & then
+        mockMvc.perform(post(VIEW_COUNT_PATH, 10L)
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(publicNewsletterIssueViewCountRecorder).record(new PublicNewsletterIssueViewCountRecordRequest(
+                10L,
+                "anonymous:visitor-1"
+        ));
+    }
+
+    @Test
+    @DisplayName("익명 사용자가 CSRF 없이 공개 이슈 조회수 기록을 요청하면 403")
+    void recordIssueView_returns_403_for_anonymous_without_csrf() throws Exception {
+        // when & then
+        mockMvc.perform(post(VIEW_COUNT_PATH, 10L))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(publicNewsletterIssueViewCountRecorder, publicIssueViewActorResolver);
     }
 }

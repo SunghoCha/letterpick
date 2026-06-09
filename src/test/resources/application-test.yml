@@ -21,6 +21,10 @@ newsletter:
     collector-inbox-address: omcxewctypxo@inbound-dev.letterpicknews.com
 
 letterpick:
+  public-issue:
+    view-count:
+      anonymous-cookie-secure: false
   outbox:
     queue:
       trending-lifecycle-events: letterpick-test-trending-lifecycle-events
+      trending-score-events: letterpick-test-trending-score-events

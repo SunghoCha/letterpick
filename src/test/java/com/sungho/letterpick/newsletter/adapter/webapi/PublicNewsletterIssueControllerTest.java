@@ -4,6 +4,9 @@ import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDeta
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueFinder;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueSearchCondition;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecordRequest;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecorder;
+import com.sungho.letterpick.common.config.WebMvcConfig;
 import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import com.sungho.letterpick.newsletter.domain.exception.NewsletterIssueNotFoundException;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.SliceImpl;
@@ -28,11 +32,13 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(PublicNewsletterIssueController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import({WebMvcConfig.class, PublicIssueViewActorArgumentResolverRegistrar.class})
 class PublicNewsletterIssueControllerTest {
 
     @Autowired
@@ -40,6 +46,12 @@ class PublicNewsletterIssueControllerTest {
 
     @MockitoBean
     PublicNewsletterIssueFinder publicNewsletterIssueFinder;
+
+    @MockitoBean
+    PublicNewsletterIssueViewCountRecorder publicNewsletterIssueViewCountRecorder;
+
+    @MockitoBean
+    PublicIssueViewActorResolver publicIssueViewActorResolver;
 
     @Test
     @DisplayName("GET /api/v1/newsletter-issues 요청 시 검색 조건과 페이지 조건을 바인딩하고 공개 피드 목록을 반환한다")
@@ -153,5 +165,23 @@ class PublicNewsletterIssueControllerTest {
                 .andExpect(jsonPath("$.code").value("NWL-003"));
 
         verify(publicNewsletterIssueFinder).findIssueDetail(999L);
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/newsletter-issues/{issueId}/views 요청 시 actorKey를 해석하고 조회수 기록을 위임한다")
+    void recordIssueView_resolves_actor_key_and_records_view_count() throws Exception {
+        // given
+        given(publicIssueViewActorResolver.resolveActorKey(any(), any(), any()))
+                .willReturn("anonymous:visitor-1");
+
+        // when & then
+        mockMvc.perform(post("/api/v1/newsletter-issues/{issueId}/views", 10L))
+                .andExpect(status().isNoContent());
+
+        verify(publicIssueViewActorResolver).resolveActorKey(any(), any(), any());
+        verify(publicNewsletterIssueViewCountRecorder).record(new PublicNewsletterIssueViewCountRecordRequest(
+                10L,
+                "anonymous:visitor-1"
+        ));
     }
 }

@@ -83,6 +83,14 @@ newsletter:
     collector-inbox-address: ${NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS}
 
 letterpick:
+  public-issue:
+    view-count:
+      snapshot-interval: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL:50}
+      dedupe-ttl: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_DEDUPE_TTL:PT30M}
+      redis-key-prefix: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_REDIS_KEY_PREFIX:letterpick:public-issue}
+      anonymous-cookie-name: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_ANONYMOUS_COOKIE_NAME:letterpick_anonymous_id}
+      anonymous-cookie-max-age: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_ANONYMOUS_COOKIE_MAX_AGE:P90D}
+      anonymous-cookie-secure: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_ANONYMOUS_COOKIE_SECURE:true}
   search:
     public-feed:
       strategy: ${LETTERPICK_PUBLIC_FEED_SEARCH_STRATEGY:fulltext}
@@ -96,6 +104,7 @@ letterpick:
   outbox:
     queue:
       trending-lifecycle-events: ${LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE}
+      trending-score-events: ${LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE}
     publish:
       enabled: ${LETTERPICK_OUTBOX_PUBLISH_ENABLED:false}
     retry:

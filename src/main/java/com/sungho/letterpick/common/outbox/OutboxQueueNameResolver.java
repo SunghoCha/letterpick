@@ -12,14 +12,15 @@ public class OutboxQueueNameResolver {
 
     public OutboxQueueNameResolver(
             @Value("${letterpick.outbox.queue.trending-lifecycle-events}")
-            String trendingLifecycleEventsQueue
+            String trendingLifecycleEventsQueue,
+            @Value("${letterpick.outbox.queue.trending-score-events}")
+            String trendingScoreEventsQueue
     ) {
-        if (trendingLifecycleEventsQueue == null || trendingLifecycleEventsQueue.isBlank()) {
-            throw new IllegalStateException("outbox queue name is not configured: "
-                    + OutboxMessageType.PUBLIC_ISSUE_AVAILABLE);
-        }
+        validateQueueName(OutboxMessageType.PUBLIC_ISSUE_AVAILABLE, trendingLifecycleEventsQueue);
+        validateQueueName(OutboxMessageType.ISSUE_VIEW_COUNT_UPDATED, trendingScoreEventsQueue);
         this.queueNames = Map.of(
-                OutboxMessageType.PUBLIC_ISSUE_AVAILABLE, trendingLifecycleEventsQueue.trim()
+                OutboxMessageType.PUBLIC_ISSUE_AVAILABLE, trendingLifecycleEventsQueue.trim(),
+                OutboxMessageType.ISSUE_VIEW_COUNT_UPDATED, trendingScoreEventsQueue.trim()
         );
     }
 
@@ -29,5 +30,11 @@ public class OutboxQueueNameResolver {
             throw new IllegalArgumentException("outbox queue name is not configured: " + type);
         }
         return queueName;
+    }
+
+    private void validateQueueName(OutboxMessageType type, String queueName) {
+        if (queueName == null || queueName.isBlank()) {
+            throw new IllegalStateException("outbox queue name is not configured: " + type);
+        }
     }
 }

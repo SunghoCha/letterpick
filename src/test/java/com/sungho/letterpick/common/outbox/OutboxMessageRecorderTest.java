@@ -1,22 +1,23 @@
 package com.sungho.letterpick.common.outbox;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.sungho.letterpick.LetterPickDataJpaTest;
 import com.sungho.letterpick.LetterPickTestConfiguration;
 import com.sungho.letterpick.common.logging.MdcInterceptor;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-import org.slf4j.MDC;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.sungho.letterpick.LetterPickDataJpaTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.context.ActiveProfiles;
-import tools.jackson.databind.ObjectMapper;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @LetterPickDataJpaTest
 @ActiveProfiles("test")
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OutboxMessageRecorderTest {
 
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2050-06-06T01:00:00Z"), ZoneOffset.UTC);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Autowired
     private OutboxMessageRepository outboxMessageRepository;
@@ -34,12 +36,16 @@ class OutboxMessageRecorderTest {
     }
 
     @Test
+    @DisplayName("outbox 메시지를 destination과 이벤트 metadata를 포함해 PENDING 상태로 저장한다")
     void recordsOutboxMessage() {
         OutboxMessageRecorder recorder = new OutboxMessageRecorder(
                 outboxMessageRepository,
-                new ObjectMapper(),
+                OBJECT_MAPPER,
                 CLOCK,
-                new OutboxQueueNameResolver("letterpick-test-trending-lifecycle-events")
+                new OutboxQueueNameResolver(
+                        "letterpick-test-trending-lifecycle-events",
+                        "letterpick-test-trending-score-events"
+                )
         );
         Instant occurredAt = Instant.parse("2050-06-06T00:59:00Z");
         MDC.put(MdcInterceptor.REQUEST_ID, "trace-1");
@@ -60,7 +66,9 @@ class OutboxMessageRecorderTest {
         assertThat(saved.getSource()).isEqualTo("letterpick");
         assertThat(saved.getAggregateType()).isEqualTo("NEWSLETTER_ISSUE");
         assertThat(saved.getAggregateId()).isEqualTo("1");
-        assertThat(saved.getPayload()).contains("\"issueId\":1", "\"category\":\"TECH\"");
+        JsonNode payload = readPayload(saved);
+        assertThat(payload.path("issueId").asText()).isEqualTo("1");
+        assertThat(payload.path("category").asText()).isEqualTo("TECH");
         assertThat(saved.getOccurredAt()).isEqualTo(occurredAt);
         assertThat(saved.getTraceId()).isEqualTo("trace-1");
         assertThat(saved.getStatus()).isEqualTo(OutboxMessageStatus.PENDING);
@@ -71,5 +79,13 @@ class OutboxMessageRecorderTest {
     }
 
     private record SamplePayload(Long issueId, String category) {
+    }
+
+    private JsonNode readPayload(OutboxMessage message) {
+        try {
+            return OBJECT_MAPPER.readTree(message.getPayload());
+        } catch (Exception e) {
+            throw new AssertionError("outbox payload should be valid JSON", e);
+        }
     }
 }

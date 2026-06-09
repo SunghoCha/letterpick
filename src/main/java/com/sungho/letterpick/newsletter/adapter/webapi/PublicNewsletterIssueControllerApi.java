@@ -3,6 +3,7 @@ package com.sungho.letterpick.newsletter.adapter.webapi;
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.PublicNewsletterIssueDetailResponse;
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.PublicNewsletterIssuesResponse;
 import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -33,4 +34,14 @@ public interface PublicNewsletterIssueControllerApi {
             @ApiResponse(responseCode = "404", description = "이슈 없음")
     })
     PublicNewsletterIssueDetailResponse getIssueDetail(Long issueId);
+
+    @Operation(
+            summary = "공개 뉴스레터 이슈 조회수 기록",
+            description = "공개 뉴스레터 이슈 상세 화면 표시 후 조회수를 기록한다. 로그인 사용자는 회원 기준, 비로그인 사용자는 anonymousId 쿠키 기준으로 중복 조회를 방지한다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "조회수 기록 요청 처리 완료")
+    })
+    void recordIssueView(Long issueId,
+                         @Parameter(hidden = true) PublicIssueViewActor actor);
 }
