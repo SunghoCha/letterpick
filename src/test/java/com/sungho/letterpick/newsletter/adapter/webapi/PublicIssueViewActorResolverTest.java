@@ -83,6 +83,7 @@ class PublicIssueViewActorResolverTest {
                 .contains("Max-Age=7776000")
                 .contains("Path=/")
                 .contains("HttpOnly")
+                .contains("Secure")
                 .contains("SameSite=Lax");
     }
 
@@ -120,7 +121,8 @@ class PublicIssueViewActorResolverTest {
                 Duration.ofMinutes(30),
                 "letterpick:public-issue",
                 COOKIE_NAME,
-                Duration.ofDays(90)
+                Duration.ofDays(90),
+                true
         );
     }
 

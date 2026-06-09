@@ -9,6 +9,9 @@ spring:
         endpoint: ${LETTERPICK_LOCAL_SQS_ENDPOINT:http://localhost:4566}
 
 letterpick:
+  public-issue:
+    view-count:
+      anonymous-cookie-secure: false
   mail:
     sqs-listener:
       enabled: true

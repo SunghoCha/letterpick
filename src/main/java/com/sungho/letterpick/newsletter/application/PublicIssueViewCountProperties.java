@@ -10,7 +10,8 @@ public record PublicIssueViewCountProperties(
         Duration dedupeTtl,
         String redisKeyPrefix,
         String anonymousCookieName,
-        Duration anonymousCookieMaxAge
+        Duration anonymousCookieMaxAge,
+        boolean anonymousCookieSecure
 ) {
 
     public PublicIssueViewCountProperties {

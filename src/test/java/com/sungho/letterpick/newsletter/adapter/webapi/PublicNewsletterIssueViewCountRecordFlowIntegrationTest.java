@@ -28,6 +28,7 @@ import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import com.sungho.letterpick.newsletter.domain.NewsletterFixture;
 import com.sungho.letterpick.newsletter.domain.NewsletterIssue;
 import com.sungho.letterpick.newsletter.domain.PublicIssueViewCount;
+import com.sungho.letterpick.support.database.CleanDatabase;
 import com.sungho.letterpick.support.time.MutableClock;
 import com.sungho.letterpick.support.time.MutableClockTestConfiguration;
 import java.time.Instant;
@@ -62,6 +63,7 @@ import tools.jackson.databind.ObjectMapper;
 })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@CleanDatabase
 class PublicNewsletterIssueViewCountRecordFlowIntegrationTest {
 
     private static final String COLLECTOR_INBOX_ADDRESS =
@@ -122,7 +124,10 @@ class PublicNewsletterIssueViewCountRecordFlowIntegrationTest {
         assertThat(viewCount.getViewCount()).isEqualTo(1L);
         assertThat(viewCount.getUpdatedAt()).isEqualTo(Instant.parse("2050-06-01T00:00:00Z"));
 
-        List<OutboxMessage> messages = outboxMessageRepository.findAll();
+        List<OutboxMessage> messages = outboxMessageRepository.findAll().stream()
+                .filter(candidate -> candidate.getEventType().equals(OutboxMessageType.ISSUE_VIEW_COUNT_UPDATED.eventType()))
+                .filter(candidate -> candidate.getAggregateId().equals(String.valueOf(issue.getId())))
+                .toList();
         assertThat(messages).hasSize(1);
 
         OutboxMessage message = messages.getFirst();

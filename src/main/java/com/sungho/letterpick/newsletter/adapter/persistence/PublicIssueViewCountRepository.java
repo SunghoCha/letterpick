@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface PublicIssueViewCountRepository extends JpaRepository<PublicIssueViewCount, Long> {
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = """
             INSERT INTO public_issue_view_count (issue_id, view_count, updated_at)
             VALUES (:issueId, :viewCount, :updatedAt)

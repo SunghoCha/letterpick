@@ -6,6 +6,7 @@ import com.sungho.letterpick.common.outbox.OutboxMessageType;
 import com.sungho.letterpick.event.trending.IssueViewCountUpdatedPayload;
 import com.sungho.letterpick.newsletter.adapter.persistence.PublicIssueViewCountRepository;
 import com.sungho.letterpick.newsletter.application.required.PublicIssueViewCountSnapshotRecorder;
+import com.sungho.letterpick.newsletter.domain.PublicIssueViewCount;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
@@ -26,6 +27,10 @@ public class PublicIssueViewCountSnapshotRecorderService implements PublicIssueV
     public void recordSnapshot(Long issueId, long viewCount) {
         Instant occurredAt = clock.instant();
         publicIssueViewCountRepository.upsertSnapshot(issueId, viewCount, occurredAt);
+        PublicIssueViewCount snapshot = publicIssueViewCountRepository.findById(issueId).orElseThrow();
+        if (snapshot.getViewCount() != viewCount) {
+            return;
+        }
         outboxMessageRecorder.record(new OutboxMessageRecordRequest(
                 UUID.randomUUID().toString(),
                 OutboxMessageType.ISSUE_VIEW_COUNT_UPDATED,

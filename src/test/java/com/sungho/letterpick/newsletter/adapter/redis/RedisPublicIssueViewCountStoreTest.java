@@ -17,7 +17,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @DataRedisTest(properties = {
         "letterpick.public-issue.view-count.snapshot-interval=50",
         "letterpick.public-issue.view-count.dedupe-ttl=PT30M",
-        "letterpick.public-issue.view-count.redis-key-prefix=letterpick:public-issue"
+        "letterpick.public-issue.view-count.redis-key-prefix=letterpick:public-issue",
+        "letterpick.public-issue.view-count.anonymous-cookie-name=letterpick_anonymous_id",
+        "letterpick.public-issue.view-count.anonymous-cookie-max-age=P90D",
+        "letterpick.public-issue.view-count.anonymous-cookie-secure=false"
 })
 @EnableConfigurationProperties(PublicIssueViewCountProperties.class)
 @Import({

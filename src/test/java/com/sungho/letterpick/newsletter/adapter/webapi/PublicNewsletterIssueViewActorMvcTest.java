@@ -73,7 +73,8 @@ class PublicNewsletterIssueViewActorMvcTest {
                     Duration.ofMinutes(30),
                     "letterpick:public-issue",
                     COOKIE_NAME,
-                    Duration.ofDays(90)
+                    Duration.ofDays(90),
+                    false
             );
         }
 

@@ -90,6 +90,7 @@ letterpick:
       redis-key-prefix: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_REDIS_KEY_PREFIX:letterpick:public-issue}
       anonymous-cookie-name: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_ANONYMOUS_COOKIE_NAME:letterpick_anonymous_id}
       anonymous-cookie-max-age: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_ANONYMOUS_COOKIE_MAX_AGE:P90D}
+      anonymous-cookie-secure: ${LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_ANONYMOUS_COOKIE_SECURE:true}
   search:
     public-feed:
       strategy: ${LETTERPICK_PUBLIC_FEED_SEARCH_STRATEGY:fulltext}

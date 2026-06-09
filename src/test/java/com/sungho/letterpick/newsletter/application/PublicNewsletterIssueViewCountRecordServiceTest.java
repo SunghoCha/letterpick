@@ -8,9 +8,7 @@ import com.sungho.letterpick.newsletter.adapter.persistence.NewsletterIssueRepos
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecordRequest;
 import com.sungho.letterpick.newsletter.application.required.PublicIssueViewCountSnapshotRecorder;
 import com.sungho.letterpick.newsletter.application.required.PublicIssueViewCountStore;
-import com.sungho.letterpick.newsletter.domain.NewsletterIssue;
 import java.time.Duration;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,9 +32,6 @@ class PublicNewsletterIssueViewCountRecordServiceTest {
     @Mock
     private PublicIssueViewCountSnapshotRecorder publicIssueViewCountSnapshotRecorder;
 
-    @Mock
-    private NewsletterIssue newsletterIssue;
-
     @Test
     @DisplayName("공개 피드 대상 이슈가 아니면 조회수를 반영하지 않는다")
     void record_noops_when_public_issue_not_found() {
@@ -48,15 +43,15 @@ class PublicNewsletterIssueViewCountRecordServiceTest {
         );
 
         given(publicFeedCollectorAccount.collectorMemberId()).willReturn(1L);
-        given(newsletterIssueRepository.findByIdAndMemberIdAndDeletedFalse(10L, 1L))
-                .willReturn(Optional.empty());
+        given(newsletterIssueRepository.existsByIdAndMemberIdAndDeletedFalse(10L, 1L))
+                .willReturn(false);
 
         // when
         service.record(request);
 
         // then
         verify(publicFeedCollectorAccount).collectorMemberId();
-        verify(newsletterIssueRepository).findByIdAndMemberIdAndDeletedFalse(10L, 1L);
+        verify(newsletterIssueRepository).existsByIdAndMemberIdAndDeletedFalse(10L, 1L);
         verifyNoInteractions(publicIssueViewCountStore, publicIssueViewCountSnapshotRecorder);
     }
 
@@ -71,8 +66,8 @@ class PublicNewsletterIssueViewCountRecordServiceTest {
         );
 
         given(publicFeedCollectorAccount.collectorMemberId()).willReturn(1L);
-        given(newsletterIssueRepository.findByIdAndMemberIdAndDeletedFalse(10L, 1L))
-                .willReturn(Optional.of(newsletterIssue));
+        given(newsletterIssueRepository.existsByIdAndMemberIdAndDeletedFalse(10L, 1L))
+                .willReturn(true);
         given(publicIssueViewCountStore.incrementIfFirstView(10L, "member:20"))
                 .willReturn(0L);
 
@@ -95,8 +90,8 @@ class PublicNewsletterIssueViewCountRecordServiceTest {
         );
 
         given(publicFeedCollectorAccount.collectorMemberId()).willReturn(1L);
-        given(newsletterIssueRepository.findByIdAndMemberIdAndDeletedFalse(10L, 1L))
-                .willReturn(Optional.of(newsletterIssue));
+        given(newsletterIssueRepository.existsByIdAndMemberIdAndDeletedFalse(10L, 1L))
+                .willReturn(true);
         given(publicIssueViewCountStore.incrementIfFirstView(10L, "member:20"))
                 .willReturn(11L);
 
@@ -119,8 +114,8 @@ class PublicNewsletterIssueViewCountRecordServiceTest {
         );
 
         given(publicFeedCollectorAccount.collectorMemberId()).willReturn(1L);
-        given(newsletterIssueRepository.findByIdAndMemberIdAndDeletedFalse(10L, 1L))
-                .willReturn(Optional.of(newsletterIssue));
+        given(newsletterIssueRepository.existsByIdAndMemberIdAndDeletedFalse(10L, 1L))
+                .willReturn(true);
         given(publicIssueViewCountStore.incrementIfFirstView(10L, "member:20"))
                 .willReturn(15L);
 
@@ -143,7 +138,8 @@ class PublicNewsletterIssueViewCountRecordServiceTest {
                         Duration.ofMinutes(30),
                         "letterpick:public-issue",
                         "letterpick_anonymous_id",
-                        Duration.ofDays(90)
+                        Duration.ofDays(90),
+                        false
                 )
         );
     }

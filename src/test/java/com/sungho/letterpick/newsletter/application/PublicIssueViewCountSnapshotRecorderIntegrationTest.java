@@ -143,8 +143,8 @@ class PublicIssueViewCountSnapshotRecorderIntegrationTest {
     }
 
     @Test
-    @DisplayName("낮은 조회수 snapshot이 나중에 도착해도 RDS backup 조회수는 감소하지 않는다")
-    void recordSnapshot_doesNotDecreaseBackupViewCount() {
+    @DisplayName("낮은 조회수 snapshot이 나중에 도착해도 RDS backup 조회수는 감소하지 않고 outbox 메시지를 추가하지 않는다")
+    void recordSnapshot_doesNotDecreaseBackupViewCountOrAddOutboxMessage() throws Exception {
         // given
         NewsletterIssue issue = saveIssue();
         clock.setInstant(Instant.parse("2050-06-01T00:00:00Z"));
@@ -163,6 +163,11 @@ class PublicIssueViewCountSnapshotRecorderIntegrationTest {
         PublicIssueViewCount snapshot = publicIssueViewCountRepository.findById(issue.getId()).orElseThrow();
         assertThat(snapshot.getViewCount()).isEqualTo(100L);
         assertThat(snapshot.getUpdatedAt()).isEqualTo(firstUpdatedAt);
+
+        List<OutboxMessage> messages = outboxMessageRepository.findAll();
+        assertThat(messages).hasSize(1);
+        JsonNode payload = objectMapper.readTree(messages.getFirst().getPayload());
+        assertThat(payload.path("viewCount").asText()).isEqualTo("100");
     }
 
     private NewsletterIssue saveIssue() {

@@ -21,8 +21,7 @@ public class PublicNewsletterIssueViewCountRecordService implements PublicNewsle
     @Override
     public void record(PublicNewsletterIssueViewCountRecordRequest request) {
         Long collectorMemberId = publicFeedCollectorAccount.collectorMemberId();
-        if (newsletterIssueRepository.findByIdAndMemberIdAndDeletedFalse(request.issueId(), collectorMemberId)
-                .isEmpty()) {
+        if (!newsletterIssueRepository.existsByIdAndMemberIdAndDeletedFalse(request.issueId(), collectorMemberId)) {
             return;
         }
 

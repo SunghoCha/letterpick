@@ -59,6 +59,7 @@ public class PublicIssueViewActorResolver {
                 .maxAge(properties.anonymousCookieMaxAge())
                 .httpOnly(true)
                 .sameSite("Lax")
+                .secure(properties.anonymousCookieSecure())
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, responseCookie.toString());
         return anonymousId;
