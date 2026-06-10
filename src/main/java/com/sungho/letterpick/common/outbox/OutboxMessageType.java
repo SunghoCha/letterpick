@@ -9,6 +9,11 @@ public enum OutboxMessageType {
             1,
             "NEWSLETTER_ISSUE"
     ),
+    PUBLIC_ISSUE_REMOVED(
+            TrendingEventType.PUBLIC_ISSUE_REMOVED.value(),
+            1,
+            "NEWSLETTER_ISSUE"
+    ),
     ISSUE_VIEW_COUNT_UPDATED(
             TrendingEventType.ISSUE_VIEW_COUNT_UPDATED.value(),
             1,

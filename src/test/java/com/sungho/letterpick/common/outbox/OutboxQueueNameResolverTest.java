@@ -54,6 +54,8 @@ class OutboxQueueNameResolverTest {
 
         assertThat(resolver.resolveQueueName(OutboxMessageType.PUBLIC_ISSUE_AVAILABLE))
                 .isEqualTo("letterpick-test-trending-lifecycle-events");
+        assertThat(resolver.resolveQueueName(OutboxMessageType.PUBLIC_ISSUE_REMOVED))
+                .isEqualTo("letterpick-test-trending-lifecycle-events");
         assertThat(resolver.resolveQueueName(OutboxMessageType.ISSUE_VIEW_COUNT_UPDATED))
                 .isEqualTo("letterpick-test-trending-score-events");
     }

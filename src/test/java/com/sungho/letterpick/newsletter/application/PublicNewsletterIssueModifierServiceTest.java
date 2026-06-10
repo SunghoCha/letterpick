@@ -1,13 +1,20 @@
 package com.sungho.letterpick.newsletter.application;
 
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueModifier;
+import com.sungho.letterpick.newsletter.application.event.PublicIssueRemovedEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
+import java.time.Clock;
+import java.time.Instant;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -22,6 +29,12 @@ class PublicNewsletterIssueModifierServiceTest {
     @Mock
     private NewsletterIssueModifier newsletterIssueModifier;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private Clock clock;
+
     @InjectMocks
     private PublicNewsletterIssueModifierService service;
 
@@ -30,6 +43,7 @@ class PublicNewsletterIssueModifierServiceTest {
     void delete_delegates_to_newsletter_issue_modifier_with_collector_member_id() {
         // given
         given(publicFeedCollectorAccount.collectorMemberId()).willReturn(42L);
+        given(clock.instant()).willReturn(Instant.parse("2050-06-10T01:00:00Z"));
 
         // when
         service.delete(10L);
@@ -37,6 +51,26 @@ class PublicNewsletterIssueModifierServiceTest {
         // then
         verify(publicFeedCollectorAccount).collectorMemberId();
         verify(newsletterIssueModifier).delete(42L, 10L);
+    }
+
+    @Test
+    @DisplayName("공개 피드 이슈 삭제가 성공하면 공개 이슈 삭제 이벤트를 발행한다")
+    void delete_publishes_public_issue_removed_event() {
+        // given
+        given(publicFeedCollectorAccount.collectorMemberId()).willReturn(42L);
+        given(clock.instant()).willReturn(Instant.parse("2050-06-10T01:00:00Z"));
+
+        // when
+        service.delete(10L);
+
+        // then
+        ArgumentCaptor<PublicIssueRemovedEvent> eventCaptor = ArgumentCaptor.forClass(PublicIssueRemovedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+        PublicIssueRemovedEvent event = eventCaptor.getValue();
+        assertThat(event.eventId()).isNotBlank();
+        assertThat(event.issueId()).isEqualTo(10L);
+        assertThat(event.occurredAt()).isEqualTo(Instant.parse("2050-06-10T01:00:00Z"));
     }
 
     @Test
@@ -52,5 +86,6 @@ class PublicNewsletterIssueModifierServiceTest {
 
         verify(publicFeedCollectorAccount).collectorMemberId();
         verifyNoInteractions(newsletterIssueModifier);
+        verifyNoInteractions(eventPublisher);
     }
 }
