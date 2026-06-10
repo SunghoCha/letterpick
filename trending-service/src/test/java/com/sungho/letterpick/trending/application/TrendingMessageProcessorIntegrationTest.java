@@ -1,6 +1,7 @@
 package com.sungho.letterpick.trending.application;
 
 import com.sungho.letterpick.event.EventEnvelope;
+import com.sungho.letterpick.event.trending.IssueViewCountUpdatedPayload;
 import com.sungho.letterpick.event.trending.PublicIssueAvailablePayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.TrendingServiceTestConfiguration;
@@ -10,6 +11,8 @@ import com.sungho.letterpick.trending.inbox.InboxEventStatus;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidate;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateRepository;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
+import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshot;
+import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,7 +34,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ActiveProfiles("test")
 class TrendingMessageProcessorIntegrationTest {
 
-    private static final String QUEUE_NAME = "letterpick-test-trending-lifecycle-events";
+    private static final String LIFECYCLE_QUEUE_NAME = "letterpick-test-trending-lifecycle-events";
+    private static final String SCORE_QUEUE_NAME = "letterpick-test-trending-score-events";
 
     @Autowired
     private TrendingMessageProcessor processor;
@@ -43,10 +47,14 @@ class TrendingMessageProcessorIntegrationTest {
     private PublicIssueCandidateRepository publicIssueCandidateRepository;
 
     @Autowired
+    private PublicIssueViewCountSnapshotRepository publicIssueViewCountSnapshotRepository;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
+        publicIssueViewCountSnapshotRepository.deleteAll();
         inboxEventRepository.deleteAll();
         publicIssueCandidateRepository.deleteAll();
     }
@@ -58,14 +66,14 @@ class TrendingMessageProcessorIntegrationTest {
         String message = publicIssueAvailableMessage("event-1", 1L, 2L);
 
         // when
-        processor.process(message, QUEUE_NAME);
+        processor.process(message, LIFECYCLE_QUEUE_NAME);
 
         // then
         InboxEvent inboxEvent = inboxEventRepository.findByEventId("event-1").orElseThrow();
         assertThat(inboxEvent.getEventType()).isEqualTo(TrendingEventType.PUBLIC_ISSUE_AVAILABLE.value());
         assertThat(inboxEvent.getStatus()).isEqualTo(InboxEventStatus.PROCESSED);
         assertThat(inboxEvent.getProcessedAt()).isNotNull();
-        assertThat(inboxEvent.getQueueName()).isEqualTo(QUEUE_NAME);
+        assertThat(inboxEvent.getQueueName()).isEqualTo(LIFECYCLE_QUEUE_NAME);
         JsonNode storedPayload = objectMapper.readTree(inboxEvent.getPayload());
         assertThat(storedPayload.path("issueId").asLong()).isEqualTo(1L);
         assertThat(storedPayload.path("newsletterId").asLong()).isEqualTo(2L);
@@ -79,14 +87,41 @@ class TrendingMessageProcessorIntegrationTest {
     }
 
     @Test
+    @DisplayName("ISSUE_VIEW_COUNT_UPDATED 메시지를 처리하면 inbox와 조회수 snapshot을 저장한다")
+    void process_issue_view_count_updated_message() throws Exception {
+        // given
+        String message = issueViewCountUpdatedMessage("event-view-count-1", 10L, 150L);
+
+        // when
+        processor.process(message, SCORE_QUEUE_NAME);
+
+        // then
+        InboxEvent inboxEvent = inboxEventRepository.findByEventId("event-view-count-1").orElseThrow();
+        assertThat(inboxEvent.getEventType()).isEqualTo(TrendingEventType.ISSUE_VIEW_COUNT_UPDATED.value());
+        assertThat(inboxEvent.getStatus()).isEqualTo(InboxEventStatus.PROCESSED);
+        assertThat(inboxEvent.getProcessedAt()).isNotNull();
+        assertThat(inboxEvent.getQueueName()).isEqualTo(SCORE_QUEUE_NAME);
+        JsonNode storedPayload = objectMapper.readTree(inboxEvent.getPayload());
+        assertThat(storedPayload.path("issueId").asLong()).isEqualTo(10L);
+        assertThat(storedPayload.path("viewCount").asLong()).isEqualTo(150L);
+
+        PublicIssueViewCountSnapshot snapshot = publicIssueViewCountSnapshotRepository.findById(10L).orElseThrow();
+        assertThat(snapshot.getViewCount()).isEqualTo(150L);
+        assertThat(snapshot.getSnapshotOccurredAt()).isEqualTo(Instant.parse("2050-06-05T01:00:00Z"));
+        assertThat(snapshot.getCreatedAt()).isNotNull();
+        assertThat(snapshot.getUpdatedAt()).isNotNull();
+        assertThat(publicIssueCandidateRepository.count()).isZero();
+    }
+
+    @Test
     @DisplayName("이미 처리된 eventId가 다시 오면 공개 이슈 후보를 중복 저장하지 않는다")
     void skip_already_processed_event_id() throws Exception {
         // given
         String message = publicIssueAvailableMessage("event-2", 10L, 20L);
-        processor.process(message, QUEUE_NAME);
+        processor.process(message, LIFECYCLE_QUEUE_NAME);
 
         // when
-        processor.process(message, QUEUE_NAME);
+        processor.process(message, LIFECYCLE_QUEUE_NAME);
 
         // then
         assertThat(inboxEventRepository.findByEventId("event-2").orElseThrow().getStatus())
@@ -102,8 +137,8 @@ class TrendingMessageProcessorIntegrationTest {
         String secondMessage = publicIssueAvailableMessage("event-4", 100L, 300L);
 
         // when
-        processor.process(firstMessage, QUEUE_NAME);
-        processor.process(secondMessage, QUEUE_NAME);
+        processor.process(firstMessage, LIFECYCLE_QUEUE_NAME);
+        processor.process(secondMessage, LIFECYCLE_QUEUE_NAME);
 
         // then
         assertThat(inboxEventRepository.findByEventId("event-3").orElseThrow().getStatus())
@@ -123,7 +158,7 @@ class TrendingMessageProcessorIntegrationTest {
         String message = message("event-unsupported", "UNKNOWN_EVENT", Map.of("value", "x"));
 
         // when & then
-        assertThatThrownBy(() -> processor.process(message, QUEUE_NAME))
+        assertThatThrownBy(() -> processor.process(message, LIFECYCLE_QUEUE_NAME))
                 .isInstanceOf(TrendingMessageProcessingException.class)
                 .hasMessageContaining("unsupported trending event type");
 
@@ -143,6 +178,17 @@ class TrendingMessageProcessorIntegrationTest {
                         newsletterId,
                         "TECH",
                         Instant.parse("2050-06-05T00:59:00Z")
+                )
+        );
+    }
+
+    private String issueViewCountUpdatedMessage(String eventId, Long issueId, Long viewCount) throws Exception {
+        return message(
+                eventId,
+                TrendingEventType.ISSUE_VIEW_COUNT_UPDATED.value(),
+                new IssueViewCountUpdatedPayload(
+                        issueId,
+                        viewCount
                 )
         );
     }

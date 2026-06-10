@@ -1,4 +1,4 @@
-package com.sungho.letterpick.trending.lifecycle.adapter.sqs;
+package com.sungho.letterpick.trending.score.adapter.sqs;
 
 import com.sungho.letterpick.trending.application.TrendingMessageProcessor;
 import org.junit.jupiter.api.DisplayName;
@@ -13,27 +13,27 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-class TrendingLifecycleSqsListenerTest {
+class TrendingScoreSqsListenerTest {
 
-    private static final String SQS_MESSAGE_BODY = "trending lifecycle event json";
-    private static final String QUEUE_NAME = "letterpick-test-trending-lifecycle-events";
+    private static final String SQS_MESSAGE_BODY = "trending score event json";
+    private static final String QUEUE_NAME = "letterpick-test-trending-score-events";
     private static final String LISTENER_ENABLED_PROPERTY = "letterpick.trending.sqs-listener.enabled=true";
     private static final String LISTENER_DISABLED_PROPERTY = "letterpick.trending.sqs-listener.enabled=false";
-    private static final String QUEUE_NAME_PROPERTY_NAME = "letterpick.trending.lifecycle-events-queue";
+    private static final String QUEUE_NAME_PROPERTY_NAME = "letterpick.trending.score-events-queue";
     private static final String QUEUE_NAME_PROPERTY =
             QUEUE_NAME_PROPERTY_NAME + "=" + QUEUE_NAME;
-    private static final String BLANK_QUEUE_NAME_PROPERTY = "letterpick.trending.lifecycle-events-queue= ";
+    private static final String BLANK_QUEUE_NAME_PROPERTY = "letterpick.trending.score-events-queue= ";
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withBean(TrendingMessageProcessor.class, () -> mock(TrendingMessageProcessor.class))
-            .withUserConfiguration(TrendingLifecycleSqsListener.class);
+            .withUserConfiguration(TrendingScoreSqsListener.class);
 
     @Test
-    @DisplayName("SQS message body와 queue name을 lifecycle event processor에 전달한다")
+    @DisplayName("SQS message body와 queue name을 score event processor에 전달한다")
     void receive_delegates_message_body_and_queue_name_to_processor() {
         // given
         TrendingMessageProcessor processor = mock(TrendingMessageProcessor.class);
-        TrendingLifecycleSqsListener listener = new TrendingLifecycleSqsListener(processor, QUEUE_NAME);
+        TrendingScoreSqsListener listener = new TrendingScoreSqsListener(processor, QUEUE_NAME);
 
         // when
         listener.receive(SQS_MESSAGE_BODY);
@@ -50,8 +50,8 @@ class TrendingLifecycleSqsListenerTest {
 
         // when & then
         assertThatIllegalStateException()
-                .isThrownBy(() -> new TrendingLifecycleSqsListener(processor, " "))
-                .withMessageContaining("trending lifecycle queue name is not configured");
+                .isThrownBy(() -> new TrendingScoreSqsListener(processor, " "))
+                .withMessageContaining("trending score queue name is not configured");
     }
 
     @Test
@@ -62,43 +62,43 @@ class TrendingLifecycleSqsListenerTest {
 
         // when & then
         assertThatIllegalStateException()
-                .isThrownBy(() -> new TrendingLifecycleSqsListener(processor, " " + QUEUE_NAME + " "))
-                .withMessageContaining("trending lifecycle queue name is not configured");
+                .isThrownBy(() -> new TrendingScoreSqsListener(processor, " " + QUEUE_NAME + " "))
+                .withMessageContaining("trending score queue name is not configured");
     }
 
     @Test
-    @DisplayName("트렌딩 lifecycle SQS listener 설정이 켜져 있으면 listener bean을 등록한다")
+    @DisplayName("트렌딩 SQS listener 설정이 켜져 있으면 score listener bean을 등록한다")
     void register_sqs_listener_when_enabled() {
         // when
         contextRunner
                 .withPropertyValues(LISTENER_ENABLED_PROPERTY, QUEUE_NAME_PROPERTY)
                 .run(context -> {
                     // then
-                    assertThat(context).hasSingleBean(TrendingLifecycleSqsListener.class);
+                    assertThat(context).hasSingleBean(TrendingScoreSqsListener.class);
                 });
     }
 
     @Test
-    @DisplayName("트렌딩 lifecycle SQS listener 설정이 없으면 listener bean을 등록하지 않는다")
+    @DisplayName("트렌딩 SQS listener 설정이 없으면 score listener bean을 등록하지 않는다")
     void does_not_register_sqs_listener_when_enabled_property_is_missing() {
         // when
         contextRunner
                 .withPropertyValues(QUEUE_NAME_PROPERTY)
                 .run(context -> {
                     // then
-                    assertThat(context).doesNotHaveBean(TrendingLifecycleSqsListener.class);
+                    assertThat(context).doesNotHaveBean(TrendingScoreSqsListener.class);
                 });
     }
 
     @Test
-    @DisplayName("트렌딩 lifecycle SQS listener 설정이 꺼져 있으면 listener bean을 등록하지 않는다")
+    @DisplayName("트렌딩 SQS listener 설정이 꺼져 있으면 score listener bean을 등록하지 않는다")
     void does_not_register_sqs_listener_when_disabled() {
         // when
         contextRunner
                 .withPropertyValues(LISTENER_DISABLED_PROPERTY, QUEUE_NAME_PROPERTY)
                 .run(context -> {
                     // then
-                    assertThat(context).doesNotHaveBean(TrendingLifecycleSqsListener.class);
+                    assertThat(context).doesNotHaveBean(TrendingScoreSqsListener.class);
                 });
     }
 
@@ -113,8 +113,8 @@ class TrendingLifecycleSqsListenerTest {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure())
                             .hasRootCauseInstanceOf(IllegalStateException.class)
-                            .hasRootCauseMessage("trending lifecycle queue name is not configured: "
-                                    + "letterpick.trending.lifecycle-events-queue");
+                            .hasRootCauseMessage("trending score queue name is not configured: "
+                                    + "letterpick.trending.score-events-queue");
                 });
     }
 
@@ -135,7 +135,7 @@ class TrendingLifecycleSqsListenerTest {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure())
                             .hasRootCauseInstanceOf(IllegalStateException.class)
-                            .hasRootCauseMessage("trending lifecycle queue name is not configured: "
+                            .hasRootCauseMessage("trending score queue name is not configured: "
                                     + QUEUE_NAME_PROPERTY_NAME);
                 });
     }
