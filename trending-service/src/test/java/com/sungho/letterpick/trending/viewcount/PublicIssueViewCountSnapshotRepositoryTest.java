@@ -6,11 +6,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
 @Import(TrendingServiceTestConfiguration.class)
@@ -115,5 +117,18 @@ class PublicIssueViewCountSnapshotRepositoryTest {
         assertThat(snapshot.getSnapshotOccurredAt()).isEqualTo(Instant.parse("2050-06-10T01:04:00Z"));
         assertThat(snapshot.getCreatedAt()).isEqualTo(Instant.parse("2050-06-10T01:05:00Z"));
         assertThat(snapshot.getUpdatedAt()).isEqualTo(Instant.parse("2050-06-10T01:05:00Z"));
+    }
+
+    @Test
+    @DisplayName("음수 조회수 snapshot은 DB 제약으로 저장을 거부한다")
+    void upsertSnapshot_rejects_negative_view_count() {
+        // when & then
+        assertThatThrownBy(() -> repository.upsertSnapshot(
+                10L,
+                -1L,
+                Instant.parse("2050-06-10T00:59:00Z"),
+                Instant.parse("2050-06-10T01:00:00Z")
+        ))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 }

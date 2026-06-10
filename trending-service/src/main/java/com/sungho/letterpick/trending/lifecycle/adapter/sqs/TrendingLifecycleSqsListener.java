@@ -22,11 +22,11 @@ public class TrendingLifecycleSqsListener {
             @Value("${" + QUEUE_NAME_PROPERTY + "}") String queueName
     ) {
         this.processor = requireNonNull(processor, "processor must not be null");
-        if (queueName == null || queueName.isBlank()) {
+        if (queueName == null || queueName.isBlank() || !queueName.equals(queueName.trim())) {
             throw new IllegalStateException("trending lifecycle queue name is not configured: "
                     + QUEUE_NAME_PROPERTY);
         }
-        this.queueName = queueName.trim();
+        this.queueName = queueName;
     }
 
     @SqsListener("${letterpick.trending.lifecycle-events-queue}")

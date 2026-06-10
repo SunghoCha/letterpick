@@ -4,5 +4,7 @@ CREATE TABLE public_issue_view_count_snapshot (
     snapshot_occurred_at DATETIME(6) NOT NULL,
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
+    CONSTRAINT chk_public_issue_view_count_snapshot_view_count_non_negative
+        CHECK (view_count >= 0),
     PRIMARY KEY (issue_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
