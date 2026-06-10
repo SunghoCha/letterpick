@@ -3,6 +3,7 @@ package com.sungho.letterpick.trending.application;
 import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.event.trending.IssueViewCountUpdatedPayload;
 import com.sungho.letterpick.event.trending.PublicIssueAvailablePayload;
+import com.sungho.letterpick.event.trending.PublicIssueRemovedPayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.TrendingServiceTestConfiguration;
 import com.sungho.letterpick.trending.inbox.InboxEvent;
@@ -114,6 +115,55 @@ class TrendingMessageProcessorIntegrationTest {
     }
 
     @Test
+    @DisplayName("PUBLIC_ISSUE_REMOVED 메시지를 처리하면 inbox를 완료 처리하고 공개 이슈 후보를 REMOVED 상태로 저장한다")
+    void process_public_issue_removed_message() throws Exception {
+        // given
+        String message = publicIssueRemovedMessage("event-removed-1", 10L);
+
+        // when
+        processor.process(message, LIFECYCLE_QUEUE_NAME);
+
+        // then
+        InboxEvent inboxEvent = inboxEventRepository.findByEventId("event-removed-1").orElseThrow();
+        assertThat(inboxEvent.getEventType()).isEqualTo(TrendingEventType.PUBLIC_ISSUE_REMOVED.value());
+        assertThat(inboxEvent.getStatus()).isEqualTo(InboxEventStatus.PROCESSED);
+        assertThat(inboxEvent.getProcessedAt()).isNotNull();
+        assertThat(inboxEvent.getQueueName()).isEqualTo(LIFECYCLE_QUEUE_NAME);
+        JsonNode storedPayload = objectMapper.readTree(inboxEvent.getPayload());
+        assertThat(storedPayload.path("issueId").asLong()).isEqualTo(10L);
+
+        PublicIssueCandidate candidate = publicIssueCandidateRepository.findByIssueId(10L).orElseThrow();
+        assertThat(candidate.getNewsletterId()).isNull();
+        assertThat(candidate.getCategory()).isNull();
+        assertThat(candidate.getStatus()).isEqualTo(PublicIssueCandidateStatus.REMOVED);
+        assertThat(candidate.getPublicFeedCollectedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("PUBLIC_ISSUE_REMOVED가 먼저 처리되면 늦은 PUBLIC_ISSUE_AVAILABLE은 후보를 되살리지 않는다")
+    void process_public_issue_removed_before_late_available_message() throws Exception {
+        // given
+        String removedMessage = publicIssueRemovedMessage("event-removed-2", 10L);
+        String availableMessage = publicIssueAvailableMessage("event-available-late", 10L, 20L);
+
+        // when
+        processor.process(removedMessage, LIFECYCLE_QUEUE_NAME);
+        processor.process(availableMessage, LIFECYCLE_QUEUE_NAME);
+
+        // then
+        assertThat(inboxEventRepository.findByEventId("event-removed-2").orElseThrow().getStatus())
+                .isEqualTo(InboxEventStatus.PROCESSED);
+        assertThat(inboxEventRepository.findByEventId("event-available-late").orElseThrow().getStatus())
+                .isEqualTo(InboxEventStatus.PROCESSED);
+
+        PublicIssueCandidate candidate = publicIssueCandidateRepository.findByIssueId(10L).orElseThrow();
+        assertThat(candidate.getNewsletterId()).isNull();
+        assertThat(candidate.getCategory()).isNull();
+        assertThat(candidate.getStatus()).isEqualTo(PublicIssueCandidateStatus.REMOVED);
+        assertThat(candidate.getPublicFeedCollectedAt()).isNull();
+    }
+
+    @Test
     @DisplayName("이미 처리된 eventId가 다시 오면 공개 이슈 후보를 중복 저장하지 않는다")
     void skip_already_processed_event_id() throws Exception {
         // given
@@ -179,6 +229,14 @@ class TrendingMessageProcessorIntegrationTest {
                         "TECH",
                         Instant.parse("2050-06-05T00:59:00Z")
                 )
+        );
+    }
+
+    private String publicIssueRemovedMessage(String eventId, Long issueId) throws Exception {
+        return message(
+                eventId,
+                TrendingEventType.PUBLIC_ISSUE_REMOVED.value(),
+                new PublicIssueRemovedPayload(issueId)
         );
     }
 

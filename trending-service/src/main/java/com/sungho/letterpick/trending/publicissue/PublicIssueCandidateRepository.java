@@ -40,4 +40,25 @@ public interface PublicIssueCandidateRepository extends JpaRepository<PublicIssu
                                  @Param("publicFeedCollectedAt") Instant publicFeedCollectedAt,
                                  @Param("createdAt") Instant createdAt,
                                  @Param("updatedAt") Instant updatedAt);
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO public_issue_candidate (
+                issue_id,
+                status,
+                created_at,
+                updated_at
+            ) VALUES (
+                :issueId,
+                'REMOVED',
+                :createdAt,
+                :updatedAt
+            )
+            ON DUPLICATE KEY UPDATE
+                status = 'REMOVED',
+                updated_at = :updatedAt
+            """, nativeQuery = true)
+    void upsertRemoved(@Param("issueId") Long issueId,
+                       @Param("createdAt") Instant createdAt,
+                       @Param("updatedAt") Instant updatedAt);
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.sungho.letterpick.event.EventEnvelope;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -20,6 +21,7 @@ class PublicIssueRemovedEventContractTest {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     @Test
+    @DisplayName("PUBLIC_ISSUE_REMOVED 이벤트 계약을 직렬화하고 역직렬화한다")
     void serializesPublicIssueRemovedEventContract() throws Exception {
         PublicIssueRemovedPayload payload = new PublicIssueRemovedPayload(1L);
         EventEnvelope<PublicIssueRemovedPayload> event = new EventEnvelope<>(
@@ -52,6 +54,7 @@ class PublicIssueRemovedEventContractTest {
     }
 
     @Test
+    @DisplayName("PUBLIC_ISSUE_REMOVED payload는 issueId를 필수로 요구한다")
     void rejectsNullIssueId() {
         assertThatNullPointerException()
                 .isThrownBy(() -> new PublicIssueRemovedPayload(null))
