@@ -40,10 +40,10 @@ public class PublicIssueCandidate {
     @Column(name = "issue_id", nullable = false)
     private Long issueId;
 
-    @Column(name = "newsletter_id", nullable = false)
+    @Column(name = "newsletter_id")
     private Long newsletterId;
 
-    @Column(nullable = false, length = 50)
+    @Column(length = 50)
     private String category;
 
     @Enumerated(EnumType.STRING)
@@ -51,7 +51,7 @@ public class PublicIssueCandidate {
     @Column(nullable = false, length = 20)
     private PublicIssueCandidateStatus status;
 
-    @Column(name = "public_feed_collected_at", nullable = false)
+    @Column(name = "public_feed_collected_at")
     private Instant publicFeedCollectedAt;
 
     @Column(name = "created_at", nullable = false)
