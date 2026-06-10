@@ -13,9 +13,10 @@ public interface PublicIssueViewCountRepository extends JpaRepository<PublicIssu
     @Query(value = """
             INSERT INTO public_issue_view_count (issue_id, view_count, updated_at)
             VALUES (:issueId, :viewCount, :updatedAt)
+            AS new(new_issue_id, new_view_count, new_updated_at)
             ON DUPLICATE KEY UPDATE
-                updated_at = IF(VALUES(view_count) > view_count, VALUES(updated_at), updated_at),
-                view_count = GREATEST(view_count, VALUES(view_count))
+                updated_at = IF(new_view_count > view_count, new_updated_at, updated_at),
+                view_count = GREATEST(view_count, new_view_count)
             """, nativeQuery = true)
     void upsertSnapshot(@Param("issueId") Long issueId,
                         @Param("viewCount") long viewCount,
