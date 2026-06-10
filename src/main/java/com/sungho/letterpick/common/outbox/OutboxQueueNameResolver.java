@@ -17,9 +17,11 @@ public class OutboxQueueNameResolver {
             String trendingScoreEventsQueue
     ) {
         validateQueueName(OutboxMessageType.PUBLIC_ISSUE_AVAILABLE, trendingLifecycleEventsQueue);
+        validateQueueName(OutboxMessageType.PUBLIC_ISSUE_REMOVED, trendingLifecycleEventsQueue);
         validateQueueName(OutboxMessageType.ISSUE_VIEW_COUNT_UPDATED, trendingScoreEventsQueue);
         this.queueNames = Map.of(
                 OutboxMessageType.PUBLIC_ISSUE_AVAILABLE, trendingLifecycleEventsQueue.trim(),
+                OutboxMessageType.PUBLIC_ISSUE_REMOVED, trendingLifecycleEventsQueue.trim(),
                 OutboxMessageType.ISSUE_VIEW_COUNT_UPDATED, trendingScoreEventsQueue.trim()
         );
     }

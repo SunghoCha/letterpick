@@ -54,11 +54,13 @@ public class DefaultOutboxMessageRelay implements OutboxMessageRelay {
     private void publish(OutboxMessage message) {
         try {
             outboxMessagePublisher.publish(message);
-            outboxMessageRepository.delete(message);
         } catch (Exception e) {
             Instant now = clock.instant();
             message.markFailed(errorMessage(e), now.plus(RETRY_DELAY), now);
+            return;
         }
+
+        outboxMessageRepository.delete(message);
     }
 
     private String errorMessage(Exception e) {

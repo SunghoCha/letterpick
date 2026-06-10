@@ -61,6 +61,25 @@ class DefaultOutboxMessageRelayTest {
     }
 
     @Test
+    @DisplayName("outbox 메시지 발행 후 삭제에 실패하면 실패 상태로 바꾸지 않고 예외를 전파한다")
+    void publishByEventIdPropagatesExceptionWhenDeleteFailsAfterPublishSucceeds() {
+        OutboxMessage message = outboxMessage("event-1");
+        given(outboxMessageRepository.findByEventId("event-1"))
+                .willReturn(Optional.of(message));
+        willThrow(new RuntimeException("delete failed"))
+                .given(outboxMessageRepository).delete(message);
+
+        assertThatThrownBy(() -> relay.publishByEventId("event-1"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("delete failed");
+
+        assertThat(message.getStatus()).isEqualTo(OutboxMessageStatus.PENDING);
+        assertThat(message.getRetryCount()).isZero();
+        verify(outboxMessagePublisher).publish(message);
+        verify(outboxMessageRepository).delete(message);
+    }
+
+    @Test
     @DisplayName("eventId로 찾은 outbox 메시지 발행에 실패하면 재시도 정보를 기록한다")
     void publishByEventIdMarksMessageFailedWhenPublishFails() {
         OutboxMessage message = outboxMessage("event-1");
