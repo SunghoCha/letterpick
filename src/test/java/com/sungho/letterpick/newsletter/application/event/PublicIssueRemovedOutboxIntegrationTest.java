@@ -99,6 +99,7 @@ class PublicIssueRemovedOutboxIntegrationTest {
         OutboxMessage message = outboxMessageRepository.findAll()
                 .stream()
                 .filter(candidate -> candidate.getEventType().equals(OutboxMessageType.PUBLIC_ISSUE_REMOVED.eventType()))
+                .filter(candidate -> candidate.getAggregateId().equals(String.valueOf(issue.getId())))
                 .findFirst()
                 .orElseThrow();
 
