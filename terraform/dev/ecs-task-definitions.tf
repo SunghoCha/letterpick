@@ -21,6 +21,8 @@ locals {
     SPRING_DATASOURCE_URL                      = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
     NEWSLETTER_INBOX_ADDRESS_DOMAIN            = local.newsletter_inbox_address_domain
     LETTERPICK_PUBLIC_FEED_SEARCH_STRATEGY     = var.public_feed_search_strategy
+    LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE = aws_sqs_queue.trending_lifecycle_events.name
+    LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE     = aws_sqs_queue.trending_score_events.name
     GOOGLE_CLIENT_ID                           = var.google_client_id
     NAVER_CLIENT_ID                            = var.naver_client_id
   }
