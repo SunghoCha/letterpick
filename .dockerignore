@@ -8,6 +8,10 @@ build/*
 !build/libs/
 build/libs/*
 !build/libs/app.jar
+trending-service/build/*
+!trending-service/build/libs/
+trending-service/build/libs/*
+!trending-service/build/libs/app.jar
 bin
 docs
 frontend
