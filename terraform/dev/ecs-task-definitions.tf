@@ -49,8 +49,10 @@ locals {
 
   api_environment = [
     for name, value in merge(local.backend_common_environment, {
+      LETTERPICK_SQS_ENABLED                = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED  = "false"
       LETTERPICK_CLOUDWATCH_METRICS_ENABLED = tostring(var.enable_perf_observability)
+      LETTERPICK_OUTBOX_PUBLISH_ENABLED     = "true"
       }) : {
       name  = name
       value = value
@@ -59,9 +61,27 @@ locals {
 
   worker_environment = [
     for name, value in merge(local.backend_common_environment, {
+      LETTERPICK_SQS_ENABLED               = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "true"
       LETTERPICK_MAIL_RECEIVE_QUEUE        = aws_sqs_queue.mail_receive.name
+      LETTERPICK_OUTBOX_RETRY_ENABLED      = "true"
       }) : {
+      name  = name
+      value = value
+    }
+  ]
+
+  trending_service_environment = [
+    for name, value in {
+      SPRING_PROFILES_ACTIVE                     = var.environment
+      LETTERPICK_ENV                             = var.environment
+      LETTERPICK_AWS_REGION                      = var.aws_region
+      SPRING_DATASOURCE_URL                      = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
+      LETTERPICK_TRENDING_SQS_ENABLED            = "true"
+      LETTERPICK_TRENDING_SQS_LISTENER_ENABLED   = "true"
+      LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE = aws_sqs_queue.trending_lifecycle_events.name
+      LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE     = aws_sqs_queue.trending_score_events.name
+      } : {
       name  = name
       value = value
     }
@@ -164,5 +184,55 @@ resource "aws_ecs_task_definition" "worker" {
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-worker-task-definition"
+  })
+}
+
+resource "aws_ecs_task_definition" "trending_service" {
+  family                   = "${local.name_prefix}-trending-service"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.trending_service_cpu
+  memory                   = var.trending_service_memory
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.trending_service_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name        = "trending-service"
+      image       = var.initial_trending_service_image_uri
+      essential   = true
+      stopTimeout = 30
+
+      portMappings = [
+        {
+          containerPort = var.container_port
+          protocol      = "tcp"
+        },
+      ]
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/actuator/health/liveness || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 120
+      }
+
+      environment = local.trending_service_environment
+      secrets     = local.database_secrets
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.trending_service.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "trending-service"
+        }
+      }
+    },
+  ])
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-trending-service-task-definition"
   })
 }

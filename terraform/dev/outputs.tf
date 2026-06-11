@@ -153,6 +153,10 @@ output "worker_task_family" {
   value = aws_ecs_task_definition.worker.family
 }
 
+output "trending_service_task_family" {
+  value = aws_ecs_task_definition.trending_service.family
+}
+
 output "api_task_definition_arn" {
   value = aws_ecs_task_definition.api.arn
 }
@@ -161,12 +165,20 @@ output "worker_task_definition_arn" {
   value = aws_ecs_task_definition.worker.arn
 }
 
+output "trending_service_task_definition_arn" {
+  value = aws_ecs_task_definition.trending_service.arn
+}
+
 output "api_service_name" {
   value = aws_ecs_service.api.name
 }
 
 output "worker_service_name" {
   value = aws_ecs_service.worker.name
+}
+
+output "trending_service_name" {
+  value = aws_ecs_service.trending_service.name
 }
 
 output "api_alb_dns_name" {
@@ -215,4 +227,8 @@ output "api_log_group_name" {
 
 output "worker_log_group_name" {
   value = aws_cloudwatch_log_group.worker.name
+}
+
+output "trending_service_log_group_name" {
+  value = aws_cloudwatch_log_group.trending_service.name
 }

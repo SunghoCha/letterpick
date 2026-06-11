@@ -159,3 +159,35 @@ resource "aws_iam_role_policy" "worker_trending_event_publish" {
   role   = aws_iam_role.worker_task.id
   policy = data.aws_iam_policy_document.trending_event_publish.json
 }
+
+resource "aws_iam_role" "trending_service_task" {
+  name               = "${local.name_prefix}-trending-service-task-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-trending-service-task-role"
+  })
+}
+
+data "aws_iam_policy_document" "trending_event_consume" {
+  statement {
+    actions = [
+      "sqs:GetQueueUrl",
+      "sqs:GetQueueAttributes",
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage",
+      "sqs:ChangeMessageVisibility",
+    ]
+
+    resources = [
+      aws_sqs_queue.trending_lifecycle_events.arn,
+      aws_sqs_queue.trending_score_events.arn,
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "trending_service_event_consume" {
+  name   = "${local.name_prefix}-trending-service-event-consume"
+  role   = aws_iam_role.trending_service_task.id
+  policy = data.aws_iam_policy_document.trending_event_consume.json
+}
