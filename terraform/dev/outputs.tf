@@ -49,6 +49,14 @@ output "rds_database_name" {
   value = aws_db_instance.main.db_name
 }
 
+output "redis_primary_endpoint_address" {
+  value = aws_elasticache_replication_group.redis.primary_endpoint_address
+}
+
+output "redis_port" {
+  value = aws_elasticache_replication_group.redis.port
+}
+
 output "db_access_instance_id" {
   value = var.enable_db_access_host ? aws_instance.db_access_host[0].id : null
 }

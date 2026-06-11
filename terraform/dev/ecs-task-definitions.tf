@@ -19,6 +19,8 @@ locals {
     LETTERPICK_CLOUDWATCH_METRICS_NAMESPACE    = local.application_metrics_namespace
     FRONTEND_BASE_URL                          = var.frontend_base_url
     SPRING_DATASOURCE_URL                      = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
+    SPRING_DATA_REDIS_HOST                     = aws_elasticache_replication_group.redis.primary_endpoint_address
+    SPRING_DATA_REDIS_PORT                     = tostring(var.redis_port)
     NEWSLETTER_INBOX_ADDRESS_DOMAIN            = local.newsletter_inbox_address_domain
     LETTERPICK_PUBLIC_FEED_SEARCH_STRATEGY     = var.public_feed_search_strategy
     LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE = aws_sqs_queue.trending_lifecycle_events.name
