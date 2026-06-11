@@ -1,11 +1,11 @@
-name: Publish Backend Image
+name: Publish Trending Service Image
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'src/**'
+      - 'trending-service/**'
       - 'event-contract/**'
       - 'build.gradle'
       - 'settings.gradle'
@@ -14,7 +14,7 @@ on:
       - 'gradlew.bat'
       - 'Dockerfile'
       - '.dockerignore'
-      - '.github/workflows/publish-backend-image.yml'
+      - '.github/workflows/publish-trending-service-image.yml'
 
 permissions:
   contents: read
@@ -22,11 +22,11 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: letterpick-backend
+  ECR_REPOSITORY: letterpick-trending-service
 
 jobs:
-  publish-backend-image:
-    name: Publish Backend Image
+  publish-trending-service-image:
+    name: Publish Trending Service Image
     runs-on: ubuntu-latest
 
     steps:
@@ -43,29 +43,29 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x ./gradlew
 
-      - name: Build backend
-        run: ./gradlew build
+      - name: Build trending service
+        run: ./gradlew :trending-service:build
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: arn:aws:iam::730335589937:role/letterpick-github-actions-image-publish-role
-          role-session-name: github-actions-backend-image-publish
+          role-session-name: github-actions-trending-service-ecr-push
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push backend image
+      - name: Build and push trending service image
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker build -t "$IMAGE_URI" .
+          docker build --build-arg JAR_FILE=trending-service/build/libs/app.jar -t "$IMAGE_URI" .
           docker push "$IMAGE_URI"
           echo "image-uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
-          echo "### Backend image" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Trending service image" >> "$GITHUB_STEP_SUMMARY"
           echo "\`$IMAGE_URI\`" >> "$GITHUB_STEP_SUMMARY"
