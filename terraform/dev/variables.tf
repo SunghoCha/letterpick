@@ -196,6 +196,26 @@ variable "rds_skip_final_snapshot" {
   default = true
 }
 
+variable "redis_port" {
+  type    = number
+  default = 6379
+}
+
+variable "redis_node_type" {
+  type    = string
+  default = "cache.t4g.micro"
+}
+
+variable "redis_engine_version" {
+  type    = string
+  default = "7.1"
+}
+
+variable "redis_parameter_group_name" {
+  type    = string
+  default = "default.redis7"
+}
+
 variable "enable_db_access_host" {
   type    = bool
   default = true
