@@ -1,0 +1,108 @@
+name: Deploy Trending Service Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_uri:
+        description: Full ECR image URI to deploy to dev trending-service
+        required: true
+        type: string
+      desired_count:
+        description: Desired task count after deploying trending-service
+        required: true
+        default: '1'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-trending-service-dev:
+    name: Deploy Trending Service Dev
+    runs-on: ubuntu-latest
+    environment: dev
+
+    env:
+      IMAGE_URI: ${{ inputs.image_uri }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER || 'letterpick-dev-cluster' }}
+      ECS_TRENDING_SERVICE: ${{ vars.ECS_TRENDING_SERVICE || 'letterpick-dev-trending-service' }}
+      TRENDING_SERVICE_TASK_FAMILY: ${{ vars.TRENDING_SERVICE_TASK_FAMILY || 'letterpick-dev-trending-service' }}
+      TRENDING_SERVICE_CONTAINER_NAME: trending-service
+      TRENDING_SERVICE_DESIRED_COUNT: ${{ inputs.desired_count }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deploy inputs
+        run: |
+          required_env=(
+            IMAGE_URI
+            AWS_REGION
+            AWS_DEPLOY_ROLE_ARN
+            ECS_CLUSTER
+            ECS_TRENDING_SERVICE
+            TRENDING_SERVICE_TASK_FAMILY
+            TRENDING_SERVICE_CONTAINER_NAME
+            TRENDING_SERVICE_DESIRED_COUNT
+          )
+
+          for name in "${required_env[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "$name is required" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: github-actions-trending-service-dev-deploy
+
+      - name: Download current Trending Service task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$TRENDING_SERVICE_TASK_FAMILY" \
+            --query 'taskDefinition' \
+            --output json > trending-service-current-task-definition.json
+
+      - name: Render Trending Service task definition
+        id: trending-service-task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: trending-service-current-task-definition.json
+          container-name: ${{ env.TRENDING_SERVICE_CONTAINER_NAME }}
+          image: ${{ env.IMAGE_URI }}
+
+      - name: Deploy Trending Service with ECS rolling update
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.trending-service-task-definition.outputs.task-definition }}
+          service: ${{ env.ECS_TRENDING_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-max-delay-seconds: 15
+
+      - name: Set Trending Service desired count
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_TRENDING_SERVICE" \
+            --desired-count "$TRENDING_SERVICE_DESIRED_COUNT"
+
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_TRENDING_SERVICE"
+
+      - name: Summarize deployment
+        run: |
+          echo "### Trending Service dev deploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "Service: $ECS_TRENDING_SERVICE" >> "$GITHUB_STEP_SUMMARY"
+          echo "Task family: $TRENDING_SERVICE_TASK_FAMILY" >> "$GITHUB_STEP_SUMMARY"
+          echo "Desired count: $TRENDING_SERVICE_DESIRED_COUNT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image: \`$IMAGE_URI\`" >> "$GITHUB_STEP_SUMMARY"
