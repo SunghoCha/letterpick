@@ -67,6 +67,7 @@ data "aws_iam_policy_document" "github_actions_dev_terraform" {
     actions = [
       "ec2:*",
       "ecs:*",
+      "elasticache:*",
       "elasticloadbalancing:*",
       "cloudwatch:*",
       "cloudfront:*",
