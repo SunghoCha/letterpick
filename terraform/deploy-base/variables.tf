@@ -61,6 +61,31 @@ variable "performance_dataset_bucket_force_destroy" {
   default = false
 }
 
+variable "backend_ecr_repository_name" {
+  type    = string
+  default = null
+}
+
+variable "trending_service_ecr_repository_name" {
+  type    = string
+  default = null
+}
+
+variable "trending_service_ecr_force_delete" {
+  type    = bool
+  default = false
+}
+
+variable "ecr_image_retention_count" {
+  type    = number
+  default = 30
+}
+
+variable "github_actions_image_publish_role_name" {
+  type    = string
+  default = null
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

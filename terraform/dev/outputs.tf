@@ -93,6 +93,38 @@ output "mail_receive_dlq_arn" {
   value = aws_sqs_queue.mail_receive_dlq.arn
 }
 
+output "trending_lifecycle_events_queue_arn" {
+  value = aws_sqs_queue.trending_lifecycle_events.arn
+}
+
+output "trending_lifecycle_events_queue_name" {
+  value = aws_sqs_queue.trending_lifecycle_events.name
+}
+
+output "trending_lifecycle_events_dlq_arn" {
+  value = aws_sqs_queue.trending_lifecycle_events_dlq.arn
+}
+
+output "trending_lifecycle_events_dlq_name" {
+  value = aws_sqs_queue.trending_lifecycle_events_dlq.name
+}
+
+output "trending_score_events_queue_arn" {
+  value = aws_sqs_queue.trending_score_events.arn
+}
+
+output "trending_score_events_queue_name" {
+  value = aws_sqs_queue.trending_score_events.name
+}
+
+output "trending_score_events_dlq_arn" {
+  value = aws_sqs_queue.trending_score_events_dlq.arn
+}
+
+output "trending_score_events_dlq_name" {
+  value = aws_sqs_queue.trending_score_events_dlq.name
+}
+
 output "ses_receive_domain_name" {
   value = var.ses_receive_domain_name
 }

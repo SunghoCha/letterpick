@@ -92,6 +92,27 @@ resource "aws_iam_role_policy" "api_cloudwatch_metrics" {
   policy = data.aws_iam_policy_document.api_cloudwatch_metrics.json
 }
 
+data "aws_iam_policy_document" "trending_event_publish" {
+  statement {
+    actions = [
+      "sqs:GetQueueUrl",
+      "sqs:GetQueueAttributes",
+      "sqs:SendMessage",
+    ]
+
+    resources = [
+      aws_sqs_queue.trending_lifecycle_events.arn,
+      aws_sqs_queue.trending_score_events.arn,
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "api_trending_event_publish" {
+  name   = "${local.name_prefix}-api-trending-event-publish"
+  role   = aws_iam_role.api_task.id
+  policy = data.aws_iam_policy_document.trending_event_publish.json
+}
+
 resource "aws_iam_role" "worker_task" {
   name               = "${local.name_prefix}-worker-task-role"
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
@@ -131,4 +152,10 @@ resource "aws_iam_role_policy" "worker_mail_access" {
   name   = "${local.name_prefix}-worker-mail-access"
   role   = aws_iam_role.worker_task.id
   policy = data.aws_iam_policy_document.worker_mail_access.json
+}
+
+resource "aws_iam_role_policy" "worker_trending_event_publish" {
+  name   = "${local.name_prefix}-worker-trending-event-publish"
+  role   = aws_iam_role.worker_task.id
+  policy = data.aws_iam_policy_document.trending_event_publish.json
 }
