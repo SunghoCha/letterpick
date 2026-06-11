@@ -76,6 +76,11 @@ variable "worker_desired_count" {
   default = 1
 }
 
+variable "trending_service_desired_count" {
+  type    = number
+  default = 1
+}
+
 variable "api_health_check_path" {
   type    = string
   default = "/actuator/health/readiness"
@@ -330,6 +335,10 @@ variable "initial_backend_image_uri" {
   type = string
 }
 
+variable "initial_trending_service_image_uri" {
+  type = string
+}
+
 variable "public_feed_search_strategy" {
   description = "Public feed search strategy for the backend. fulltext is the default; like remains for fallback and baseline comparison."
   type        = string
@@ -388,6 +397,16 @@ variable "worker_cpu" {
 }
 
 variable "worker_memory" {
+  type    = number
+  default = 1024
+}
+
+variable "trending_service_cpu" {
+  type    = number
+  default = 512
+}
+
+variable "trending_service_memory" {
   type    = number
   default = 1024
 }

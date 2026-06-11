@@ -77,3 +77,35 @@ resource "aws_ecs_service" "worker" {
     Name = "${local.name_prefix}-worker-service"
   })
 }
+
+resource "aws_ecs_service" "trending_service" {
+  name            = "${local.name_prefix}-trending-service"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.trending_service.arn
+  desired_count   = var.trending_service_desired_count
+  launch_type     = "FARGATE"
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.trending_service_task.id]
+    assign_public_ip = false
+  }
+
+  enable_ecs_managed_tags = true
+  propagate_tags          = "SERVICE"
+
+  lifecycle {
+    ignore_changes = [
+      task_definition,
+    ]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-trending-service-service"
+  })
+}

@@ -86,6 +86,24 @@ resource "aws_vpc_security_group_egress_rule" "worker_task_all_ipv4" {
   cidr_ipv4   = "0.0.0.0/0"
 }
 
+resource "aws_security_group" "trending_service_task" {
+  name        = "${local.name_prefix}-trending-service-task-sg"
+  description = "Allow trending service task outbound traffic"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-trending-service-task-sg"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "trending_service_task_all_ipv4" {
+  security_group_id = aws_security_group.trending_service_task.id
+  description       = "Allow trending service task outbound traffic"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
 resource "aws_security_group" "db_access_host" {
   count = var.enable_db_access_host ? 1 : 0
 
@@ -154,6 +172,16 @@ resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_worker" {
   security_group_id            = aws_security_group.rds.id
   referenced_security_group_id = aws_security_group.worker_task.id
   description                  = "Allow worker task to reach MySQL"
+
+  ip_protocol = "tcp"
+  from_port   = var.rds_port
+  to_port     = var.rds_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_trending_service" {
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.trending_service_task.id
+  description                  = "Allow trending service task to reach MySQL"
 
   ip_protocol = "tcp"
   from_port   = var.rds_port

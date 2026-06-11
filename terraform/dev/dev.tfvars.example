@@ -20,11 +20,15 @@ tags = {}
 
 initial_backend_image_uri = "730335589937.dkr.ecr.ap-northeast-2.amazonaws.com/letterpick-backend:bootstrap"
 
+initial_trending_service_image_uri = "730335589937.dkr.ecr.ap-northeast-2.amazonaws.com/letterpick-trending-service:bootstrap"
+
 public_feed_search_strategy = "fulltext"
 
 api_desired_count = 1
 
 worker_desired_count = 1
+
+trending_service_desired_count = 1
 
 enable_db_access_host = true
 
