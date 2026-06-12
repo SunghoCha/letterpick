@@ -50,9 +50,9 @@ locals {
 
   api_environment = [
     for name, value in merge(local.backend_common_environment, {
-      LETTERPICK_SQS_ENABLED                = "true"
-      LETTERPICK_MAIL_SQS_LISTENER_ENABLED  = "false"
-      LETTERPICK_OUTBOX_PUBLISH_ENABLED     = "true"
+      LETTERPICK_SQS_ENABLED               = "true"
+      LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "false"
+      LETTERPICK_OUTBOX_PUBLISH_ENABLED    = "true"
       }) : {
       name  = name
       value = value

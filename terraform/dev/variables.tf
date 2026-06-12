@@ -256,6 +256,66 @@ variable "k6_runner_subnet_index" {
   }
 }
 
+variable "enable_observability_stack" {
+  type    = bool
+  default = false
+}
+
+variable "observability_instance_type" {
+  type    = string
+  default = "t3.small"
+}
+
+variable "observability_subnet_index" {
+  type    = number
+  default = 0
+
+  validation {
+    condition     = var.observability_subnet_index >= 0
+    error_message = "observability_subnet_index must be zero or greater."
+  }
+}
+
+variable "observability_grafana_port" {
+  type    = number
+  default = 3000
+}
+
+variable "observability_prometheus_port" {
+  type    = number
+  default = 9090
+}
+
+variable "observability_tempo_otlp_grpc_port" {
+  type    = number
+  default = 4317
+}
+
+variable "observability_tempo_otlp_http_port" {
+  type    = number
+  default = 4318
+}
+
+variable "observability_prometheus_image" {
+  type    = string
+  default = "prom/prometheus:v2.55.1"
+}
+
+variable "observability_tempo_image" {
+  type    = string
+  default = "grafana/tempo:2.6.1"
+}
+
+variable "observability_grafana_image" {
+  type    = string
+  default = "grafana/grafana:11.5.2"
+}
+
+variable "observability_docker_compose_version" {
+  type    = string
+  default = "2.29.7"
+}
+
 variable "raw_mail_bucket_name" {
   type    = string
   default = null
