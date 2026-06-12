@@ -42,7 +42,7 @@ dependencies {
     implementation platform('io.awspring.cloud:spring-cloud-aws-dependencies:4.0.2')
     implementation 'software.amazon.awssdk:s3'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'
-    implementation 'io.micrometer:micrometer-registry-cloudwatch2'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
     implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
     implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0'
 

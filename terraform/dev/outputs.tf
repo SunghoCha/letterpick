@@ -73,10 +73,6 @@ output "k6_runner_private_ip" {
   value = var.enable_k6_runner ? aws_instance.k6_runner[0].private_ip : null
 }
 
-output "performance_dashboard_name" {
-  value = var.enable_perf_observability ? aws_cloudwatch_dashboard.performance[0].dashboard_name : null
-}
-
 output "raw_mail_bucket_name" {
   value = aws_s3_bucket.raw_mail.bucket
 }

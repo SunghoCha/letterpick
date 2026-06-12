@@ -70,28 +70,6 @@ resource "aws_iam_role" "api_task" {
   })
 }
 
-data "aws_iam_policy_document" "api_cloudwatch_metrics" {
-  statement {
-    actions = [
-      "cloudwatch:PutMetricData",
-    ]
-
-    resources = ["*"]
-
-    condition {
-      test     = "StringEquals"
-      variable = "cloudwatch:namespace"
-      values   = [local.application_metrics_namespace]
-    }
-  }
-}
-
-resource "aws_iam_role_policy" "api_cloudwatch_metrics" {
-  name   = "${local.name_prefix}-api-cloudwatch-metrics"
-  role   = aws_iam_role.api_task.id
-  policy = data.aws_iam_policy_document.api_cloudwatch_metrics.json
-}
-
 data "aws_iam_policy_document" "trending_event_publish" {
   statement {
     actions = [
