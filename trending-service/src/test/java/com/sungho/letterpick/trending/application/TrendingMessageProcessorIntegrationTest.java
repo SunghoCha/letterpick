@@ -184,6 +184,34 @@ class TrendingMessageProcessorIntegrationTest {
     }
 
     @Test
+    @DisplayName("낮은 조회수 snapshot이 늦게 도착해도 ranking summary score를 낮추지 않는다")
+    void process_stale_view_count_does_not_decrease_ranking_summary() throws Exception {
+        // given
+        processor.process(publicIssueAvailableMessage("event-available-before-stale-view", 10L, 20L),
+                LIFECYCLE_QUEUE_NAME);
+        processor.process(issueViewCountUpdatedMessage("event-view-count-high", 10L, 200L),
+                SCORE_QUEUE_NAME);
+
+        // when
+        processor.process(issueViewCountUpdatedMessage("event-view-count-stale", 10L, 150L),
+                SCORE_QUEUE_NAME);
+
+        // then
+        PublicIssueViewCountSnapshot snapshot = publicIssueViewCountSnapshotRepository.findById(10L).orElseThrow();
+        assertThat(snapshot.getViewCount()).isEqualTo(200L);
+        assertThat(publicIssueRankingSummaryRepository.findAll())
+                .extracting(summary -> summary.getWindowType(),
+                        summary -> summary.getWindowKey(),
+                        summary -> summary.getIssueId(),
+                        summary -> summary.getScore())
+                .containsExactlyInAnyOrder(
+                        tuple(PublicIssueRankingWindowType.DAILY.name(), "2050-06-05", 10L, 200L),
+                        tuple(PublicIssueRankingWindowType.WEEKLY.name(), "2050-05-30", 10L, 200L),
+                        tuple(PublicIssueRankingWindowType.MONTHLY.name(), "2050-06-01", 10L, 200L)
+                );
+    }
+
+    @Test
     @DisplayName("PUBLIC_ISSUE_REMOVED 메시지를 처리하면 inbox를 완료 처리하고 공개 이슈 후보를 REMOVED 상태로 저장한다")
     void process_public_issue_removed_message() throws Exception {
         // given

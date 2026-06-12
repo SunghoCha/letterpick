@@ -46,8 +46,10 @@ class PublicIssueRankingControllerTest {
                 .andExpect(jsonPath("$.items.length()").value(2))
                 .andExpect(jsonPath("$.items[0].issueId").value(40L))
                 .andExpect(jsonPath("$.items[0].score").value(999L))
+                .andExpect(jsonPath("$.items[0].viewCount").doesNotExist())
                 .andExpect(jsonPath("$.items[1].issueId").value(10L))
-                .andExpect(jsonPath("$.items[1].score").value(120L));
+                .andExpect(jsonPath("$.items[1].score").value(120L))
+                .andExpect(jsonPath("$.items[1].viewCount").doesNotExist());
 
         verify(publicIssueRankingFinder).findTodayTop(2);
     }
