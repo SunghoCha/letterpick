@@ -35,8 +35,8 @@ class PublicIssueRankingControllerTest {
         // given
         given(publicIssueRankingFinder.findTodayTop(2))
                 .willReturn(List.of(
-                        new PublicIssueRankingItem(40L, 999L, 999L),
-                        new PublicIssueRankingItem(10L, 120L, 120L)
+                        new PublicIssueRankingItem(40L, 999L),
+                        new PublicIssueRankingItem(10L, 120L)
                 ));
 
         // when & then
@@ -46,10 +46,10 @@ class PublicIssueRankingControllerTest {
                 .andExpect(jsonPath("$.items.length()").value(2))
                 .andExpect(jsonPath("$.items[0].issueId").value(40L))
                 .andExpect(jsonPath("$.items[0].score").value(999L))
-                .andExpect(jsonPath("$.items[0].viewCount").value(999L))
+                .andExpect(jsonPath("$.items[0].viewCount").doesNotExist())
                 .andExpect(jsonPath("$.items[1].issueId").value(10L))
                 .andExpect(jsonPath("$.items[1].score").value(120L))
-                .andExpect(jsonPath("$.items[1].viewCount").value(120L));
+                .andExpect(jsonPath("$.items[1].viewCount").doesNotExist());
 
         verify(publicIssueRankingFinder).findTodayTop(2);
     }

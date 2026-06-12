@@ -4,6 +4,7 @@ import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.event.trending.IssueViewCountUpdatedPayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.application.TrendingMessageProcessingException;
+import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingSummaryUpdater;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,9 @@ class IssueViewCountUpdatedHandlerTest {
     @Mock
     private PublicIssueViewCountSnapshotRepository repository;
 
+    @Mock
+    private PublicIssueRankingSummaryUpdater rankingSummaryUpdater;
+
     private IssueViewCountUpdatedHandler handler;
 
     @BeforeEach
@@ -39,6 +43,7 @@ class IssueViewCountUpdatedHandlerTest {
         handler = new IssueViewCountUpdatedHandler(
                 OBJECT_MAPPER,
                 repository,
+                rankingSummaryUpdater,
                 CLOCK
         );
     }
@@ -66,6 +71,7 @@ class IssueViewCountUpdatedHandlerTest {
                 occurredAt,
                 CLOCK.instant()
         );
+        verify(rankingSummaryUpdater).refresh(1L);
     }
 
     @Test
@@ -83,7 +89,7 @@ class IssueViewCountUpdatedHandlerTest {
         assertThatThrownBy(() -> handler.handle(envelope))
                 .isInstanceOf(TrendingMessageProcessingException.class)
                 .hasMessageContaining("failed to deserialize ISSUE_VIEW_COUNT_UPDATED payload");
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, rankingSummaryUpdater);
     }
 
     private EventEnvelope<JsonNode> envelope(IssueViewCountUpdatedPayload payload, Instant occurredAt) {

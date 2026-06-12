@@ -1,14 +1,12 @@
 package com.sungho.letterpick.trending.ranking.application;
 
-import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
-import com.sungho.letterpick.trending.ranking.adapter.persistence.PublicIssueRankingQueryRepository;
+import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -23,14 +21,14 @@ class PublicIssueRankingQueryServiceTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2050-06-10T01:00:00Z"), ZoneOffset.UTC);
 
     @Mock
-    private PublicIssueRankingQueryRepository rankingQueryRepository;
+    private PublicIssueRankingReader rankingReader;
 
     private PublicIssueRankingQueryService rankingQueryService;
 
     @BeforeEach
     void setUp() {
         rankingQueryService = new PublicIssueRankingQueryService(
-                rankingQueryRepository,
+                rankingReader,
                 CLOCK
         );
     }
@@ -42,11 +40,14 @@ class PublicIssueRankingQueryServiceTest {
         rankingQueryService.findTodayTop(20);
 
         // then
-        verify(rankingQueryRepository).findTopByWindow(
-                PublicIssueCandidateStatus.AVAILABLE,
-                Instant.parse("2050-06-09T15:00:00Z"),
-                Instant.parse("2050-06-10T15:00:00Z"),
-                PageRequest.of(0, 20)
+        verify(rankingReader).findTop(
+                new PublicIssueRankingWindow(
+                        PublicIssueRankingWindowType.DAILY,
+                        "2050-06-10",
+                        Instant.parse("2050-06-09T15:00:00Z"),
+                        Instant.parse("2050-06-10T15:00:00Z")
+                ),
+                20
         );
     }
 

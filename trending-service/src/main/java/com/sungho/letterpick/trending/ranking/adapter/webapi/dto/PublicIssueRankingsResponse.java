@@ -24,8 +24,7 @@ public record PublicIssueRankingsResponse(
 
     public record PublicIssueRankingItemResponse(
             Long issueId,
-            long score,
-            long viewCount
+            long score
     ) {
 
         public PublicIssueRankingItemResponse {
@@ -37,8 +36,7 @@ public record PublicIssueRankingsResponse(
 
             return new PublicIssueRankingItemResponse(
                     item.issueId(),
-                    item.score(),
-                    item.viewCount()
+                    item.score()
             );
         }
     }

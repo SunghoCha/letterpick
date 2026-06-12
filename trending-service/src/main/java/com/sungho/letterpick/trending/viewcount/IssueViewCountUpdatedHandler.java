@@ -5,6 +5,7 @@ import com.sungho.letterpick.event.trending.IssueViewCountUpdatedPayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.application.TrendingEventHandler;
 import com.sungho.letterpick.trending.application.TrendingMessageProcessingException;
+import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingSummaryUpdater;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -19,13 +20,16 @@ public class IssueViewCountUpdatedHandler implements TrendingEventHandler {
 
     private final ObjectMapper objectMapper;
     private final PublicIssueViewCountSnapshotRepository repository;
+    private final PublicIssueRankingSummaryUpdater rankingSummaryUpdater;
     private final Clock clock;
 
     public IssueViewCountUpdatedHandler(ObjectMapper objectMapper,
                                         PublicIssueViewCountSnapshotRepository repository,
+                                        PublicIssueRankingSummaryUpdater rankingSummaryUpdater,
                                         Clock clock) {
         this.objectMapper = requireNonNull(objectMapper, "objectMapper must not be null");
         this.repository = requireNonNull(repository, "repository must not be null");
+        this.rankingSummaryUpdater = requireNonNull(rankingSummaryUpdater, "rankingSummaryUpdater must not be null");
         this.clock = requireNonNull(clock, "clock must not be null");
     }
 
@@ -43,6 +47,7 @@ public class IssueViewCountUpdatedHandler implements TrendingEventHandler {
                 envelope.occurredAt(),
                 clock.instant()
         );
+        rankingSummaryUpdater.refresh(payload.issueId());
     }
 
     private IssueViewCountUpdatedPayload readPayload(JsonNode payload) {
