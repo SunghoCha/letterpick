@@ -42,6 +42,12 @@ k6_runner_instance_type = "t3.small"
 
 k6_runner_subnet_index = 0
 
+enable_observability_stack = true
+
+observability_instance_type = "t3.small"
+
+observability_subnet_index = 0
+
 frontend_domain_name = "dev.letterpicknews.com"
 
 frontend_base_url = "https://dev.letterpicknews.com"

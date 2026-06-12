@@ -73,6 +73,18 @@ output "k6_runner_private_ip" {
   value = var.enable_k6_runner ? aws_instance.k6_runner[0].private_ip : null
 }
 
+output "observability_instance_id" {
+  value = var.enable_observability_stack ? aws_instance.observability[0].id : null
+}
+
+output "observability_private_ip" {
+  value = var.enable_observability_stack ? aws_instance.observability[0].private_ip : null
+}
+
+output "observability_grafana_port_forward_command" {
+  value = var.enable_observability_stack ? "aws ssm start-session --target ${aws_instance.observability[0].id} --document-name AWS-StartPortForwardingSession --parameters '{\"portNumber\":[\"${var.observability_grafana_port}\"],\"localPortNumber\":[\"${var.observability_grafana_port}\"]}'" : null
+}
+
 output "raw_mail_bucket_name" {
   value = aws_s3_bucket.raw_mail.bucket
 }

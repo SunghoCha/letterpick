@@ -148,6 +148,100 @@ resource "aws_vpc_security_group_egress_rule" "k6_runner_all_ipv4" {
   cidr_ipv4   = "0.0.0.0/0"
 }
 
+resource "aws_security_group" "observability" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  name        = "${local.name_prefix}-observability-sg"
+  description = "Allow application telemetry traffic to the dev observability stack"
+  vpc_id      = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-observability-sg"
+  })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_prometheus_from_api" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.api_task.id
+  description                  = "Allow API task metrics remote write"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_prometheus_port
+  to_port     = var.observability_prometheus_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_prometheus_from_worker" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.worker_task.id
+  description                  = "Allow worker task metrics remote write"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_prometheus_port
+  to_port     = var.observability_prometheus_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_prometheus_from_trending_service" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.trending_service_task.id
+  description                  = "Allow trending service metrics remote write"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_prometheus_port
+  to_port     = var.observability_prometheus_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_tempo_grpc_from_api" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.api_task.id
+  description                  = "Allow API task OTLP traces"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_tempo_otlp_grpc_port
+  to_port     = var.observability_tempo_otlp_grpc_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_tempo_grpc_from_worker" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.worker_task.id
+  description                  = "Allow worker task OTLP traces"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_tempo_otlp_grpc_port
+  to_port     = var.observability_tempo_otlp_grpc_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_tempo_grpc_from_trending_service" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.trending_service_task.id
+  description                  = "Allow trending service OTLP traces"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_tempo_otlp_grpc_port
+  to_port     = var.observability_tempo_otlp_grpc_port
+}
+
+resource "aws_vpc_security_group_egress_rule" "observability_all_ipv4" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id = aws_security_group.observability[0].id
+  description       = "Allow observability stack outbound traffic"
+
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
+}
+
 resource "aws_security_group" "rds" {
   name        = "${local.name_prefix}-rds-sg"
   description = "Allow MySQL access from application tasks"
