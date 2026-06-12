@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/letterpick
+    username: letterpick
+    password: letterpickpass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
+
+letterpick:
+  trending:
+    lifecycle-events-queue: letterpick-local-trending-lifecycle-events
+    score-events-queue: letterpick-local-trending-score-events
+    sqs-listener:
+      enabled: false
