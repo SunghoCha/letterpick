@@ -12,6 +12,8 @@ import com.sungho.letterpick.trending.inbox.InboxEventStatus;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidate;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateRepository;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
+import com.sungho.letterpick.trending.ranking.adapter.persistence.PublicIssueRankingSummaryRepository;
+import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingWindowType;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshot;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 @Import(TrendingServiceTestConfiguration.class)
 @SpringBootTest
@@ -51,10 +54,14 @@ class TrendingMessageProcessorIntegrationTest {
     private PublicIssueViewCountSnapshotRepository publicIssueViewCountSnapshotRepository;
 
     @Autowired
+    private PublicIssueRankingSummaryRepository publicIssueRankingSummaryRepository;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
+        publicIssueRankingSummaryRepository.deleteAll();
         publicIssueViewCountSnapshotRepository.deleteAll();
         inboxEventRepository.deleteAll();
         publicIssueCandidateRepository.deleteAll();
@@ -112,6 +119,68 @@ class TrendingMessageProcessorIntegrationTest {
         assertThat(snapshot.getCreatedAt()).isNotNull();
         assertThat(snapshot.getUpdatedAt()).isNotNull();
         assertThat(publicIssueCandidateRepository.count()).isZero();
+        assertThat(publicIssueRankingSummaryRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("조회수 snapshot 이후 PUBLIC_ISSUE_AVAILABLE이 오면 ranking summary를 생성한다")
+    void process_available_after_view_count_creates_ranking_summary() throws Exception {
+        // given
+        String viewCountMessage = issueViewCountUpdatedMessage("event-view-count-before-available", 10L, 150L);
+        String availableMessage = publicIssueAvailableMessage("event-available-after-view-count", 10L, 20L);
+
+        // when
+        processor.process(viewCountMessage, SCORE_QUEUE_NAME);
+        processor.process(availableMessage, LIFECYCLE_QUEUE_NAME);
+
+        // then
+        assertThat(publicIssueRankingSummaryRepository.findAll())
+                .extracting(summary -> summary.getWindowType(),
+                        summary -> summary.getWindowKey(),
+                        summary -> summary.getIssueId(),
+                        summary -> summary.getScore())
+                .containsExactlyInAnyOrder(
+                        tuple(PublicIssueRankingWindowType.DAILY.name(), "2050-06-05", 10L, 150L),
+                        tuple(PublicIssueRankingWindowType.WEEKLY.name(), "2050-05-30", 10L, 150L),
+                        tuple(PublicIssueRankingWindowType.MONTHLY.name(), "2050-06-01", 10L, 150L)
+                );
+    }
+
+    @Test
+    @DisplayName("PUBLIC_ISSUE_REMOVED가 오면 ranking summary를 제거한다")
+    void process_removed_deletes_ranking_summary() throws Exception {
+        // given
+        processor.process(issueViewCountUpdatedMessage("event-view-count-before-removed", 10L, 150L), SCORE_QUEUE_NAME);
+        processor.process(publicIssueAvailableMessage("event-available-before-removed", 10L, 20L), LIFECYCLE_QUEUE_NAME);
+
+        // when
+        processor.process(publicIssueRemovedMessage("event-removed-after-summary", 10L), LIFECYCLE_QUEUE_NAME);
+
+        // then
+        assertThat(publicIssueRankingSummaryRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("PUBLIC_ISSUE_REMOVED 이후 늦은 조회수 snapshot은 ranking summary를 되살리지 않는다")
+    void process_view_count_after_removed_does_not_recreate_ranking_summary() throws Exception {
+        // given
+        processor.process(issueViewCountUpdatedMessage("event-view-before-removed", 10L, 150L), SCORE_QUEUE_NAME);
+        processor.process(publicIssueAvailableMessage("event-avail-before-late-view", 10L, 20L),
+                LIFECYCLE_QUEUE_NAME);
+        processor.process(publicIssueRemovedMessage("event-rem-before-late-view", 10L),
+                LIFECYCLE_QUEUE_NAME);
+
+        // when
+        processor.process(issueViewCountUpdatedMessage("event-view-after-removed", 10L, 200L),
+                SCORE_QUEUE_NAME);
+
+        // then
+        PublicIssueCandidate candidate = publicIssueCandidateRepository.findByIssueId(10L).orElseThrow();
+        assertThat(candidate.getStatus()).isEqualTo(PublicIssueCandidateStatus.REMOVED);
+
+        PublicIssueViewCountSnapshot snapshot = publicIssueViewCountSnapshotRepository.findById(10L).orElseThrow();
+        assertThat(snapshot.getViewCount()).isEqualTo(200L);
+        assertThat(publicIssueRankingSummaryRepository.count()).isZero();
     }
 
     @Test

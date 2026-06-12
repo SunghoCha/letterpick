@@ -4,6 +4,7 @@ import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.event.trending.PublicIssueAvailablePayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.application.TrendingMessageProcessingException;
+import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingSummaryUpdater;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,9 @@ class PublicIssueAvailableHandlerTest {
     @Mock
     private PublicIssueCandidateRepository publicIssueCandidateRepository;
 
+    @Mock
+    private PublicIssueRankingSummaryUpdater rankingSummaryUpdater;
+
     private PublicIssueAvailableHandler handler;
 
     @BeforeEach
@@ -39,6 +43,7 @@ class PublicIssueAvailableHandlerTest {
         handler = new PublicIssueAvailableHandler(
                 OBJECT_MAPPER,
                 publicIssueCandidateRepository,
+                rankingSummaryUpdater,
                 CLOCK
         );
     }
@@ -74,6 +79,7 @@ class PublicIssueAvailableHandlerTest {
                 CLOCK.instant(),
                 CLOCK.instant()
         );
+        verify(rankingSummaryUpdater).refresh(1L);
     }
 
     @Test
@@ -88,7 +94,7 @@ class PublicIssueAvailableHandlerTest {
         assertThatThrownBy(() -> handler.handle(envelope))
                 .isInstanceOf(TrendingMessageProcessingException.class)
                 .hasMessageContaining("failed to deserialize PUBLIC_ISSUE_AVAILABLE payload");
-        verifyNoInteractions(publicIssueCandidateRepository);
+        verifyNoInteractions(publicIssueCandidateRepository, rankingSummaryUpdater);
     }
 
     private EventEnvelope<JsonNode> envelope(PublicIssueAvailablePayload payload) {
