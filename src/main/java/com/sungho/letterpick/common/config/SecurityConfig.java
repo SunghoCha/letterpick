@@ -42,7 +42,12 @@ public class SecurityConfig {
             "/api/v1/newsletter-issues/*"
     };
 
-    private static final String ACTUATOR_HEALTH_ENDPOINT = "/actuator/health";
+    private static final String[] HEALTH_CHECK_ENDPOINTS = {
+            "/actuator/health",
+            "/actuator/health/**",
+            "/livez",
+            "/readyz"
+    };
     private static final String CSRF_ENDPOINT = "/api/v1/csrf";
     private static final String LOGOUT_ENDPOINT = "/api/v1/auth/logout";
     private static final String PUBLIC_ISSUE_VIEW_COUNT_ENDPOINT = "/api/v1/newsletter-issues/*/views";
@@ -60,7 +65,7 @@ public class SecurityConfig {
     @Order(0)
     public SecurityFilterChain actuatorHealthSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher(ACTUATOR_HEALTH_ENDPOINT)
+                .securityMatcher(HEALTH_CHECK_ENDPOINTS)
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         return http.build();

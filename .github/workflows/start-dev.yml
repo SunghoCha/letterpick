@@ -11,11 +11,6 @@ on:
         description: Full ECR image URI to use for the initial trending-service task definition
         required: true
         type: string
-      enable_perf_observability:
-        description: Create the dev CloudWatch performance dashboard
-        required: true
-        default: true
-        type: boolean
       enable_k6_runner:
         description: Create the dev k6 runner EC2 instance
         required: true
@@ -47,7 +42,6 @@ jobs:
     env:
       IMAGE_URI: ${{ inputs.image_uri }}
       TRENDING_SERVICE_IMAGE_URI: ${{ inputs.trending_service_image_uri }}
-      ENABLE_PERF_OBSERVABILITY: ${{ inputs.enable_perf_observability }}
       ENABLE_K6_RUNNER: ${{ inputs.enable_k6_runner }}
       K6_RUNNER_INSTANCE_TYPE: ${{ inputs.k6_runner_instance_type }}
       PUBLIC_FEED_SEARCH_STRATEGY: ${{ inputs.public_feed_search_strategy }}
@@ -66,7 +60,6 @@ jobs:
           required_env=(
             IMAGE_URI
             TRENDING_SERVICE_IMAGE_URI
-            ENABLE_PERF_OBSERVABILITY
             ENABLE_K6_RUNNER
             K6_RUNNER_INSTANCE_TYPE
             PUBLIC_FEED_SEARCH_STRATEGY
@@ -108,7 +101,6 @@ jobs:
           terraform -chdir=terraform/dev apply -auto-approve -input=false \
             -var="initial_backend_image_uri=$IMAGE_URI" \
             -var="initial_trending_service_image_uri=$TRENDING_SERVICE_IMAGE_URI" \
-            -var="enable_perf_observability=$ENABLE_PERF_OBSERVABILITY" \
             -var="enable_k6_runner=$ENABLE_K6_RUNNER" \
             -var="k6_runner_instance_type=$K6_RUNNER_INSTANCE_TYPE" \
             -var="public_feed_search_strategy=$PUBLIC_FEED_SEARCH_STRATEGY" \
@@ -122,7 +114,6 @@ jobs:
           FRONTEND_URL=$(terraform -chdir=terraform/dev output -raw frontend_url)
           TRENDING_SERVICE_NAME=$(terraform -chdir=terraform/dev output -raw trending_service_name)
           TRENDING_SERVICE_LOG_GROUP_NAME=$(terraform -chdir=terraform/dev output -raw trending_service_log_group_name)
-          PERFORMANCE_DASHBOARD_NAME=$(terraform -chdir=terraform/dev output performance_dashboard_name)
           K6_RUNNER_INSTANCE_ID=$(terraform -chdir=terraform/dev output k6_runner_instance_id)
           echo "### Dev runtime" >> "$GITHUB_STEP_SUMMARY"
           echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
@@ -130,5 +121,4 @@ jobs:
           echo "Trending service: $TRENDING_SERVICE_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "Trending service log group: $TRENDING_SERVICE_LOG_GROUP_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "Public feed search strategy: $PUBLIC_FEED_SEARCH_STRATEGY" >> "$GITHUB_STEP_SUMMARY"
-          echo "Performance dashboard: $PERFORMANCE_DASHBOARD_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "k6 runner instance id: $K6_RUNNER_INSTANCE_ID" >> "$GITHUB_STEP_SUMMARY"

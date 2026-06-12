@@ -16,7 +16,6 @@ locals {
     SPRING_PROFILES_ACTIVE                     = var.environment
     LETTERPICK_ENV                             = var.environment
     LETTERPICK_AWS_REGION                      = var.aws_region
-    LETTERPICK_CLOUDWATCH_METRICS_NAMESPACE    = local.application_metrics_namespace
     FRONTEND_BASE_URL                          = var.frontend_base_url
     SPRING_DATASOURCE_URL                      = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
     SPRING_DATA_REDIS_HOST                     = aws_elasticache_replication_group.redis.primary_endpoint_address
@@ -53,7 +52,6 @@ locals {
     for name, value in merge(local.backend_common_environment, {
       LETTERPICK_SQS_ENABLED                = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED  = "false"
-      LETTERPICK_CLOUDWATCH_METRICS_ENABLED = tostring(var.enable_perf_observability)
       LETTERPICK_OUTBOX_PUBLISH_ENABLED     = "true"
       }) : {
       name  = name
@@ -120,7 +118,7 @@ resource "aws_ecs_task_definition" "api" {
       ]
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/actuator/health/liveness || exit 1"]
+        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/livez || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
@@ -163,7 +161,7 @@ resource "aws_ecs_task_definition" "worker" {
       stopTimeout = 30
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/actuator/health/liveness || exit 1"]
+        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/livez || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
@@ -213,7 +211,7 @@ resource "aws_ecs_task_definition" "trending_service" {
       ]
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/actuator/health/liveness || exit 1"]
+        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/livez || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3

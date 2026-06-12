@@ -83,7 +83,7 @@ variable "trending_service_desired_count" {
 
 variable "api_health_check_path" {
   type    = string
-  default = "/actuator/health/readiness"
+  default = "/readyz"
 }
 
 variable "api_health_check_grace_period_seconds" {
@@ -254,11 +254,6 @@ variable "k6_runner_subnet_index" {
     condition     = var.k6_runner_subnet_index >= 0
     error_message = "k6_runner_subnet_index must be zero or greater."
   }
-}
-
-variable "enable_perf_observability" {
-  type    = bool
-  default = false
 }
 
 variable "raw_mail_bucket_name" {

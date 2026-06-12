@@ -7,9 +7,6 @@ spring:
     aws:
       region:
         static: ${LETTERPICK_AWS_REGION:ap-northeast-2}
-      cloudwatch:
-        enabled: ${LETTERPICK_CLOUDWATCH_METRICS_ENABLED:false}
-        region: ${LETTERPICK_AWS_REGION:ap-northeast-2}
       sqs:
         enabled: ${LETTERPICK_SQS_ENABLED:false}
         queue-not-found-strategy: FAIL
@@ -52,11 +49,6 @@ logging:
     level: "%5p [req:%X{requestId:-}]"
 
 management:
-  cloudwatch:
-    metrics:
-      export:
-        namespace: ${LETTERPICK_CLOUDWATCH_METRICS_NAMESPACE:LetterPick/Local/Application}
-        step: ${LETTERPICK_CLOUDWATCH_METRICS_STEP:1m}
   endpoint:
     health:
       probes:
