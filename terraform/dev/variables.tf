@@ -316,6 +316,16 @@ variable "observability_docker_compose_version" {
   default = "2.29.7"
 }
 
+variable "observability_alloy_image" {
+  type    = string
+  default = "grafana/alloy:v1.16.0"
+}
+
+variable "observability_config_writer_image" {
+  type    = string
+  default = "busybox:1.36"
+}
+
 variable "raw_mail_bucket_name" {
   type    = string
   default = null
