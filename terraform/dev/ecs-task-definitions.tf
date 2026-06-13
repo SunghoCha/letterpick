@@ -60,6 +60,37 @@ locals {
     }
   ]
 
+  api_observability_environment = var.enable_observability_stack ? [
+    {
+      name  = "JAVA_TOOL_OPTIONS"
+      value = "-javaagent:/otel/opentelemetry-javaagent.jar"
+    },
+    {
+      name  = "OTEL_SERVICE_NAME"
+      value = "letterpick-api"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+      value = "http://127.0.0.1:4317"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+      value = "grpc"
+    },
+    {
+      name  = "OTEL_TRACES_EXPORTER"
+      value = "otlp"
+    },
+    {
+      name  = "OTEL_METRICS_EXPORTER"
+      value = "none"
+    },
+    {
+      name  = "OTEL_LOGS_EXPORTER"
+      value = "none"
+    },
+  ] : []
+
   worker_environment = [
     for name, value in merge(local.backend_common_environment, {
       LETTERPICK_SQS_ENABLED               = "true"
@@ -71,6 +102,37 @@ locals {
       value = value
     }
   ]
+
+  worker_observability_environment = var.enable_observability_stack ? [
+    {
+      name  = "JAVA_TOOL_OPTIONS"
+      value = "-javaagent:/otel/opentelemetry-javaagent.jar"
+    },
+    {
+      name  = "OTEL_SERVICE_NAME"
+      value = "letterpick-worker"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+      value = "http://127.0.0.1:4317"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+      value = "grpc"
+    },
+    {
+      name  = "OTEL_TRACES_EXPORTER"
+      value = "otlp"
+    },
+    {
+      name  = "OTEL_METRICS_EXPORTER"
+      value = "none"
+    },
+    {
+      name  = "OTEL_LOGS_EXPORTER"
+      value = "none"
+    },
+  ] : []
 
   trending_service_environment = [
     for name, value in {
@@ -121,12 +183,259 @@ locals {
 
   observability_private_ip = var.enable_observability_stack ? aws_instance.observability[0].private_ip : ""
 
-  trending_service_alloy_config = var.enable_observability_stack ? templatefile("${path.module}/files/trending-service-alloy-config.alloy.tftpl", {
+  api_alloy_config = var.enable_observability_stack ? templatefile("${path.module}/files/service-alloy-config.alloy.tftpl", {
+    environment                 = var.environment
+    service_name                = "letterpick-api"
+    prometheus_remote_write_url = "http://${local.observability_private_ip}:${var.observability_prometheus_port}/api/v1/write"
+    tempo_otlp_grpc_endpoint    = "${local.observability_private_ip}:${var.observability_tempo_otlp_grpc_port}"
+  }) : ""
+
+  worker_alloy_config = var.enable_observability_stack ? templatefile("${path.module}/files/service-alloy-config.alloy.tftpl", {
+    environment                 = var.environment
+    service_name                = "letterpick-worker"
+    prometheus_remote_write_url = "http://${local.observability_private_ip}:${var.observability_prometheus_port}/api/v1/write"
+    tempo_otlp_grpc_endpoint    = "${local.observability_private_ip}:${var.observability_tempo_otlp_grpc_port}"
+  }) : ""
+
+  trending_service_alloy_config = var.enable_observability_stack ? templatefile("${path.module}/files/service-alloy-config.alloy.tftpl", {
     environment                 = var.environment
     service_name                = "trending-service"
     prometheus_remote_write_url = "http://${local.observability_private_ip}:${var.observability_prometheus_port}/api/v1/write"
     tempo_otlp_grpc_endpoint    = "${local.observability_private_ip}:${var.observability_tempo_otlp_grpc_port}"
   }) : ""
+
+  api_app_container_definition = {
+    name        = "api"
+    image       = var.initial_backend_image_uri
+    essential   = true
+    stopTimeout = 30
+
+    portMappings = [
+      {
+        containerPort = var.container_port
+        protocol      = "tcp"
+      },
+    ]
+
+    healthCheck = {
+      command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/livez || exit 1"]
+      interval    = 30
+      timeout     = 5
+      retries     = 3
+      startPeriod = 120
+    }
+
+    environment = concat(local.api_environment, local.api_observability_environment)
+    secrets     = local.backend_secrets
+
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.api.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "api"
+      }
+    }
+  }
+
+  api_alloy_config_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy-config"
+      image     = var.observability_config_writer_image
+      essential = false
+
+      entryPoint = ["sh", "-c"]
+      command = [
+        "printf '%s' \"$ALLOY_CONFIG_BASE64\" | base64 -d > /config/config.alloy && chmod 0444 /config/config.alloy"
+      ]
+
+      environment = [
+        {
+          name  = "ALLOY_CONFIG_BASE64"
+          value = base64encode(local.api_alloy_config)
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "api-alloy-config"
+          containerPath = "/config"
+          readOnly      = false
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.api.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "api-alloy-config"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  api_alloy_sidecar_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy"
+      image     = var.observability_alloy_image
+      essential = false
+
+      command = [
+        "run",
+        "--server.http.listen-addr=127.0.0.1:12345",
+        "--storage.path=/tmp/alloy",
+        "/etc/alloy/config.alloy",
+      ]
+
+      dependsOn = [
+        {
+          containerName = "alloy-config"
+          condition     = "SUCCESS"
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "api-alloy-config"
+          containerPath = "/etc/alloy"
+          readOnly      = true
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.api.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "api-alloy"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  api_alloy_container_definitions = concat(
+    local.api_alloy_config_container_definitions,
+    local.api_alloy_sidecar_container_definitions
+  )
+
+  api_container_definitions = concat(
+    [local.api_app_container_definition],
+    local.api_alloy_container_definitions
+  )
+
+  worker_app_container_definition = {
+    name        = "worker"
+    image       = var.initial_backend_image_uri
+    essential   = true
+    stopTimeout = 30
+
+    healthCheck = {
+      command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/livez || exit 1"]
+      interval    = 30
+      timeout     = 5
+      retries     = 3
+      startPeriod = 120
+    }
+
+    environment = concat(local.worker_environment, local.worker_observability_environment)
+    secrets     = local.backend_secrets
+
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.worker.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "worker"
+      }
+    }
+  }
+
+  worker_alloy_config_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy-config"
+      image     = var.observability_config_writer_image
+      essential = false
+
+      entryPoint = ["sh", "-c"]
+      command = [
+        "printf '%s' \"$ALLOY_CONFIG_BASE64\" | base64 -d > /config/config.alloy && chmod 0444 /config/config.alloy"
+      ]
+
+      environment = [
+        {
+          name  = "ALLOY_CONFIG_BASE64"
+          value = base64encode(local.worker_alloy_config)
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "worker-alloy-config"
+          containerPath = "/config"
+          readOnly      = false
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.worker.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "worker-alloy-config"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  worker_alloy_sidecar_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy"
+      image     = var.observability_alloy_image
+      essential = false
+
+      command = [
+        "run",
+        "--server.http.listen-addr=127.0.0.1:12345",
+        "--storage.path=/tmp/alloy",
+        "/etc/alloy/config.alloy",
+      ]
+
+      dependsOn = [
+        {
+          containerName = "alloy-config"
+          condition     = "SUCCESS"
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "worker-alloy-config"
+          containerPath = "/etc/alloy"
+          readOnly      = true
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.worker.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "worker-alloy"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  worker_alloy_container_definitions = concat(
+    local.worker_alloy_config_container_definitions,
+    local.worker_alloy_sidecar_container_definitions
+  )
+
+  worker_container_definitions = concat(
+    [local.worker_app_container_definition],
+    local.worker_alloy_container_definitions
+  )
 
   trending_service_app_container_definition = {
     name        = "trending-service"
@@ -264,41 +573,15 @@ resource "aws_ecs_task_definition" "api" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.api_task.arn
 
-  container_definitions = jsonencode([
-    {
-      name        = "api"
-      image       = var.initial_backend_image_uri
-      essential   = true
-      stopTimeout = 30
+  container_definitions = jsonencode(local.api_container_definitions)
 
-      portMappings = [
-        {
-          containerPort = var.container_port
-          protocol      = "tcp"
-        },
-      ]
+  dynamic "volume" {
+    for_each = var.enable_observability_stack ? ["api-alloy-config"] : []
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/livez || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 120
-      }
-
-      environment = local.api_environment
-      secrets     = local.backend_secrets
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.api.name
-          awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "api"
-        }
-      }
-    },
-  ])
+    content {
+      name = volume.value
+    }
+  }
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-api-task-definition"
@@ -314,34 +597,15 @@ resource "aws_ecs_task_definition" "worker" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.worker_task.arn
 
-  container_definitions = jsonencode([
-    {
-      name        = "worker"
-      image       = var.initial_backend_image_uri
-      essential   = true
-      stopTimeout = 30
+  container_definitions = jsonencode(local.worker_container_definitions)
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/livez || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 120
-      }
+  dynamic "volume" {
+    for_each = var.enable_observability_stack ? ["worker-alloy-config"] : []
 
-      environment = local.worker_environment
-      secrets     = local.backend_secrets
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.worker.name
-          awslogs-region        = var.aws_region
-          awslogs-stream-prefix = "worker"
-        }
-      }
-    },
-  ])
+    content {
+      name = volume.value
+    }
+  }
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-worker-task-definition"
