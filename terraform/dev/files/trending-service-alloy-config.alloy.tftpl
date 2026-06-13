@@ -5,8 +5,8 @@ logging {
 
 prometheus.remote_write "dev" {
   external_labels = {
-    environment  = "${environment}"
-    service_name = "${service_name}"
+    environment  = "${environment}",
+    service_name = "${service_name}",
   }
 
   endpoint {
