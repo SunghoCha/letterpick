@@ -88,7 +88,7 @@ variable "api_health_check_path" {
 
 variable "api_health_check_grace_period_seconds" {
   type    = number
-  default = 120
+  default = 240
 }
 
 variable "api_health_check_interval_seconds" {
