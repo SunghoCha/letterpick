@@ -2,6 +2,8 @@ package com.sungho.letterpick.newsletter.adapter.redis;
 
 import com.sungho.letterpick.newsletter.application.PublicIssueViewCountProperties;
 import com.sungho.letterpick.newsletter.application.required.PublicIssueViewCountStore;
+import io.opentelemetry.instrumentation.annotations.SpanAttribute;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -32,7 +34,8 @@ public class RedisPublicIssueViewCountStore implements PublicIssueViewCountStore
     private final PublicIssueViewCountProperties properties;
 
     @Override
-    public long incrementIfFirstView(Long issueId, String actorKey) {
+    @WithSpan("public_issue_view.redis_increment")
+    public long incrementIfFirstView(@SpanAttribute("issue.id") Long issueId, String actorKey) {
         Objects.requireNonNull(issueId, "issueId must not be null");
         Objects.requireNonNull(actorKey, "actorKey must not be null");
         if (actorKey.isBlank()) {
