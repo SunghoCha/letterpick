@@ -446,6 +446,17 @@ variable "public_issue_view_count_snapshot_interval" {
   }
 }
 
+variable "public_feed_seed_issue_count" {
+  description = "Number of LetterPick public feed source issues to seed in dev."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.public_feed_seed_issue_count > 0
+    error_message = "public_feed_seed_issue_count must be greater than zero."
+  }
+}
+
 variable "secret_name_prefix" {
   type    = string
   default = null

@@ -246,6 +246,18 @@ resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_trending_service"
   to_port     = var.rds_port
 }
 
+resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_k6_runner" {
+  count = var.enable_k6_runner ? 1 : 0
+
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.k6_runner[0].id
+  description                  = "Allow k6 runner to seed MySQL dev data"
+
+  ip_protocol = "tcp"
+  from_port   = var.rds_port
+  to_port     = var.rds_port
+}
+
 resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_db_access_host" {
   count = var.enable_db_access_host ? 1 : 0
 
