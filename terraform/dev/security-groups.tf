@@ -184,12 +184,60 @@ resource "aws_vpc_security_group_ingress_rule" "observability_prometheus_from_tr
   to_port     = var.observability_prometheus_port
 }
 
+resource "aws_vpc_security_group_ingress_rule" "observability_prometheus_from_api" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.api_task.id
+  description                  = "Allow API metrics remote write"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_prometheus_port
+  to_port     = var.observability_prometheus_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_prometheus_from_worker" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.worker_task.id
+  description                  = "Allow worker metrics remote write"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_prometheus_port
+  to_port     = var.observability_prometheus_port
+}
+
 resource "aws_vpc_security_group_ingress_rule" "observability_tempo_grpc_from_trending_service" {
   count = var.enable_observability_stack ? 1 : 0
 
   security_group_id            = aws_security_group.observability[0].id
   referenced_security_group_id = aws_security_group.trending_service_task.id
   description                  = "Allow trending service OTLP traces"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_tempo_otlp_grpc_port
+  to_port     = var.observability_tempo_otlp_grpc_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_tempo_grpc_from_api" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.api_task.id
+  description                  = "Allow API OTLP traces"
+
+  ip_protocol = "tcp"
+  from_port   = var.observability_tempo_otlp_grpc_port
+  to_port     = var.observability_tempo_otlp_grpc_port
+}
+
+resource "aws_vpc_security_group_ingress_rule" "observability_tempo_grpc_from_worker" {
+  count = var.enable_observability_stack ? 1 : 0
+
+  security_group_id            = aws_security_group.observability[0].id
+  referenced_security_group_id = aws_security_group.worker_task.id
+  description                  = "Allow worker OTLP traces"
 
   ip_protocol = "tcp"
   from_port   = var.observability_tempo_otlp_grpc_port
