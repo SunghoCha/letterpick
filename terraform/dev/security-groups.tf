@@ -104,6 +104,18 @@ resource "aws_vpc_security_group_egress_rule" "trending_service_task_all_ipv4" {
   cidr_ipv4   = "0.0.0.0/0"
 }
 
+resource "aws_vpc_security_group_ingress_rule" "trending_service_task_http_from_k6_runner" {
+  count = var.enable_k6_runner ? 1 : 0
+
+  security_group_id            = aws_security_group.trending_service_task.id
+  referenced_security_group_id = aws_security_group.k6_runner[0].id
+  description                  = "Allow k6 runner to reach trending service HTTP"
+
+  ip_protocol = "tcp"
+  from_port   = var.container_port
+  to_port     = var.container_port
+}
+
 resource "aws_security_group" "db_access_host" {
   count = var.enable_db_access_host ? 1 : 0
 
