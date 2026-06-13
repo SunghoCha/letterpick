@@ -84,7 +84,8 @@ resource "aws_instance" "k6_runner" {
   user_data_replace_on_change = true
 
   user_data = templatefile("${path.module}/files/k6-runner-user-data.sh.tftpl", {
-    k6_script = file("${path.module}/files/public-feed-search.js")
+    public_feed_search_script      = file("${path.module}/files/public-feed-search.js")
+    public_issue_view_count_script = file("${path.module}/files/public-issue-view-count.js")
   })
 
   metadata_options {

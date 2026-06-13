@@ -39,6 +39,11 @@ on:
         options:
           - fulltext
           - like
+      public_issue_view_count_snapshot_interval:
+        description: Public issue view count snapshot interval for the dev backend
+        required: true
+        default: '50'
+        type: string
 permissions:
   contents: read
   id-token: write
@@ -57,6 +62,7 @@ jobs:
       ENABLE_OBSERVABILITY_STACK: ${{ inputs.enable_observability_stack }}
       OBSERVABILITY_INSTANCE_TYPE: ${{ inputs.observability_instance_type }}
       PUBLIC_FEED_SEARCH_STRATEGY: ${{ inputs.public_feed_search_strategy }}
+      PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL: ${{ inputs.public_issue_view_count_snapshot_interval }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
       AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -77,6 +83,7 @@ jobs:
             ENABLE_OBSERVABILITY_STACK
             OBSERVABILITY_INSTANCE_TYPE
             PUBLIC_FEED_SEARCH_STRATEGY
+            PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL
             AWS_REGION
             AWS_TERRAFORM_ROLE_ARN
             GOOGLE_CLIENT_ID
@@ -120,6 +127,7 @@ jobs:
             -var="enable_observability_stack=$ENABLE_OBSERVABILITY_STACK" \
             -var="observability_instance_type=$OBSERVABILITY_INSTANCE_TYPE" \
             -var="public_feed_search_strategy=$PUBLIC_FEED_SEARCH_STRATEGY" \
+            -var="public_issue_view_count_snapshot_interval=$PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL" \
             -var="google_client_id=$GOOGLE_CLIENT_ID" \
             -var="naver_client_id=$NAVER_CLIENT_ID" \
             -var="backend_secret_names=$BACKEND_SECRET_NAMES"
@@ -144,6 +152,7 @@ jobs:
           echo "Trending service: $TRENDING_SERVICE_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "Trending service log group: $TRENDING_SERVICE_LOG_GROUP_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "Public feed search strategy: $PUBLIC_FEED_SEARCH_STRATEGY" >> "$GITHUB_STEP_SUMMARY"
+          echo "Public issue view count snapshot interval: $PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL" >> "$GITHUB_STEP_SUMMARY"
           echo "k6 runner instance id: $K6_RUNNER_INSTANCE_ID" >> "$GITHUB_STEP_SUMMARY"
           echo "Observability instance id: $OBSERVABILITY_INSTANCE_ID" >> "$GITHUB_STEP_SUMMARY"
           echo "Grafana port forwarding: \`$OBSERVABILITY_GRAFANA_PORT_FORWARD_COMMAND\`" >> "$GITHUB_STEP_SUMMARY"
