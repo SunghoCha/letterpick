@@ -1,0 +1,257 @@
+#!/bin/bash
+set -euo pipefail
+
+AWS_REGION="${aws_region}"
+DB_HOST="${db_host}"
+DB_PORT="${db_port}"
+DB_NAME="${db_name}"
+DB_SECRET_ARN="${db_secret_arn}"
+DEFAULT_ISSUE_COUNT="${default_issue_count}"
+DEFAULT_BATCH_SIZE="1000"
+
+COLLECTOR_EMAIL="public-feed-collector@letterpick.dev"
+COLLECTOR_NICKNAME="publicfeeddev"
+COLLECTOR_SOCIAL_PROVIDER="GOOGLE"
+COLLECTOR_SOCIAL_PROVIDER_ID="dev-public-feed-collector"
+COLLECTOR_INBOX_ADDRESS="omcxewctypxo@inbound-dev.letterpicknews.com"
+
+NEWSLETTER_EMAIL="public-feed-seed@letterpick.dev"
+NEWSLETTER_NAME="Dev Public Feed"
+NEWSLETTER_CATEGORY="TECH"
+
+MESSAGE_KEY_PREFIX="dev-public-feed-seed-"
+
+ISSUE_COUNT="$${PUBLIC_FEED_SEED_ISSUE_COUNT:-$DEFAULT_ISSUE_COUNT}"
+BATCH_SIZE="$${PUBLIC_FEED_SEED_BATCH_SIZE:-$DEFAULT_BATCH_SIZE}"
+
+if ! [[ "$ISSUE_COUNT" =~ ^[0-9]+$ ]] || [ "$ISSUE_COUNT" -lt 1 ]; then
+  echo "PUBLIC_FEED_SEED_ISSUE_COUNT must be a positive integer" >&2
+  exit 1
+fi
+
+if ! [[ "$BATCH_SIZE" =~ ^[0-9]+$ ]] || [ "$BATCH_SIZE" -lt 1 ]; then
+  echo "PUBLIC_FEED_SEED_BATCH_SIZE must be a positive integer" >&2
+  exit 1
+fi
+
+if [ "$ISSUE_COUNT" -gt 9999999 ]; then
+  echo "PUBLIC_FEED_SEED_ISSUE_COUNT must be 9999999 or less" >&2
+  exit 1
+fi
+
+SECRET_JSON="$(aws secretsmanager get-secret-value \
+  --region "$AWS_REGION" \
+  --secret-id "$DB_SECRET_ARN" \
+  --query SecretString \
+  --output text)"
+
+DB_USER="$(echo "$SECRET_JSON" | jq -r '.username')"
+DB_PASSWORD="$(echo "$SECRET_JSON" | jq -r '.password')"
+
+SQL_FILE="$(mktemp)"
+trap 'rm -f "$SQL_FILE"' EXIT
+
+cat >"$SQL_FILE" <<SQL
+SET @now = UTC_TIMESTAMP(6);
+
+INSERT INTO member (
+    email,
+    social_provider,
+    social_provider_id,
+    nickname,
+    newsletter_inbox_address,
+    status,
+    role,
+    created_at,
+    updated_at
+)
+VALUES (
+    '$COLLECTOR_EMAIL',
+    '$COLLECTOR_SOCIAL_PROVIDER',
+    '$COLLECTOR_SOCIAL_PROVIDER_ID',
+    '$COLLECTOR_NICKNAME',
+    '$COLLECTOR_INBOX_ADDRESS',
+    'ACTIVE',
+    'USER',
+    @now,
+    @now
+)
+ON DUPLICATE KEY UPDATE
+    id = LAST_INSERT_ID(id),
+    newsletter_inbox_address = VALUES(newsletter_inbox_address),
+    updated_at = @now;
+
+SET @member_id = LAST_INSERT_ID();
+
+INSERT INTO newsletter (
+    name,
+    description,
+    image_url,
+    category,
+    subscribe_url,
+    main_page_url,
+    email,
+    created_at,
+    updated_at
+)
+VALUES (
+    '$NEWSLETTER_NAME',
+    'Dev public feed seed newsletter',
+    'https://dev.letterpicknews.com/public-feed-seed.png',
+    '$NEWSLETTER_CATEGORY',
+    'https://dev.letterpicknews.com/public-feed-seed/subscribe',
+    'https://dev.letterpicknews.com/public-feed-seed',
+    '$NEWSLETTER_EMAIL',
+    @now,
+    @now
+)
+ON DUPLICATE KEY UPDATE
+    id = LAST_INSERT_ID(id),
+    updated_at = @now;
+
+SET @newsletter_id = LAST_INSERT_ID();
+SQL
+
+append_batch_sql() {
+  local start="$1"
+  local end="$2"
+  local values=""
+
+  for n in $(seq "$start" "$end"); do
+    local padded
+    local key
+    padded="$(printf "%07d" "$n")"
+    key="$MESSAGE_KEY_PREFIX$padded"
+
+    if [ -n "$values" ]; then
+      values="$values,"$'\n'
+    fi
+
+    values="$values('$key', 'dev-public-feed/raw/$key.eml', '$COLLECTOR_INBOX_ADDRESS', '$NEWSLETTER_EMAIL', 'Dev public issue $n', DATE_SUB(@now, INTERVAL $n SECOND), 'ISSUE_CREATED', @member_id, @newsletter_id, @now, @now)"
+  done
+
+  local start_key
+  local end_key
+  start_key="$MESSAGE_KEY_PREFIX$(printf "%07d" "$start")"
+  end_key="$MESSAGE_KEY_PREFIX$(printf "%07d" "$end")"
+
+  cat >>"$SQL_FILE" <<SQL
+
+INSERT IGNORE INTO inbound_email (
+    message_key,
+    raw_reference,
+    recipient_address,
+    sender_email,
+    subject,
+    received_at,
+    status,
+    member_id,
+    newsletter_id,
+    created_at,
+    updated_at
+)
+VALUES
+$values;
+
+INSERT IGNORE INTO newsletter_issue (
+    member_id,
+    newsletter_id,
+    inbound_email_id,
+    subject,
+    content,
+    preview_text,
+    received_at,
+    read_status,
+    deleted,
+    created_at,
+    updated_at
+)
+SELECT
+    @member_id,
+    @newsletter_id,
+    ie.id,
+    ie.subject,
+    CONCAT('<html><body><h1>', ie.subject, '</h1><p>This issue is generated for dev public feed view-count experiments.</p></body></html>'),
+    CONCAT(ie.subject, ' preview'),
+    ie.received_at,
+    false,
+    false,
+    @now,
+    @now
+FROM inbound_email ie
+WHERE ie.message_key >= '$start_key'
+  AND ie.message_key <= '$end_key';
+
+INSERT INTO public_issue_candidate (
+    issue_id,
+    newsletter_id,
+    category,
+    status,
+    public_feed_collected_at,
+    created_at,
+    updated_at
+)
+SELECT
+    ni.id,
+    ni.newsletter_id,
+    n.category,
+    'AVAILABLE',
+    ni.received_at,
+    @now,
+    @now
+FROM newsletter_issue ni
+JOIN inbound_email ie ON ie.id = ni.inbound_email_id
+JOIN newsletter n ON n.id = ni.newsletter_id
+WHERE ie.message_key >= '$start_key'
+  AND ie.message_key <= '$end_key'
+ON DUPLICATE KEY UPDATE
+    newsletter_id = VALUES(newsletter_id),
+    category = VALUES(category),
+    status = 'AVAILABLE',
+    public_feed_collected_at = VALUES(public_feed_collected_at),
+    updated_at = @now;
+SQL
+}
+
+start=1
+while [ "$start" -le "$ISSUE_COUNT" ]; do
+  end=$((start + BATCH_SIZE - 1))
+  if [ "$end" -gt "$ISSUE_COUNT" ]; then
+    end="$ISSUE_COUNT"
+  fi
+  append_batch_sql "$start" "$end"
+  start=$((end + 1))
+done
+
+cat >>"$SQL_FILE" <<SQL
+
+SELECT 'member' AS table_name, COUNT(*) AS row_count
+FROM member
+WHERE newsletter_inbox_address = '$COLLECTOR_INBOX_ADDRESS'
+UNION ALL
+SELECT 'newsletter_issue' AS table_name, COUNT(*) AS row_count
+FROM newsletter_issue ni
+JOIN inbound_email ie ON ie.id = ni.inbound_email_id
+WHERE ie.message_key LIKE '$MESSAGE_KEY_PREFIX%'
+UNION ALL
+SELECT 'public_issue_candidate' AS table_name, COUNT(*) AS row_count
+FROM public_issue_candidate c
+JOIN newsletter_issue ni ON ni.id = c.issue_id
+JOIN inbound_email ie ON ie.id = ni.inbound_email_id
+WHERE ie.message_key LIKE '$MESSAGE_KEY_PREFIX%';
+SQL
+
+echo "Seeding LetterPick public feed source data and trending candidates..."
+echo "DB: $DB_HOST:$DB_PORT/$DB_NAME"
+echo "ISSUE_COUNT: $ISSUE_COUNT"
+echo "BATCH_SIZE: $BATCH_SIZE"
+
+sudo docker run --rm -i \
+  -e MYSQL_PWD="$DB_PASSWORD" \
+  mysql:8.4 \
+  mysql \
+    --default-character-set=utf8mb4 \
+    -h "$DB_HOST" \
+    -P "$DB_PORT" \
+    -u "$DB_USER" \
+    "$DB_NAME" <"$SQL_FILE"

@@ -61,6 +61,32 @@ resource "aws_iam_role_policy_attachment" "k6_runner_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+resource "aws_iam_role_policy" "k6_runner_db_secret" {
+  count = var.enable_k6_runner ? 1 : 0
+
+  name = "${local.name_prefix}-k6-runner-db-secret"
+  role = aws_iam_role.k6_runner[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+        ]
+        Resource = aws_db_instance.main.master_user_secret[0].secret_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+        ]
+        Resource = aws_db_instance.main.master_user_secret[0].kms_key_id
+      },
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "k6_runner" {
   count = var.enable_k6_runner ? 1 : 0
 
@@ -86,6 +112,14 @@ resource "aws_instance" "k6_runner" {
   user_data = templatefile("${path.module}/files/k6-runner-user-data.sh.tftpl", {
     public_feed_search_script      = file("${path.module}/files/public-feed-search.js")
     public_issue_view_count_script = file("${path.module}/files/public-issue-view-count.js")
+    seed_public_feed_script = templatefile("${path.module}/files/seed-public-feed.sh.tftpl", {
+      aws_region          = var.aws_region
+      db_host             = aws_db_instance.main.address
+      db_port             = tostring(aws_db_instance.main.port)
+      db_name             = var.rds_database_name
+      db_secret_arn       = aws_db_instance.main.master_user_secret[0].secret_arn
+      default_issue_count = tostring(var.public_feed_seed_issue_count)
+    })
   })
 
   metadata_options {

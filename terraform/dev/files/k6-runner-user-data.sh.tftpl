@@ -2,7 +2,8 @@
 set -euxo pipefail
 
 dnf install -y https://dl.k6.io/rpm/repo.rpm
-dnf install -y git jq k6
+dnf install -y git jq k6 docker
+systemctl enable --now docker
 
 mkdir -p /opt/letterpick-k6/results
 
@@ -14,12 +15,22 @@ cat >/opt/letterpick-k6/public-issue-view-count.js <<'K6_SCRIPT'
 ${public_issue_view_count_script}
 K6_SCRIPT
 
+cat >/opt/letterpick-k6/seed-public-feed.sh <<'SEED_SCRIPT'
+${seed_public_feed_script}
+SEED_SCRIPT
+chmod +x /opt/letterpick-k6/seed-public-feed.sh
+
 cat >/opt/letterpick-k6/README.txt <<'README'
 LetterPick k6 runner
 
 Scripts:
+  /opt/letterpick-k6/seed-public-feed.sh
   /opt/letterpick-k6/public-feed-search.js
   /opt/letterpick-k6/public-issue-view-count.js
+
+Seed public feed source data and candidates after dev services are running:
+  PUBLIC_FEED_SEED_ISSUE_COUNT=100000 \
+  /opt/letterpick-k6/seed-public-feed.sh
 
 Public feed search example:
   BASE_URL=https://dev-api.letterpicknews.com \
