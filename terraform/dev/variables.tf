@@ -435,6 +435,17 @@ variable "public_feed_search_strategy" {
   }
 }
 
+variable "public_issue_view_count_snapshot_interval" {
+  description = "Snapshot interval for public issue view count events in the dev backend."
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.public_issue_view_count_snapshot_interval > 0
+    error_message = "public_issue_view_count_snapshot_interval must be greater than zero."
+  }
+}
+
 variable "secret_name_prefix" {
   type    = string
   default = null
