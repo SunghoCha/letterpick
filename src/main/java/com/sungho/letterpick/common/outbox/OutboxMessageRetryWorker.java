@@ -17,7 +17,7 @@ public class OutboxMessageRetryWorker {
             lockAtMostFor = "${letterpick.outbox.retry.lock-at-most-for:PT1M}",
             lockAtLeastFor = "${letterpick.outbox.retry.lock-at-least-for:PT0S}"
     )
-    public int publishDueOutboxMessages() {
-        return outboxMessageRelay.publishDueMessages(DEFAULT_BATCH_SIZE);
+    public void publishDueOutboxMessages() {
+        outboxMessageRelay.publishDueMessages(DEFAULT_BATCH_SIZE);
     }
 }
