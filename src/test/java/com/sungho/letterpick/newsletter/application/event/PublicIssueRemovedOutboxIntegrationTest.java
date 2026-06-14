@@ -36,7 +36,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(properties = {
         "spring.cloud.aws.sqs.enabled=false",
         "letterpick.outbox.publish.enabled=false",
-        "letterpick.outbox.retry.enabled=false",
         "letterpick.mail.sqs-listener.enabled=false",
         "newsletter.public-feed.collector-inbox-address=abcd1234efgh@inbound.letterpick.test"
 })

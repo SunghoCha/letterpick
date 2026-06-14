@@ -99,5 +99,3 @@ letterpick:
       trending-score-events: ${LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE}
     publish:
       enabled: ${LETTERPICK_OUTBOX_PUBLISH_ENABLED:false}
-    retry:
-      enabled: ${LETTERPICK_OUTBOX_RETRY_ENABLED:false}
