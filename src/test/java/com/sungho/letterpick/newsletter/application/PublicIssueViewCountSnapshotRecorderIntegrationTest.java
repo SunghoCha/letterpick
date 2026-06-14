@@ -48,7 +48,6 @@ import tools.jackson.databind.ObjectMapper;
 @SpringBootTest(properties = {
         "spring.cloud.aws.sqs.enabled=false",
         "letterpick.outbox.publish.enabled=false",
-        "letterpick.outbox.retry.enabled=false",
         "letterpick.mail.sqs-listener.enabled=false",
         "letterpick.outbox.queue.trending-lifecycle-events=letterpick-test-trending-lifecycle-events",
         "letterpick.outbox.queue.trending-score-events=letterpick-test-trending-score-events"

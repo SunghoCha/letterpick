@@ -96,7 +96,6 @@ locals {
       LETTERPICK_SQS_ENABLED               = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "true"
       LETTERPICK_MAIL_RECEIVE_QUEUE        = aws_sqs_queue.mail_receive.name
-      LETTERPICK_OUTBOX_RETRY_ENABLED      = "true"
       }) : {
       name  = name
       value = value

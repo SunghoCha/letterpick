@@ -24,13 +24,8 @@ public class OutboxPublishingConfiguration {
         return new DefaultOutboxMessageRelay(outboxMessageRepository, outboxMessagePublisher, clock);
     }
 
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(prefix = "letterpick.outbox.retry", name = "enabled", havingValue = "true")
-    static class RetryConfiguration {
-
-        @Bean
-        OutboxMessageRetryWorker outboxMessageRetryWorker(OutboxMessageRelay outboxMessageRelay) {
-            return new OutboxMessageRetryWorker(outboxMessageRelay);
-        }
+    @Bean
+    OutboxMessageRetryWorker outboxMessageRetryWorker(OutboxMessageRelay outboxMessageRelay) {
+        return new OutboxMessageRetryWorker(outboxMessageRelay);
     }
 }

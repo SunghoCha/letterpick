@@ -21,7 +21,7 @@ class OutboxPublishingConfigurationTest {
             .withUserConfiguration(OutboxPublishingConfiguration.class);
 
     @Test
-    @DisplayName("outbox 발행 설정이 켜져 있으면 SQS publisher와 relay를 등록한다")
+    @DisplayName("outbox 발행 설정이 켜져 있으면 SQS publisher, relay, retry worker를 등록한다")
     void registerOutboxPublisherAndRelayWhenPublishEnabled() {
         // when
         contextRunner
@@ -32,7 +32,7 @@ class OutboxPublishingConfigurationTest {
                     assertThat(context).hasSingleBean(SqsOutboxMessagePublisher.class);
                     assertThat(context).hasSingleBean(OutboxMessageRelay.class);
                     assertThat(context).hasSingleBean(DefaultOutboxMessageRelay.class);
-                    assertThat(context).doesNotHaveBean(OutboxMessageRetryWorker.class);
+                    assertThat(context).hasSingleBean(OutboxMessageRetryWorker.class);
                 });
     }
 
@@ -48,34 +48,5 @@ class OutboxPublishingConfigurationTest {
             assertThat(context).doesNotHaveBean(DefaultOutboxMessageRelay.class);
             assertThat(context).doesNotHaveBean(OutboxMessageRetryWorker.class);
         });
-    }
-
-    @Test
-    @DisplayName("outbox 발행과 retry 설정이 모두 켜져 있으면 retry worker를 등록한다")
-    void registerOutboxMessageRetryWorkerWhenPublishAndRetryEnabled() {
-        // when
-        contextRunner
-                .withPropertyValues(
-                        "letterpick.outbox.publish.enabled=true",
-                        "letterpick.outbox.retry.enabled=true"
-                )
-                .run(context -> {
-                    // then
-                    assertThat(context).hasSingleBean(OutboxMessageRelay.class);
-                    assertThat(context).hasSingleBean(OutboxMessageRetryWorker.class);
-                });
-    }
-
-    @Test
-    @DisplayName("outbox retry 설정만 켜져 있으면 retry worker를 등록하지 않는다")
-    void doesNotRegisterOutboxMessageRetryWorkerWhenPublishDisabled() {
-        // when
-        contextRunner
-                .withPropertyValues("letterpick.outbox.retry.enabled=true")
-                .run(context -> {
-                    // then
-                    assertThat(context).doesNotHaveBean(OutboxMessageRelay.class);
-                    assertThat(context).doesNotHaveBean(OutboxMessageRetryWorker.class);
-                });
     }
 }
