@@ -3,13 +3,9 @@ package com.sungho.letterpick.common.outbox;
 import com.sungho.letterpick.event.EventEnvelope;
 import io.awspring.cloud.sqs.operations.SqsOperations;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-@Component
-@ConditionalOnProperty(prefix = "letterpick.outbox.publish", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class SqsOutboxMessagePublisher implements OutboxMessagePublisher {
 

@@ -1,9 +1,7 @@
 package com.sungho.letterpick.common.outbox;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -11,8 +9,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-@Service
-@ConditionalOnBean(OutboxMessagePublisher.class)
 @RequiredArgsConstructor
 public class DefaultOutboxMessageRelay implements OutboxMessageRelay {
 
