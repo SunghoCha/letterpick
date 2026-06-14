@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 dnf install -y https://dl.k6.io/rpm/repo.rpm
-dnf install -y git jq k6 docker
+dnf install -y git jq k6 docker python3
 systemctl enable --now docker
 
 mkdir -p /opt/letterpick-k6/results
@@ -14,6 +14,20 @@ K6_SCRIPT
 cat >/opt/letterpick-k6/public-issue-view-count.js <<'K6_SCRIPT'
 ${public_issue_view_count_script}
 K6_SCRIPT
+
+cat >/opt/letterpick-k6/send-trending-score-events.py <<'SCORE_EVENT_SCRIPT'
+${trending_score_events_script}
+SCORE_EVENT_SCRIPT
+chmod +x /opt/letterpick-k6/send-trending-score-events.py
+
+cat >/opt/letterpick-k6/send-trending-score-events.sh <<'SCORE_EVENT_RUNNER'
+#!/bin/bash
+set -euo pipefail
+
+export TRENDING_SCORE_EVENTS_QUEUE_URL="${trending_score_events_queue_url}"
+exec python3 /opt/letterpick-k6/send-trending-score-events.py "$@"
+SCORE_EVENT_RUNNER
+chmod +x /opt/letterpick-k6/send-trending-score-events.sh
 
 cat >/opt/letterpick-k6/seed-public-feed.sh <<'SEED_SCRIPT'
 ${seed_public_feed_script}
@@ -27,6 +41,7 @@ Scripts:
   /opt/letterpick-k6/seed-public-feed.sh
   /opt/letterpick-k6/public-feed-search.js
   /opt/letterpick-k6/public-issue-view-count.js
+  /opt/letterpick-k6/send-trending-score-events.sh
 
 Seed public feed source data and candidates after dev services are running:
   PUBLIC_FEED_SEED_ISSUE_COUNT=100000 \
@@ -55,6 +70,20 @@ Public issue view count example:
     --summary-export /opt/letterpick-k6/results/public-issue-view-count-r10-60s.json \
     /opt/letterpick-k6/public-issue-view-count.js \
     2>&1 | tee /opt/letterpick-k6/results/public-issue-view-count-r10-60s.txt
+
+Trending score event injection example:
+  RATE=10 \
+  DURATION=30s \
+  ISSUE_COUNT=1 \
+  START_ISSUE_ID=1 \
+  /opt/letterpick-k6/send-trending-score-events.sh
+
+Distribute the same event stream across multiple issues:
+  RATE=100 \
+  DURATION=60s \
+  ISSUE_COUNT=1000 \
+  START_ISSUE_ID=1 \
+  /opt/letterpick-k6/send-trending-score-events.sh
 README
 
 k6 version >/opt/letterpick-k6/k6-version.txt

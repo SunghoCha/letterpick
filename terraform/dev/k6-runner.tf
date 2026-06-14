@@ -87,6 +87,26 @@ resource "aws_iam_role_policy" "k6_runner_db_secret" {
   })
 }
 
+resource "aws_iam_role_policy" "k6_runner_trending_score_events" {
+  count = var.enable_k6_runner ? 1 : 0
+
+  name = "${local.name_prefix}-k6-runner-trending-score-events"
+  role = aws_iam_role.k6_runner[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:SendMessageBatch",
+        ]
+        Resource = aws_sqs_queue.trending_score_events.arn
+      },
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "k6_runner" {
   count = var.enable_k6_runner ? 1 : 0
 
@@ -110,8 +130,10 @@ resource "aws_instance" "k6_runner" {
   user_data_replace_on_change = true
 
   user_data = templatefile("${path.module}/files/k6-runner-user-data.sh.tftpl", {
-    public_feed_search_script      = file("${path.module}/files/public-feed-search.js")
-    public_issue_view_count_script = file("${path.module}/files/public-issue-view-count.js")
+    public_feed_search_script       = file("${path.module}/files/public-feed-search.js")
+    public_issue_view_count_script  = file("${path.module}/files/public-issue-view-count.js")
+    trending_score_events_script    = file("${path.module}/files/send-trending-score-events.py")
+    trending_score_events_queue_url = aws_sqs_queue.trending_score_events.url
     seed_public_feed_script = templatefile("${path.module}/files/seed-public-feed.sh.tftpl", {
       aws_region          = var.aws_region
       db_host             = aws_db_instance.main.address
