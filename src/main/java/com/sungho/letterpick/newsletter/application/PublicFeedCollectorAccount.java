@@ -8,6 +8,8 @@ public class PublicFeedCollectorAccount {
 
     private final String collectorInboxAddress;
     private final RecipientAddressResolver recipientAddressResolver;
+    private final Object collectorMemberIdLock = new Object();
+    private volatile Long collectorMemberId;
 
     public PublicFeedCollectorAccount(@Value("${newsletter.public-feed.collector-inbox-address}")
                                       String collectorInboxAddress,
@@ -17,6 +19,22 @@ public class PublicFeedCollectorAccount {
     }
 
     public Long collectorMemberId() {
+        Long cached = collectorMemberId;
+        if (cached != null) {
+            return cached;
+        }
+
+        synchronized (collectorMemberIdLock) {
+            Long resolved = collectorMemberId;
+            if (resolved == null) {
+                resolved = resolveCollectorMemberId();
+                collectorMemberId = resolved;
+            }
+            return resolved;
+        }
+    }
+
+    private Long resolveCollectorMemberId() {
         RecipientAddressResolution resolution = recipientAddressResolver.resolve(collectorInboxAddress);
         if (resolution.type() != RecipientAddressResolution.Type.FOUND) {
             throw new IllegalStateException("공개 피드 컬렉터 회원을 찾을 수 없습니다.");

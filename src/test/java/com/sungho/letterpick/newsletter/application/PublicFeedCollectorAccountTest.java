@@ -10,6 +10,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class PublicFeedCollectorAccountTest {
@@ -41,6 +43,18 @@ class PublicFeedCollectorAccountTest {
     }
 
     @Test
+    @DisplayName("공개 피드 컬렉터 회원 ID는 한 번 조회한 뒤 캐시한다")
+    void collectorMemberIdCachesResolvedMemberId() {
+        given(recipientAddressResolver.resolve(COLLECTOR_INBOX_ADDRESS))
+                .willReturn(RecipientAddressResolution.found(10L));
+
+        assertThat(publicFeedCollectorAccount.collectorMemberId()).isEqualTo(10L);
+        assertThat(publicFeedCollectorAccount.collectorMemberId()).isEqualTo(10L);
+
+        then(recipientAddressResolver).should(times(1)).resolve(COLLECTOR_INBOX_ADDRESS);
+    }
+
+    @Test
     @DisplayName("공개 피드 컬렉터 회원을 찾을 수 없으면 실패한다")
     void collectorMemberIdFailsWhenCollectorMemberNotFound() {
         given(recipientAddressResolver.resolve(COLLECTOR_INBOX_ADDRESS))
@@ -52,6 +66,21 @@ class PublicFeedCollectorAccountTest {
     }
 
     @Test
+    @DisplayName("공개 피드 컬렉터 회원 조회 실패는 캐시하지 않는다")
+    void collectorMemberIdDoesNotCacheFailedResolution() {
+        given(recipientAddressResolver.resolve(COLLECTOR_INBOX_ADDRESS))
+                .willReturn(RecipientAddressResolution.notFound())
+                .willReturn(RecipientAddressResolution.found(10L));
+
+        assertThatThrownBy(publicFeedCollectorAccount::collectorMemberId)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("공개 피드 컬렉터 회원을 찾을 수 없습니다.");
+        assertThat(publicFeedCollectorAccount.collectorMemberId()).isEqualTo(10L);
+
+        then(recipientAddressResolver).should(times(2)).resolve(COLLECTOR_INBOX_ADDRESS);
+    }
+
+    @Test
     @DisplayName("주어진 회원 ID가 공개 피드 컬렉터 회원인지 판단한다")
     void isCollectorMemberId() {
         given(recipientAddressResolver.resolve(COLLECTOR_INBOX_ADDRESS))
@@ -59,6 +88,8 @@ class PublicFeedCollectorAccountTest {
 
         assertThat(publicFeedCollectorAccount.isCollectorMemberId(10L)).isTrue();
         assertThat(publicFeedCollectorAccount.isCollectorMemberId(20L)).isFalse();
+
+        then(recipientAddressResolver).should(times(1)).resolve(COLLECTOR_INBOX_ADDRESS);
     }
 
     @Test
