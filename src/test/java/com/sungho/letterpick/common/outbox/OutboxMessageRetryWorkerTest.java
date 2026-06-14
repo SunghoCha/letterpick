@@ -7,7 +7,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -26,9 +25,8 @@ class OutboxMessageRetryWorkerTest {
         given(outboxMessageRelay.publishDueMessages(100))
                 .willReturn(3);
 
-        int published = worker.publishDueOutboxMessages();
+        worker.publishDueOutboxMessages();
 
-        assertThat(published).isEqualTo(3);
         verify(outboxMessageRelay).publishDueMessages(100);
     }
 }
