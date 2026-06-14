@@ -129,7 +129,7 @@ resource "aws_instance" "k6_runner" {
   associate_public_ip_address = false
   user_data_replace_on_change = true
 
-  user_data = templatefile("${path.module}/files/k6-runner-user-data.sh.tftpl", {
+  user_data_base64 = base64gzip(templatefile("${path.module}/files/k6-runner-user-data.sh.tftpl", {
     public_feed_search_script       = file("${path.module}/files/public-feed-search.js")
     public_issue_view_count_script  = file("${path.module}/files/public-issue-view-count.js")
     trending_score_events_script    = file("${path.module}/files/send-trending-score-events.py")
@@ -142,7 +142,7 @@ resource "aws_instance" "k6_runner" {
       db_secret_arn       = aws_db_instance.main.master_user_secret[0].secret_arn
       default_issue_count = tostring(var.public_feed_seed_issue_count)
     })
-  })
+  }))
 
   metadata_options {
     http_endpoint = "enabled"
