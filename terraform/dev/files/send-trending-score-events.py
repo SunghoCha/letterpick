@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 
 
 DEFAULT_EVENT_TYPE = "ISSUE_VIEW_COUNT_UPDATED"
@@ -60,7 +61,7 @@ def build_message(args, sequence):
     occurred_at = utc_now()
 
     return {
-        "eventId": f"{args.event_prefix}-{int(time.time() * 1000)}-{sequence + 1}",
+        "eventId": str(uuid.uuid4()),
         "eventType": DEFAULT_EVENT_TYPE,
         "schemaVersion": DEFAULT_SCHEMA_VERSION,
         "source": args.source,
@@ -128,7 +129,6 @@ def parse_args():
     parser.add_argument("--issue-count", default=env("ISSUE_COUNT", "1"))
     parser.add_argument("--start-issue-id", default=env("START_ISSUE_ID", "1"))
     parser.add_argument("--start-view-count", default=env("START_VIEW_COUNT", "0"))
-    parser.add_argument("--event-prefix", default=env("EVENT_PREFIX", f"dev-score-{int(time.time())}"))
     parser.add_argument("--trace-prefix", default=env("TRACE_PREFIX", "dev-score-trace"))
     parser.add_argument("--source", default=env("EVENT_SOURCE", DEFAULT_SOURCE))
     parser.add_argument("--dry-run", action="store_true", default=env("DRY_RUN", "false").lower() == "true")
