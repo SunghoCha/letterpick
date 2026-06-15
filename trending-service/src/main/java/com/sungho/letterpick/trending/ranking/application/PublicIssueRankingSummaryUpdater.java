@@ -6,6 +6,8 @@ import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
 import com.sungho.letterpick.trending.ranking.adapter.persistence.PublicIssueRankingSummaryRepository;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshot;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshotRepository;
+import io.opentelemetry.instrumentation.annotations.SpanAttribute;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +26,8 @@ public class PublicIssueRankingSummaryUpdater {
     private final PublicIssueRankingWindowCalculator windowCalculator;
     private final Clock clock;
 
-    public void refresh(Long issueId) {
+    @WithSpan("trending.ranking_summary.refresh")
+    public void refresh(@SpanAttribute("issue.id") Long issueId) {
         var candidate = candidateRepository.findByIssueIdForUpdate(issueId);
         if (candidate.isEmpty() || candidate.get().getStatus() != PublicIssueCandidateStatus.AVAILABLE) {
             rankingSummaryRepository.deleteByIssueId(issueId);
