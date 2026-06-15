@@ -2,6 +2,7 @@ package com.sungho.letterpick.trending.score.adapter.sqs;
 
 import com.sungho.letterpick.trending.application.TrendingMessageProcessor;
 import io.awspring.cloud.sqs.annotation.SqsListener;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -30,6 +31,7 @@ public class TrendingScoreSqsListener {
     }
 
     @SqsListener("${letterpick.trending.score-events-queue}")
+    @WithSpan("trending.score.consume")
     public void receive(String messageBody) {
         processor.process(messageBody, queueName);
     }

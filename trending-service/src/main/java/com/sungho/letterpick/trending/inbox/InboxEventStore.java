@@ -1,6 +1,8 @@
 package com.sungho.letterpick.trending.inbox;
 
 import com.sungho.letterpick.event.EventEnvelope;
+import io.opentelemetry.instrumentation.annotations.SpanAttribute;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +24,10 @@ public class InboxEventStore {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public InboxEventStatus receive(EventEnvelope<JsonNode> envelope, String queueName, String payload) {
+    @WithSpan("trending.inbox.receive")
+    public InboxEventStatus receive(EventEnvelope<JsonNode> envelope,
+                                    @SpanAttribute("messaging.destination.name") String queueName,
+                                    String payload) {
         var now = clock.instant();
         inboxEventRepository.insertIfAbsent(
                 envelope.eventId(),

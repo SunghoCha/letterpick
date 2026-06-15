@@ -28,6 +28,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations:2.18.1'
     implementation 'org.flywaydb:flyway-mysql'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'
     compileOnly 'org.projectlombok:lombok'

@@ -6,6 +6,7 @@ import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.application.TrendingEventHandler;
 import com.sungho.letterpick.trending.application.TrendingMessageProcessingException;
 import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingSummaryUpdater;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -39,6 +40,7 @@ public class IssueViewCountUpdatedHandler implements TrendingEventHandler {
     }
 
     @Override
+    @WithSpan("trending.issue_view_count.handle")
     public void handle(EventEnvelope<JsonNode> envelope) {
         IssueViewCountUpdatedPayload payload = readPayload(envelope.payload());
         repository.upsertSnapshot(
