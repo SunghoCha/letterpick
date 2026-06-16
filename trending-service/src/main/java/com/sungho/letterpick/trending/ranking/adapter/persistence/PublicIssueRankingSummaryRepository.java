@@ -12,7 +12,7 @@ import java.time.Instant;
 import java.util.List;
 
 public interface PublicIssueRankingSummaryRepository
-        extends JpaRepository<PublicIssueRankingSummary, Long> {
+        extends JpaRepository<PublicIssueRankingSummary, PublicIssueRankingSummaryId> {
 
     @Modifying(flushAutomatically = true)
     @Query(value = """

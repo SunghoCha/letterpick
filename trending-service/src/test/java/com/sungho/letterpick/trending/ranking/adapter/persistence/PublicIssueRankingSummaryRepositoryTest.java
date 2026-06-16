@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
@@ -28,6 +29,27 @@ class PublicIssueRankingSummaryRepositoryTest {
 
     @Autowired
     private PublicIssueCandidateRepository candidateRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    @DisplayName("summary row는 window와 issue 조합을 primary key로 식별한다")
+    void primary_key_is_summary_window_issue() {
+        // when
+        List<String> primaryKeyColumns = jdbcTemplate.queryForList("""
+                SELECT COLUMN_NAME
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'public_issue_ranking_summary'
+                  AND CONSTRAINT_NAME = 'PRIMARY'
+                ORDER BY ORDINAL_POSITION
+                """, String.class);
+
+        // then
+        assertThat(primaryKeyColumns)
+                .containsExactly("window_type", "window_key", "issue_id");
+    }
 
     @Test
     @DisplayName("AVAILABLE summary window의 인기 이슈를 score 순으로 조회한다")
