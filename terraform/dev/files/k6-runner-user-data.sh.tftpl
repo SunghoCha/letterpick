@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 dnf install -y https://dl.k6.io/rpm/repo.rpm
-dnf install -y git jq k6 docker python3
+dnf install -y git jq k6 docker python3 python3-boto3
 systemctl enable --now docker
 
 mkdir -p /opt/letterpick-k6/results
@@ -74,6 +74,7 @@ Public issue view count example:
 Trending score event injection example:
   RATE=10 \
   DURATION=30s \
+  CONCURRENCY=16 \
   ISSUE_COUNT=1 \
   START_ISSUE_ID=1 \
   /opt/letterpick-k6/send-trending-score-events.sh
@@ -81,6 +82,7 @@ Trending score event injection example:
 Distribute the same event stream across multiple issues:
   RATE=100 \
   DURATION=60s \
+  CONCURRENCY=16 \
   ISSUE_COUNT=1000 \
   START_ISSUE_ID=1 \
   /opt/letterpick-k6/send-trending-score-events.sh
