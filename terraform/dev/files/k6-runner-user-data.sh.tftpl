@@ -25,6 +25,8 @@ cat >/opt/letterpick-k6/send-trending-score-events.sh <<'SCORE_EVENT_RUNNER'
 set -euo pipefail
 
 export TRENDING_SCORE_EVENTS_QUEUE_URL="${trending_score_events_queue_url}"
+export AWS_REGION="${aws_region}"
+export AWS_DEFAULT_REGION="${aws_region}"
 exec python3 /opt/letterpick-k6/send-trending-score-events.py "$@"
 SCORE_EVENT_RUNNER
 chmod +x /opt/letterpick-k6/send-trending-score-events.sh

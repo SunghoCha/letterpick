@@ -130,6 +130,7 @@ resource "aws_instance" "k6_runner" {
   user_data_replace_on_change = true
 
   user_data_base64 = base64gzip(templatefile("${path.module}/files/k6-runner-user-data.sh.tftpl", {
+    aws_region                      = var.aws_region
     public_feed_search_script       = file("${path.module}/files/public-feed-search.js")
     public_issue_view_count_script  = file("${path.module}/files/public-issue-view-count.js")
     trending_score_events_script    = file("${path.module}/files/send-trending-score-events.py")
