@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataRedisTest(properties = {
         "letterpick.trending.ranking.summary.writer=redis",
@@ -107,6 +108,25 @@ class RedisPublicIssueRankingSummaryWriterTest {
                 .isFalse();
         assertThat(redisTemplate.opsForZSet().score(rankingKey(daily), "11"))
                 .isEqualTo(90.0);
+    }
+
+    @Test
+    @DisplayName("blank Redis key prefix는 허용하지 않는다")
+    void reject_blank_redis_key_prefix() {
+        assertThatThrownBy(() -> new RedisPublicIssueRankingSummaryWriter(redisTemplate, " "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("redisKeyPrefix must not be blank");
+    }
+
+    @Test
+    @DisplayName("앞뒤 공백이 있는 Redis key prefix는 허용하지 않는다")
+    void reject_redis_key_prefix_with_surrounding_whitespace() {
+        assertThatThrownBy(() -> new RedisPublicIssueRankingSummaryWriter(
+                redisTemplate,
+                " letterpick:trending:ranking"
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("redisKeyPrefix must not contain leading or trailing whitespace");
     }
 
     private PublicIssueRankingWindow dailyWindow() {

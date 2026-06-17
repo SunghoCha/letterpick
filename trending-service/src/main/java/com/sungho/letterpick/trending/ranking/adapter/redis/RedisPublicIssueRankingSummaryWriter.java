@@ -81,10 +81,12 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
 
     private String validateRedisKeyPrefix(String redisKeyPrefix) {
         Objects.requireNonNull(redisKeyPrefix, "redisKeyPrefix must not be null");
-        String trimmed = redisKeyPrefix.trim();
-        if (trimmed.isBlank()) {
+        if (redisKeyPrefix.isBlank()) {
             throw new IllegalArgumentException("redisKeyPrefix must not be blank");
         }
-        return trimmed;
+        if (!redisKeyPrefix.equals(redisKeyPrefix.trim())) {
+            throw new IllegalArgumentException("redisKeyPrefix must not contain leading or trailing whitespace");
+        }
+        return redisKeyPrefix;
     }
 }
