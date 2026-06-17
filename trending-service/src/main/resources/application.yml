@@ -35,6 +35,11 @@ management:
     web:
       exposure:
         include: health
+  metrics:
+    tags:
+      application: ${MANAGEMENT_METRICS_TAGS_APPLICATION:${spring.application.name:trending-service}}
+      environment: ${LETTERPICK_ENV:local}
+      service: ${MANAGEMENT_METRICS_TAGS_SERVICE:trending-service}
 
 letterpick:
   trending:

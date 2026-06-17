@@ -59,9 +59,9 @@ management:
         include: health
   metrics:
     tags:
-      application: ${spring.application.name:letterPick}
+      application: ${MANAGEMENT_METRICS_TAGS_APPLICATION:${spring.application.name:letterPick}}
       environment: ${LETTERPICK_ENV:local}
-      service: api
+      service: ${MANAGEMENT_METRICS_TAGS_SERVICE:api}
 
 # OAuth 가입/로그인 후 redirect 대상 + CORS allowed origin.
 # 배포 환경은 FRONTEND_BASE_URL 환경변수로 주입한다.
