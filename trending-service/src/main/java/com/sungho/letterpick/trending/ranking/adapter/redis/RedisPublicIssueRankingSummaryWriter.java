@@ -7,9 +7,11 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -23,6 +25,11 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
 
     private static final String ISSUE_KEY_PART = "issue";
     private static final String ISSUE_RANKING_KEYS_PART = "ranking-keys";
+    private static final RedisScript<Long> SAVE_SCRIPT = RedisScript.of("""
+            redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
+            redis.call('SADD', KEYS[2], KEYS[1])
+            return 1
+            """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
     private final String redisKeyPrefix;
@@ -47,8 +54,12 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
 
         String rankingKey = rankingKey(window);
         String rankedIssueId = rankedIssueId(issueId);
-        redisTemplate.opsForZSet().add(rankingKey, rankedIssueId, score);
-        redisTemplate.opsForSet().add(issueRankingIndexKey(issueId), rankingKey);
+        redisTemplate.execute(
+                SAVE_SCRIPT,
+                List.of(rankingKey, issueRankingIndexKey(issueId)),
+                rankedIssueId,
+                String.valueOf(score)
+        );
     }
 
     @Override
