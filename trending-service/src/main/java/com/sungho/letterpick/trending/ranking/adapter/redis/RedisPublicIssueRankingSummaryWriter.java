@@ -46,8 +46,8 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
         Objects.requireNonNull(calculatedAt, "calculatedAt must not be null");
 
         String rankingKey = rankingKey(window);
-        String member = issueMember(issueId);
-        redisTemplate.opsForZSet().add(rankingKey, member, score);
+        String rankedIssueId = rankedIssueId(issueId);
+        redisTemplate.opsForZSet().add(rankingKey, rankedIssueId, score);
         redisTemplate.opsForSet().add(issueRankingKeysKey(issueId), rankingKey);
     }
 
@@ -59,9 +59,9 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
         String issueRankingKeysKey = issueRankingKeysKey(issueId);
         Set<String> rankingKeys = redisTemplate.opsForSet().members(issueRankingKeysKey);
         if (rankingKeys != null && !rankingKeys.isEmpty()) {
-            String member = issueMember(issueId);
+            String rankedIssueId = rankedIssueId(issueId);
             for (String rankingKey : rankingKeys) {
-                redisTemplate.opsForZSet().remove(rankingKey, member);
+                redisTemplate.opsForZSet().remove(rankingKey, rankedIssueId);
             }
         }
         redisTemplate.delete(issueRankingKeysKey);
@@ -75,7 +75,7 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
         return String.join(":", redisKeyPrefix, ISSUE_KEY_PART, "{" + issueId + "}", ISSUE_RANKING_KEYS_PART);
     }
 
-    private String issueMember(Long issueId) {
+    private String rankedIssueId(Long issueId) {
         return String.valueOf(issueId);
     }
 
