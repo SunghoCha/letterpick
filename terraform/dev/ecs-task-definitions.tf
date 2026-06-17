@@ -54,6 +54,8 @@ locals {
       LETTERPICK_SQS_ENABLED               = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "false"
       LETTERPICK_OUTBOX_PUBLISH_ENABLED    = "true"
+      MANAGEMENT_METRICS_TAGS_APPLICATION  = "letterpick-api"
+      MANAGEMENT_METRICS_TAGS_SERVICE      = "letterpick-api"
       }) : {
       name  = name
       value = value
@@ -96,6 +98,8 @@ locals {
       LETTERPICK_SQS_ENABLED               = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "true"
       LETTERPICK_MAIL_RECEIVE_QUEUE        = aws_sqs_queue.mail_receive.name
+      MANAGEMENT_METRICS_TAGS_APPLICATION  = "letterpick-worker"
+      MANAGEMENT_METRICS_TAGS_SERVICE      = "letterpick-worker"
       }) : {
       name  = name
       value = value
@@ -143,6 +147,8 @@ locals {
       LETTERPICK_TRENDING_SQS_LISTENER_ENABLED   = "true"
       LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE = aws_sqs_queue.trending_lifecycle_events.name
       LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE     = aws_sqs_queue.trending_score_events.name
+      MANAGEMENT_METRICS_TAGS_APPLICATION        = "trending-service"
+      MANAGEMENT_METRICS_TAGS_SERVICE            = "trending-service"
       } : {
       name  = name
       value = value
