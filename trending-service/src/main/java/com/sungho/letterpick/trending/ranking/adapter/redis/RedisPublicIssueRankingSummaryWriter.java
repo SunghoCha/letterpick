@@ -7,13 +7,10 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 @Component
 @ConditionalOnProperty(
@@ -23,13 +20,7 @@ import java.util.Set;
 )
 public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingSummaryWriter {
 
-    private static final String ISSUE_KEY_PART = "issue";
-    private static final String ISSUE_RANKING_KEYS_PART = "ranking-keys";
-    private static final RedisScript<Long> SAVE_SCRIPT = RedisScript.of("""
-            redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
-            redis.call('SADD', KEYS[2], KEYS[1])
-            return 1
-            """, Long.class);
+    private static final String ISSUES_KEY_PART = "issues";
 
     private final StringRedisTemplate redisTemplate;
     private final String redisKeyPrefix;
@@ -54,36 +45,22 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
 
         String rankingKey = rankingKey(window);
         String rankedIssueId = rankedIssueId(issueId);
-        redisTemplate.execute(
-                SAVE_SCRIPT,
-                List.of(rankingKey, issueRankingIndexKey(issueId)),
-                rankedIssueId,
-                String.valueOf(score)
-        );
+        redisTemplate.opsForZSet().add(rankingKey, rankedIssueId, score);
     }
 
     @Override
     @WithSpan("trending.ranking_summary.redis_delete")
-    public void deleteByIssueId(@SpanAttribute("issue.id") Long issueId) {
+    public void delete(PublicIssueRankingWindow window,
+                       @SpanAttribute("issue.id") Long issueId) {
+        Objects.requireNonNull(window, "window must not be null");
         Objects.requireNonNull(issueId, "issueId must not be null");
 
-        String issueRankingIndexKey = issueRankingIndexKey(issueId);
-        Set<String> rankingKeys = redisTemplate.opsForSet().members(issueRankingIndexKey);
-        if (rankingKeys != null && !rankingKeys.isEmpty()) {
-            String rankedIssueId = rankedIssueId(issueId);
-            for (String rankingKey : rankingKeys) {
-                redisTemplate.opsForZSet().remove(rankingKey, rankedIssueId);
-            }
-        }
-        redisTemplate.delete(issueRankingIndexKey);
+        redisTemplate.opsForZSet().remove(rankingKey(window), rankedIssueId(issueId));
     }
 
     private String rankingKey(PublicIssueRankingWindow window) {
-        return String.join(":", redisKeyPrefix, window.type().name(), window.key());
-    }
-
-    private String issueRankingIndexKey(Long issueId) {
-        return String.join(":", redisKeyPrefix, ISSUE_KEY_PART, "{" + issueId + "}", ISSUE_RANKING_KEYS_PART);
+        String windowHashTag = window.type().name() + ":" + window.key();
+        return String.join(":", redisKeyPrefix, "{" + windowHashTag + "}", ISSUES_KEY_PART);
     }
 
     private String rankedIssueId(Long issueId) {

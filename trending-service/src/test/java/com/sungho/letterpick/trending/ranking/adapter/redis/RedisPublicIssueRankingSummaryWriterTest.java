@@ -61,8 +61,8 @@ class RedisPublicIssueRankingSummaryWriterTest {
         String rankingKey = rankingKey(window);
         assertThat(redisTemplate.opsForZSet().score(rankingKey, "10"))
                 .isEqualTo(150.0);
-        assertThat(redisTemplate.opsForSet().members(issueRankingIndexKey(10L)))
-                .containsExactly(rankingKey);
+        assertThat(rankingKey)
+                .isEqualTo("letterpick:trending:ranking:{DAILY:2050-06-12}:issues");
     }
 
     @Test
@@ -84,8 +84,8 @@ class RedisPublicIssueRankingSummaryWriterTest {
     }
 
     @Test
-    @DisplayName("issueId 기준으로 저장된 모든 window ranking에서 제거한다")
-    void delete_summary_by_issue_id() {
+    @DisplayName("window 기준으로 저장된 ranking에서 issueId를 제거한다")
+    void delete_summary_by_window() {
         // given
         PublicIssueRankingWindow daily = dailyWindow();
         PublicIssueRankingWindow weekly = PublicIssueRankingWindow.weekly(
@@ -97,15 +97,13 @@ class RedisPublicIssueRankingSummaryWriterTest {
         writer.save(daily, 11L, 90L, CALCULATED_AT);
 
         // when
-        writer.deleteByIssueId(10L);
+        writer.delete(daily, 10L);
 
         // then
         assertThat(redisTemplate.opsForZSet().score(rankingKey(daily), "10"))
                 .isNull();
         assertThat(redisTemplate.opsForZSet().score(rankingKey(weekly), "10"))
-                .isNull();
-        assertThat(redisTemplate.hasKey(issueRankingIndexKey(10L)))
-                .isFalse();
+                .isEqualTo(150.0);
         assertThat(redisTemplate.opsForZSet().score(rankingKey(daily), "11"))
                 .isEqualTo(90.0);
     }
@@ -134,10 +132,7 @@ class RedisPublicIssueRankingSummaryWriterTest {
     }
 
     private String rankingKey(PublicIssueRankingWindow window) {
-        return String.join(":", redisKeyPrefix, window.type().name(), window.key());
-    }
-
-    private String issueRankingIndexKey(Long issueId) {
-        return String.join(":", redisKeyPrefix, "issue", "{" + issueId + "}", "ranking-keys");
+        String windowHashTag = window.type().name() + ":" + window.key();
+        return String.join(":", redisKeyPrefix, "{" + windowHashTag + "}", "issues");
     }
 }

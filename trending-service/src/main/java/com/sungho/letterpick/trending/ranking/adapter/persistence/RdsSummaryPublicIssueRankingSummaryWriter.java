@@ -33,7 +33,11 @@ public class RdsSummaryPublicIssueRankingSummaryWriter implements PublicIssueRan
     }
 
     @Override
-    public void deleteByIssueId(Long issueId) {
-        rankingSummaryRepository.deleteByIssueId(issueId);
+    public void delete(PublicIssueRankingWindow window, Long issueId) {
+        rankingSummaryRepository.deleteByWindowAndIssueId(
+                window.type().name(),
+                window.key(),
+                issueId
+        );
     }
 }

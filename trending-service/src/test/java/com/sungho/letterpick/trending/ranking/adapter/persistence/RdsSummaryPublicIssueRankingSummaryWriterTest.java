@@ -52,12 +52,22 @@ class RdsSummaryPublicIssueRankingSummaryWriterTest {
     }
 
     @Test
-    @DisplayName("issueId 기준으로 RDS summary를 제거한다")
-    void delete_summary_by_issue_id() {
+    @DisplayName("window 기준으로 RDS summary를 제거한다")
+    void delete_summary_by_window() {
+        // given
+        PublicIssueRankingWindow window = PublicIssueRankingWindow.daily(
+                LocalDate.of(2050, 6, 12),
+                ZoneId.of("Asia/Seoul")
+        );
+
         // when
-        writer.deleteByIssueId(10L);
+        writer.delete(window, 10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verify(rankingSummaryRepository).deleteByWindowAndIssueId(
+                "DAILY",
+                "2050-06-12",
+                10L
+        );
     }
 }

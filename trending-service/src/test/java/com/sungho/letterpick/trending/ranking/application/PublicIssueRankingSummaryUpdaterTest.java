@@ -99,8 +99,8 @@ class PublicIssueRankingSummaryUpdaterTest {
     }
 
     @Test
-    @DisplayName("AVAILABLE 후보가 없으면 summary를 제거한다")
-    void refresh_removes_summary_when_candidate_not_found() {
+    @DisplayName("AVAILABLE 후보가 없으면 summary를 변경하지 않는다")
+    void refresh_does_not_change_summary_when_candidate_not_found() {
         // given
         given(candidateRepository.findByIssueIdForUpdate(10L)).willReturn(Optional.empty());
 
@@ -108,7 +108,7 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryWriter).deleteByIssueId(10L);
+        verifyNoInteractions(rankingSummaryWriter);
     }
 
     @Test
@@ -116,14 +116,16 @@ class PublicIssueRankingSummaryUpdaterTest {
     void refresh_removes_summary_when_candidate_removed() {
         // given
         PublicIssueCandidate candidate = mock(PublicIssueCandidate.class);
+        given(candidate.getIssueId()).willReturn(10L);
         given(candidate.getStatus()).willReturn(PublicIssueCandidateStatus.REMOVED);
+        given(candidate.getPublicFeedCollectedAt()).willReturn(Instant.parse("2050-06-12T00:30:00Z"));
         given(candidateRepository.findByIssueIdForUpdate(10L)).willReturn(Optional.of(candidate));
 
         // when
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryWriter).deleteByIssueId(10L);
+        verifyDeleteWindows();
         verifyNoInteractions(viewCountSnapshotRepository);
     }
 
@@ -145,16 +147,43 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryWriter).deleteByIssueId(10L);
+        verifyDeleteWindows();
     }
 
     @Test
-    @DisplayName("remove는 issueId 기준으로 summary를 제거한다")
-    void remove_summary_by_issue_id() {
+    @DisplayName("remove는 candidate 수집 시각 기준 window의 summary를 제거한다")
+    void remove_summary_by_candidate_window() {
+        // given
+        PublicIssueCandidate candidate = PublicIssueCandidate.available(
+                10L,
+                20L,
+                "TECH",
+                Instant.parse("2050-06-12T00:30:00Z"),
+                Instant.parse("2050-06-12T00:30:00Z")
+        );
+        given(candidateRepository.findByIssueIdForUpdate(10L)).willReturn(Optional.of(candidate));
+
         // when
         updater.remove(10L);
 
         // then
-        verify(rankingSummaryWriter).deleteByIssueId(10L);
+        verifyDeleteWindows();
+    }
+
+    private void verifyDeleteWindows() {
+        ZoneId rankingZone = ZoneId.of("Asia/Seoul");
+        LocalDate collectedDate = LocalDate.of(2050, 6, 12);
+        verify(rankingSummaryWriter).delete(
+                PublicIssueRankingWindow.daily(collectedDate, rankingZone),
+                10L
+        );
+        verify(rankingSummaryWriter).delete(
+                PublicIssueRankingWindow.weekly(collectedDate, rankingZone),
+                10L
+        );
+        verify(rankingSummaryWriter).delete(
+                PublicIssueRankingWindow.monthly(collectedDate, rankingZone),
+                10L
+        );
     }
 }

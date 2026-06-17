@@ -8,5 +8,5 @@ public interface PublicIssueRankingSummaryWriter {
 
     void save(PublicIssueRankingWindow window, Long issueId, long score, Instant calculatedAt);
 
-    void deleteByIssueId(Long issueId);
+    void delete(PublicIssueRankingWindow window, Long issueId);
 }

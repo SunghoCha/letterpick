@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
 
 @DataJpaTest
 @Import(TrendingServiceTestConfiguration.class)
@@ -83,21 +84,23 @@ class PublicIssueRankingSummaryRepositoryTest {
     }
 
     @Test
-    @DisplayName("issueId 기준으로 모든 window의 summary를 삭제한다")
-    void delete_summary_by_issue_id() {
+    @DisplayName("window와 issueId 기준으로 summary를 삭제한다")
+    void delete_summary_by_window_and_issue_id() {
         // given
         saveSummary(PublicIssueRankingWindowType.DAILY, "2050-06-10", 10L, 120L);
         saveSummary(PublicIssueRankingWindowType.WEEKLY, "2050-06-06", 10L, 120L);
-        saveSummary(PublicIssueRankingWindowType.MONTHLY, "2050-06-01", 10L, 120L);
         saveSummary(PublicIssueRankingWindowType.DAILY, "2050-06-10", 20L, 80L);
 
         // when
-        rankingSummaryRepository.deleteByIssueId(10L);
+        rankingSummaryRepository.deleteByWindowAndIssueId("DAILY", "2050-06-10", 10L);
 
         // then
         assertThat(rankingSummaryRepository.findAll())
-                .extracting(PublicIssueRankingSummary::getIssueId)
-                .containsExactly(20L);
+                .extracting(PublicIssueRankingSummary::getWindowType, PublicIssueRankingSummary::getIssueId)
+                .containsExactlyInAnyOrder(
+                        tuple("WEEKLY", 10L),
+                        tuple("DAILY", 20L)
+                );
     }
 
     private void saveAvailable(Long issueId) {

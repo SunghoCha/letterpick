@@ -29,14 +29,17 @@ public class PublicIssueRankingSummaryUpdater {
     @WithSpan("trending.ranking_summary.refresh")
     public void refresh(@SpanAttribute("issue.id") Long issueId) {
         var candidate = candidateRepository.findByIssueIdForUpdate(issueId);
-        if (candidate.isEmpty() || candidate.get().getStatus() != PublicIssueCandidateStatus.AVAILABLE) {
-            rankingSummaryWriter.deleteByIssueId(issueId);
+        if (candidate.isEmpty()) {
+            return;
+        }
+        if (candidate.get().getStatus() != PublicIssueCandidateStatus.AVAILABLE) {
+            removeRankingSummary(candidate.get());
             return;
         }
 
         var snapshot = viewCountSnapshotRepository.findById(issueId);
         if (snapshot.isEmpty()) {
-            rankingSummaryWriter.deleteByIssueId(issueId);
+            removeRankingSummary(candidate.get());
             return;
         }
 
@@ -44,7 +47,8 @@ public class PublicIssueRankingSummaryUpdater {
     }
 
     public void remove(Long issueId) {
-        rankingSummaryWriter.deleteByIssueId(issueId);
+        candidateRepository.findByIssueIdForUpdate(issueId)
+                .ifPresent(this::removeRankingSummary);
     }
 
     private void refresh(PublicIssueCandidate candidate, PublicIssueViewCountSnapshot snapshot) {
@@ -53,6 +57,15 @@ public class PublicIssueRankingSummaryUpdater {
 
         for (PublicIssueRankingWindow window : windowCalculator.windowsFor(candidate.getPublicFeedCollectedAt())) {
             rankingSummaryWriter.save(window, candidate.getIssueId(), score, now);
+        }
+    }
+
+    private void removeRankingSummary(PublicIssueCandidate candidate) {
+        if (candidate.getPublicFeedCollectedAt() == null) {
+            return;
+        }
+        for (PublicIssueRankingWindow window : windowCalculator.windowsFor(candidate.getPublicFeedCollectedAt())) {
+            rankingSummaryWriter.delete(window, candidate.getIssueId());
         }
     }
 }
