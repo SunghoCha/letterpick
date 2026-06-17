@@ -3,7 +3,7 @@ package com.sungho.letterpick.trending.ranking.application;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidate;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateRepository;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
-import com.sungho.letterpick.trending.ranking.adapter.persistence.PublicIssueRankingSummaryRepository;
+import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingSummaryWriter;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshot;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Optional;
 
@@ -35,7 +37,7 @@ class PublicIssueRankingSummaryUpdaterTest {
     private PublicIssueViewCountSnapshotRepository viewCountSnapshotRepository;
 
     @Mock
-    private PublicIssueRankingSummaryRepository rankingSummaryRepository;
+    private PublicIssueRankingSummaryWriter rankingSummaryWriter;
 
     private PublicIssueRankingSummaryUpdater updater;
 
@@ -44,7 +46,7 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater = new PublicIssueRankingSummaryUpdater(
                 candidateRepository,
                 viewCountSnapshotRepository,
-                rankingSummaryRepository,
+                rankingSummaryWriter,
                 new PublicIssueRankingWindowCalculator(),
                 CLOCK
         );
@@ -74,28 +76,24 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryRepository).upsertSummary(
-                PublicIssueRankingWindowType.DAILY.name(),
-                "2050-06-12",
+        ZoneId rankingZone = ZoneId.of("Asia/Seoul");
+        LocalDate collectedDate = LocalDate.of(2050, 6, 12);
+        verify(rankingSummaryWriter).save(
+                PublicIssueRankingWindow.daily(collectedDate, rankingZone),
                 10L,
                 150L,
-                CLOCK.instant(),
                 CLOCK.instant()
         );
-        verify(rankingSummaryRepository).upsertSummary(
-                PublicIssueRankingWindowType.WEEKLY.name(),
-                "2050-06-06",
+        verify(rankingSummaryWriter).save(
+                PublicIssueRankingWindow.weekly(collectedDate, rankingZone),
                 10L,
                 150L,
-                CLOCK.instant(),
                 CLOCK.instant()
         );
-        verify(rankingSummaryRepository).upsertSummary(
-                PublicIssueRankingWindowType.MONTHLY.name(),
-                "2050-06-01",
+        verify(rankingSummaryWriter).save(
+                PublicIssueRankingWindow.monthly(collectedDate, rankingZone),
                 10L,
                 150L,
-                CLOCK.instant(),
                 CLOCK.instant()
         );
     }
@@ -110,7 +108,7 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verify(rankingSummaryWriter).deleteByIssueId(10L);
     }
 
     @Test
@@ -125,7 +123,7 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verify(rankingSummaryWriter).deleteByIssueId(10L);
         verifyNoInteractions(viewCountSnapshotRepository);
     }
 
@@ -147,7 +145,7 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verify(rankingSummaryWriter).deleteByIssueId(10L);
     }
 
     @Test
@@ -157,6 +155,6 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.remove(10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verify(rankingSummaryWriter).deleteByIssueId(10L);
     }
 }
