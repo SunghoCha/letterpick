@@ -61,7 +61,7 @@ class RedisPublicIssueRankingSummaryWriterTest {
         String rankingKey = rankingKey(window);
         assertThat(redisTemplate.opsForZSet().score(rankingKey, "10"))
                 .isEqualTo(150.0);
-        assertThat(redisTemplate.opsForSet().members(issueRankingKeysKey(10L)))
+        assertThat(redisTemplate.opsForSet().members(issueRankingIndexKey(10L)))
                 .containsExactly(rankingKey);
     }
 
@@ -104,7 +104,7 @@ class RedisPublicIssueRankingSummaryWriterTest {
                 .isNull();
         assertThat(redisTemplate.opsForZSet().score(rankingKey(weekly), "10"))
                 .isNull();
-        assertThat(redisTemplate.hasKey(issueRankingKeysKey(10L)))
+        assertThat(redisTemplate.hasKey(issueRankingIndexKey(10L)))
                 .isFalse();
         assertThat(redisTemplate.opsForZSet().score(rankingKey(daily), "11"))
                 .isEqualTo(90.0);
@@ -137,7 +137,7 @@ class RedisPublicIssueRankingSummaryWriterTest {
         return String.join(":", redisKeyPrefix, window.type().name(), window.key());
     }
 
-    private String issueRankingKeysKey(Long issueId) {
+    private String issueRankingIndexKey(Long issueId) {
         return String.join(":", redisKeyPrefix, "issue", "{" + issueId + "}", "ranking-keys");
     }
 }
