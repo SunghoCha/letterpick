@@ -47,3 +47,5 @@ letterpick:
     score-events-queue: ${LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE}
     sqs-listener:
       enabled: ${LETTERPICK_TRENDING_SQS_LISTENER_ENABLED:false}
+      score:
+        max-concurrent-messages: ${LETTERPICK_TRENDING_SCORE_LISTENER_MAX_CONCURRENT_MESSAGES:10}
