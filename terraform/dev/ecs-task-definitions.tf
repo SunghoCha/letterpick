@@ -139,16 +139,17 @@ locals {
 
   trending_service_environment = [
     for name, value in {
-      SPRING_PROFILES_ACTIVE                     = var.environment
-      LETTERPICK_ENV                             = var.environment
-      LETTERPICK_AWS_REGION                      = var.aws_region
-      SPRING_DATASOURCE_URL                      = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
-      LETTERPICK_TRENDING_SQS_ENABLED            = "true"
-      LETTERPICK_TRENDING_SQS_LISTENER_ENABLED   = "true"
-      LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE = aws_sqs_queue.trending_lifecycle_events.name
-      LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE     = aws_sqs_queue.trending_score_events.name
-      MANAGEMENT_METRICS_TAGS_APPLICATION        = "trending-service"
-      MANAGEMENT_METRICS_TAGS_SERVICE            = "trending-service"
+      SPRING_PROFILES_ACTIVE                                     = var.environment
+      LETTERPICK_ENV                                             = var.environment
+      LETTERPICK_AWS_REGION                                      = var.aws_region
+      SPRING_DATASOURCE_URL                                      = "jdbc:mysql://${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.rds_database_name}"
+      LETTERPICK_TRENDING_SQS_ENABLED                            = "true"
+      LETTERPICK_TRENDING_SQS_LISTENER_ENABLED                   = "true"
+      LETTERPICK_TRENDING_SCORE_LISTENER_MAX_CONCURRENT_MESSAGES = "20"
+      LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE                 = aws_sqs_queue.trending_lifecycle_events.name
+      LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE                     = aws_sqs_queue.trending_score_events.name
+      MANAGEMENT_METRICS_TAGS_APPLICATION                        = "trending-service"
+      MANAGEMENT_METRICS_TAGS_SERVICE                            = "trending-service"
       } : {
       name  = name
       value = value
