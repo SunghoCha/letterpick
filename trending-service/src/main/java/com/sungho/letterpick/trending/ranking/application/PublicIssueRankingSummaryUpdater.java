@@ -3,7 +3,7 @@ package com.sungho.letterpick.trending.ranking.application;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidate;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateRepository;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
-import com.sungho.letterpick.trending.ranking.adapter.persistence.PublicIssueRankingSummaryRepository;
+import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingSummaryWriter;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshot;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshotRepository;
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
@@ -22,21 +22,24 @@ public class PublicIssueRankingSummaryUpdater {
 
     private final PublicIssueCandidateRepository candidateRepository;
     private final PublicIssueViewCountSnapshotRepository viewCountSnapshotRepository;
-    private final PublicIssueRankingSummaryRepository rankingSummaryRepository;
+    private final PublicIssueRankingSummaryWriter rankingSummaryWriter;
     private final PublicIssueRankingWindowCalculator windowCalculator;
     private final Clock clock;
 
     @WithSpan("trending.ranking_summary.refresh")
     public void refresh(@SpanAttribute("issue.id") Long issueId) {
         var candidate = candidateRepository.findByIssueIdForUpdate(issueId);
-        if (candidate.isEmpty() || candidate.get().getStatus() != PublicIssueCandidateStatus.AVAILABLE) {
-            rankingSummaryRepository.deleteByIssueId(issueId);
+        if (candidate.isEmpty()) {
+            return;
+        }
+        if (candidate.get().getStatus() != PublicIssueCandidateStatus.AVAILABLE) {
+            removeRankingSummary(candidate.get());
             return;
         }
 
         var snapshot = viewCountSnapshotRepository.findById(issueId);
         if (snapshot.isEmpty()) {
-            rankingSummaryRepository.deleteByIssueId(issueId);
+            removeRankingSummary(candidate.get());
             return;
         }
 
@@ -44,7 +47,8 @@ public class PublicIssueRankingSummaryUpdater {
     }
 
     public void remove(Long issueId) {
-        rankingSummaryRepository.deleteByIssueId(issueId);
+        candidateRepository.findByIssueIdForUpdate(issueId)
+                .ifPresent(this::removeRankingSummary);
     }
 
     private void refresh(PublicIssueCandidate candidate, PublicIssueViewCountSnapshot snapshot) {
@@ -52,14 +56,16 @@ public class PublicIssueRankingSummaryUpdater {
         long score = snapshot.getViewCount();
 
         for (PublicIssueRankingWindow window : windowCalculator.windowsFor(candidate.getPublicFeedCollectedAt())) {
-            rankingSummaryRepository.upsertSummary(
-                    window.type().name(),
-                    window.key(),
-                    candidate.getIssueId(),
-                    score,
-                    now,
-                    now
-            );
+            rankingSummaryWriter.save(window, candidate.getIssueId(), score, now);
+        }
+    }
+
+    private void removeRankingSummary(PublicIssueCandidate candidate) {
+        if (candidate.getPublicFeedCollectedAt() == null) {
+            return;
+        }
+        for (PublicIssueRankingWindow window : windowCalculator.windowsFor(candidate.getPublicFeedCollectedAt())) {
+            rankingSummaryWriter.delete(window, candidate.getIssueId());
         }
     }
 }

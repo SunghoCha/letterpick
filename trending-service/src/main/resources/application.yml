@@ -27,6 +27,9 @@ server:
   shutdown: graceful
 
 management:
+  health:
+    redis:
+      enabled: ${LETTERPICK_TRENDING_REDIS_HEALTH_ENABLED:false}
   endpoint:
     health:
       probes:
@@ -49,3 +52,7 @@ letterpick:
       enabled: ${LETTERPICK_TRENDING_SQS_LISTENER_ENABLED:false}
       score:
         max-concurrent-messages: ${LETTERPICK_TRENDING_SCORE_LISTENER_MAX_CONCURRENT_MESSAGES:10}
+    ranking:
+      summary:
+        writer: ${LETTERPICK_TRENDING_RANKING_SUMMARY_WRITER:rds}
+        redis-key-prefix: ${LETTERPICK_TRENDING_RANKING_SUMMARY_REDIS_KEY_PREFIX:letterpick:trending:ranking}

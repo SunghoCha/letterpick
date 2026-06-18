@@ -3,7 +3,7 @@ package com.sungho.letterpick.trending.ranking.application;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidate;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateRepository;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
-import com.sungho.letterpick.trending.ranking.adapter.persistence.PublicIssueRankingSummaryRepository;
+import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingSummaryWriter;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshot;
 import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshotRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Optional;
 
@@ -35,7 +37,7 @@ class PublicIssueRankingSummaryUpdaterTest {
     private PublicIssueViewCountSnapshotRepository viewCountSnapshotRepository;
 
     @Mock
-    private PublicIssueRankingSummaryRepository rankingSummaryRepository;
+    private PublicIssueRankingSummaryWriter rankingSummaryWriter;
 
     private PublicIssueRankingSummaryUpdater updater;
 
@@ -44,7 +46,7 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater = new PublicIssueRankingSummaryUpdater(
                 candidateRepository,
                 viewCountSnapshotRepository,
-                rankingSummaryRepository,
+                rankingSummaryWriter,
                 new PublicIssueRankingWindowCalculator(),
                 CLOCK
         );
@@ -74,35 +76,31 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryRepository).upsertSummary(
-                PublicIssueRankingWindowType.DAILY.name(),
-                "2050-06-12",
+        ZoneId rankingZone = ZoneId.of("Asia/Seoul");
+        LocalDate collectedDate = LocalDate.of(2050, 6, 12);
+        verify(rankingSummaryWriter).save(
+                PublicIssueRankingWindow.daily(collectedDate, rankingZone),
                 10L,
                 150L,
-                CLOCK.instant(),
                 CLOCK.instant()
         );
-        verify(rankingSummaryRepository).upsertSummary(
-                PublicIssueRankingWindowType.WEEKLY.name(),
-                "2050-06-06",
+        verify(rankingSummaryWriter).save(
+                PublicIssueRankingWindow.weekly(collectedDate, rankingZone),
                 10L,
                 150L,
-                CLOCK.instant(),
                 CLOCK.instant()
         );
-        verify(rankingSummaryRepository).upsertSummary(
-                PublicIssueRankingWindowType.MONTHLY.name(),
-                "2050-06-01",
+        verify(rankingSummaryWriter).save(
+                PublicIssueRankingWindow.monthly(collectedDate, rankingZone),
                 10L,
                 150L,
-                CLOCK.instant(),
                 CLOCK.instant()
         );
     }
 
     @Test
-    @DisplayName("AVAILABLE 후보가 없으면 summary를 제거한다")
-    void refresh_removes_summary_when_candidate_not_found() {
+    @DisplayName("AVAILABLE 후보가 없으면 summary를 변경하지 않는다")
+    void refresh_does_not_change_summary_when_candidate_not_found() {
         // given
         given(candidateRepository.findByIssueIdForUpdate(10L)).willReturn(Optional.empty());
 
@@ -110,7 +108,7 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verifyNoInteractions(rankingSummaryWriter);
     }
 
     @Test
@@ -118,14 +116,16 @@ class PublicIssueRankingSummaryUpdaterTest {
     void refresh_removes_summary_when_candidate_removed() {
         // given
         PublicIssueCandidate candidate = mock(PublicIssueCandidate.class);
+        given(candidate.getIssueId()).willReturn(10L);
         given(candidate.getStatus()).willReturn(PublicIssueCandidateStatus.REMOVED);
+        given(candidate.getPublicFeedCollectedAt()).willReturn(Instant.parse("2050-06-12T00:30:00Z"));
         given(candidateRepository.findByIssueIdForUpdate(10L)).willReturn(Optional.of(candidate));
 
         // when
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verifyDeleteWindows();
         verifyNoInteractions(viewCountSnapshotRepository);
     }
 
@@ -147,16 +147,43 @@ class PublicIssueRankingSummaryUpdaterTest {
         updater.refresh(10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verifyDeleteWindows();
     }
 
     @Test
-    @DisplayName("remove는 issueId 기준으로 summary를 제거한다")
-    void remove_summary_by_issue_id() {
+    @DisplayName("remove는 candidate 수집 시각 기준 window의 summary를 제거한다")
+    void remove_summary_by_candidate_window() {
+        // given
+        PublicIssueCandidate candidate = PublicIssueCandidate.available(
+                10L,
+                20L,
+                "TECH",
+                Instant.parse("2050-06-12T00:30:00Z"),
+                Instant.parse("2050-06-12T00:30:00Z")
+        );
+        given(candidateRepository.findByIssueIdForUpdate(10L)).willReturn(Optional.of(candidate));
+
         // when
         updater.remove(10L);
 
         // then
-        verify(rankingSummaryRepository).deleteByIssueId(10L);
+        verifyDeleteWindows();
+    }
+
+    private void verifyDeleteWindows() {
+        ZoneId rankingZone = ZoneId.of("Asia/Seoul");
+        LocalDate collectedDate = LocalDate.of(2050, 6, 12);
+        verify(rankingSummaryWriter).delete(
+                PublicIssueRankingWindow.daily(collectedDate, rankingZone),
+                10L
+        );
+        verify(rankingSummaryWriter).delete(
+                PublicIssueRankingWindow.weekly(collectedDate, rankingZone),
+                10L
+        );
+        verify(rankingSummaryWriter).delete(
+                PublicIssueRankingWindow.monthly(collectedDate, rankingZone),
+                10L
+        );
     }
 }

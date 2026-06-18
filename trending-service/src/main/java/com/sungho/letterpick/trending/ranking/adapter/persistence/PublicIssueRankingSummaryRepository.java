@@ -56,9 +56,13 @@ public interface PublicIssueRankingSummaryRepository
     @Modifying
     @Query("""
             DELETE FROM PublicIssueRankingSummary s
-            WHERE s.issueId = :issueId
+            WHERE s.windowType = :windowType
+              AND s.windowKey = :windowKey
+              AND s.issueId = :issueId
             """)
-    void deleteByIssueId(@Param("issueId") Long issueId);
+    void deleteByWindowAndIssueId(@Param("windowType") String windowType,
+                                  @Param("windowKey") String windowKey,
+                                  @Param("issueId") Long issueId);
 
     @Query("""
             SELECT new com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRankingItem(
