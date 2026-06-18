@@ -23,11 +23,14 @@ class PublicIssueRemovedEventContractTest {
     @Test
     @DisplayName("PUBLIC_ISSUE_REMOVED 이벤트 계약을 직렬화하고 역직렬화한다")
     void serializesPublicIssueRemovedEventContract() throws Exception {
-        PublicIssueRemovedPayload payload = new PublicIssueRemovedPayload(1L);
+        PublicIssueRemovedPayload payload = new PublicIssueRemovedPayload(
+                1L,
+                Instant.parse("2050-06-05T00:59:00Z")
+        );
         EventEnvelope<PublicIssueRemovedPayload> event = new EventEnvelope<>(
                 "event-1",
                 TrendingEventType.PUBLIC_ISSUE_REMOVED.value(),
-                1,
+                2,
                 "letterpick",
                 Instant.parse("2050-06-05T01:00:00Z"),
                 "trace-1",
@@ -39,11 +42,12 @@ class PublicIssueRemovedEventContractTest {
         JsonNode root = objectMapper.readTree(json);
         assertThat(root.path("eventId").asText()).isEqualTo("event-1");
         assertThat(root.path("eventType").asText()).isEqualTo("PUBLIC_ISSUE_REMOVED");
-        assertThat(root.path("schemaVersion").asInt()).isEqualTo(1);
+        assertThat(root.path("schemaVersion").asInt()).isEqualTo(2);
         assertThat(root.path("source").asText()).isEqualTo("letterpick");
         assertThat(root.path("occurredAt").asText()).isEqualTo("2050-06-05T01:00:00Z");
         assertThat(root.path("traceId").asText()).isEqualTo("trace-1");
         assertThat(root.path("payload").path("issueId").asLong()).isEqualTo(1L);
+        assertThat(root.path("payload").path("publicFeedCollectedAt").asText()).isEqualTo("2050-06-05T00:59:00Z");
 
         EventEnvelope<PublicIssueRemovedPayload> restored = objectMapper.readValue(
                 json,
@@ -57,7 +61,18 @@ class PublicIssueRemovedEventContractTest {
     @DisplayName("PUBLIC_ISSUE_REMOVED payload는 issueId를 필수로 요구한다")
     void rejectsNullIssueId() {
         assertThatNullPointerException()
-                .isThrownBy(() -> new PublicIssueRemovedPayload(null))
+                .isThrownBy(() -> new PublicIssueRemovedPayload(
+                        null,
+                        Instant.parse("2050-06-05T00:59:00Z")
+                ))
                 .withMessage("issueId must not be null");
+    }
+
+    @Test
+    @DisplayName("PUBLIC_ISSUE_REMOVED payload는 publicFeedCollectedAt을 필수로 요구한다")
+    void rejectsNullPublicFeedCollectedAt() {
+        assertThatNullPointerException()
+                .isThrownBy(() -> new PublicIssueRemovedPayload(1L, null))
+                .withMessage("publicFeedCollectedAt must not be null");
     }
 }

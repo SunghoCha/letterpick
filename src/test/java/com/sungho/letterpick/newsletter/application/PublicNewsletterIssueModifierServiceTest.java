@@ -43,6 +43,8 @@ class PublicNewsletterIssueModifierServiceTest {
     void delete_delegates_to_newsletter_issue_modifier_with_collector_member_id() {
         // given
         given(publicFeedCollectorAccount.collectorMemberId()).willReturn(42L);
+        given(newsletterIssueModifier.delete(42L, 10L))
+                .willReturn(Instant.parse("2050-06-10T00:00:00Z"));
         given(clock.instant()).willReturn(Instant.parse("2050-06-10T01:00:00Z"));
 
         // when
@@ -58,6 +60,8 @@ class PublicNewsletterIssueModifierServiceTest {
     void delete_publishes_public_issue_removed_event() {
         // given
         given(publicFeedCollectorAccount.collectorMemberId()).willReturn(42L);
+        given(newsletterIssueModifier.delete(42L, 10L))
+                .willReturn(Instant.parse("2050-06-10T00:00:00Z"));
         given(clock.instant()).willReturn(Instant.parse("2050-06-10T01:00:00Z"));
 
         // when
@@ -70,6 +74,7 @@ class PublicNewsletterIssueModifierServiceTest {
         PublicIssueRemovedEvent event = eventCaptor.getValue();
         assertThat(event.eventId()).isNotBlank();
         assertThat(event.issueId()).isEqualTo(10L);
+        assertThat(event.publicFeedCollectedAt()).isEqualTo(Instant.parse("2050-06-10T00:00:00Z"));
         assertThat(event.occurredAt()).isEqualTo(Instant.parse("2050-06-10T01:00:00Z"));
     }
 

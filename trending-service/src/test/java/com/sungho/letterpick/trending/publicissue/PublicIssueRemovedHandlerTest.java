@@ -58,7 +58,10 @@ class PublicIssueRemovedHandlerTest {
     @DisplayName("PUBLIC_ISSUE_REMOVED payload를 REMOVED 상태 후보로 저장한다")
     void upsert_removed_candidate_status() {
         // given
-        EventEnvelope<JsonNode> envelope = envelope(new PublicIssueRemovedPayload(1L));
+        EventEnvelope<JsonNode> envelope = envelope(new PublicIssueRemovedPayload(
+                1L,
+                Instant.parse("2050-06-05T00:59:00Z")
+        ));
 
         // when
         handler.handle(envelope);

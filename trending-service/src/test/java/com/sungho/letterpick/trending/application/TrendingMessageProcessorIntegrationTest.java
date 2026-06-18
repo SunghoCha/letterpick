@@ -333,7 +333,8 @@ class TrendingMessageProcessorIntegrationTest {
         return message(
                 eventId,
                 TrendingEventType.PUBLIC_ISSUE_REMOVED.value(),
-                new PublicIssueRemovedPayload(issueId)
+                2,
+                new PublicIssueRemovedPayload(issueId, Instant.parse("2050-06-05T00:59:00Z"))
         );
     }
 
@@ -349,10 +350,14 @@ class TrendingMessageProcessorIntegrationTest {
     }
 
     private String message(String eventId, String eventType, Object payload) throws Exception {
+        return message(eventId, eventType, 1, payload);
+    }
+
+    private String message(String eventId, String eventType, int schemaVersion, Object payload) throws Exception {
         EventEnvelope<Object> envelope = new EventEnvelope<>(
                 eventId,
                 eventType,
-                1,
+                schemaVersion,
                 "letterpick",
                 Instant.parse("2050-06-05T01:00:00Z"),
                 "trace-1",
