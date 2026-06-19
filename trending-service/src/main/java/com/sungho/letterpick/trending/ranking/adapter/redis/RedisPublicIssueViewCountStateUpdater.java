@@ -45,6 +45,9 @@ public class RedisPublicIssueViewCountStateUpdater {
 
     public boolean acceptIfAvailableAndNotStale(Long issueId, long viewCount) {
         Objects.requireNonNull(issueId, "issueId must not be null");
+        if (viewCount < 0) {
+            return false;
+        }
 
         Long accepted = redisTemplate.execute(
                 ACCEPT_IF_AVAILABLE_AND_NOT_STALE_SCRIPT,

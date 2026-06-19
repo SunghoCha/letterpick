@@ -8,10 +8,9 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -27,11 +26,7 @@ public class TrendingScoreMessageProcessor {
     public TrendingScoreMessageProcessor(ObjectMapper objectMapper,
                                          List<TrendingScoreEventHandler> handlers) {
         this.objectMapper = requireNonNull(objectMapper, "objectMapper must not be null");
-        this.handlers = requireNonNull(handlers, "handlers must not be null").stream()
-                .collect(Collectors.toUnmodifiableMap(
-                        TrendingScoreEventHandler::eventType,
-                        Function.identity()
-                ));
+        this.handlers = handlersByEventType(handlers);
     }
 
     public void process(String messageBody) {
@@ -51,5 +46,19 @@ public class TrendingScoreMessageProcessor {
         } catch (JacksonException e) {
             throw new TrendingMessageProcessingException("failed to deserialize trending score event envelope", e);
         }
+    }
+
+    private Map<String, TrendingScoreEventHandler> handlersByEventType(List<TrendingScoreEventHandler> handlers) {
+        requireNonNull(handlers, "handlers must not be null");
+
+        Map<String, TrendingScoreEventHandler> result = new HashMap<>();
+        for (TrendingScoreEventHandler handler : handlers) {
+            String eventType = requireNonNull(handler.eventType(), "handler eventType must not be null");
+            TrendingScoreEventHandler previous = result.putIfAbsent(eventType, handler);
+            if (previous != null) {
+                throw new IllegalStateException("duplicate trending score event handler: " + eventType);
+            }
+        }
+        return Map.copyOf(result);
     }
 }

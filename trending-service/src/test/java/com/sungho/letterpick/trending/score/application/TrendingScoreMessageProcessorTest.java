@@ -22,6 +22,7 @@ import static com.sungho.letterpick.trending.support.TrendingTestObjectMapper.ob
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -96,6 +97,20 @@ class TrendingScoreMessageProcessorTest {
                 .isInstanceOf(TrendingMessageProcessingException.class)
                 .hasMessageContaining("failed to deserialize trending score event envelope");
         verify(handler, never()).handle(any());
+    }
+
+    @Test
+    @DisplayName("같은 eventType의 score handler가 중복 등록되면 생성에 실패한다")
+    void reject_duplicate_score_event_handler() {
+        // given
+        TrendingScoreEventHandler duplicateHandler = mock(TrendingScoreEventHandler.class);
+        when(duplicateHandler.eventType()).thenReturn(TrendingEventType.ISSUE_VIEW_COUNT_UPDATED.value());
+
+        // when & then
+        assertThatThrownBy(() -> new TrendingScoreMessageProcessor(OBJECT_MAPPER, List.of(handler, duplicateHandler)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("duplicate trending score event handler")
+                .hasMessageContaining(TrendingEventType.ISSUE_VIEW_COUNT_UPDATED.value());
     }
 
     private String message(String eventId, String eventType, Object payload) throws Exception {

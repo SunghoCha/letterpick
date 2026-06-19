@@ -114,6 +114,8 @@ class TrendingMessageProcessorIntegrationTest {
         assertThat(publicIssueRankingSummaryRepository.count()).isZero();
         assertThat(redisTemplate.opsForZSet().score(dailyRankingKey(), "10"))
                 .isNull();
+        assertThat(redisTemplate.opsForZSet().score(weeklyRankingKey(), "10"))
+                .isNull();
     }
 
     @Test

@@ -36,7 +36,7 @@ public class PublicIssueRankingScoreUpdater {
     private void update(Long issueId,
                         Instant calculatedAt,
                         RedisPublicIssueRankingStateReader.AvailableIssueRankingState state) {
-        int score = scoreCalculator.calculate(state);
+        long score = scoreCalculator.calculate(state);
 
         for (PublicIssueRankingWindow window : windowCalculator.dailyAndWeeklyWindowsFor(state.publicFeedCollectedAt())) {
             rankingSummaryWriter.save(window, issueId, score, calculatedAt);

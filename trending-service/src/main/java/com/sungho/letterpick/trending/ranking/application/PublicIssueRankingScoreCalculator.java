@@ -8,9 +8,9 @@ import java.util.Objects;
 @Component
 public class PublicIssueRankingScoreCalculator {
 
-    public int calculate(RedisPublicIssueRankingStateReader.AvailableIssueRankingState state) {
+    public long calculate(RedisPublicIssueRankingStateReader.AvailableIssueRankingState state) {
         Objects.requireNonNull(state, "state must not be null");
 
-        return Math.toIntExact(state.viewCount());
+        return state.viewCount();
     }
 }

@@ -58,15 +58,15 @@ class PublicIssueRankingScoreUpdaterTest {
         when(rankingStateReader.findAvailableIssueState(1L))
                 .thenReturn(Optional.of(state));
         when(scoreCalculator.calculate(state))
-                .thenReturn(300);
+                .thenReturn(300L);
 
         // when
         updater.refresh(1L, CALCULATED_AT);
 
         // then
         verify(scoreCalculator).calculate(state);
-        verify(rankingSummaryWriter).save(dailyWindow(), 1L, 300, CALCULATED_AT);
-        verify(rankingSummaryWriter).save(weeklyWindow(), 1L, 300, CALCULATED_AT);
+        verify(rankingSummaryWriter).save(dailyWindow(), 1L, 300L, CALCULATED_AT);
+        verify(rankingSummaryWriter).save(weeklyWindow(), 1L, 300L, CALCULATED_AT);
         verifyNoMoreInteractions(rankingSummaryWriter);
     }
 

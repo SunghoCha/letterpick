@@ -104,6 +104,22 @@ class RedisPublicIssueViewCountStateUpdaterTest {
     }
 
     @Test
+    @DisplayName("음수 조회수는 issue state에 반영하지 않는다")
+    void reject_negative_view_count() {
+        // given
+        markAvailable(10L);
+        markViewCount(10L, "200");
+
+        // when
+        boolean accepted = updater.acceptIfAvailableAndNotStale(10L, -1L);
+
+        // then
+        assertThat(accepted).isFalse();
+        assertThat(redisTemplate.opsForHash().get(issueStateKey(10L), "view_count"))
+                .isEqualTo("200");
+    }
+
+    @Test
     @DisplayName("공개 상태가 아니면 조회수를 갱신하지 않는다")
     void skip_when_issue_is_not_available() {
         // given
