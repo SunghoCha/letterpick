@@ -51,6 +51,18 @@ resource "aws_vpc_security_group_ingress_rule" "redis_from_trending_service" {
   to_port     = var.redis_port
 }
 
+resource "aws_vpc_security_group_ingress_rule" "redis_from_db_access_host" {
+  count = var.enable_db_access_host ? 1 : 0
+
+  security_group_id            = aws_security_group.redis.id
+  referenced_security_group_id = aws_security_group.db_access_host[0].id
+  description                  = "Allow DB access host to inspect Redis"
+
+  ip_protocol = "tcp"
+  from_port   = var.redis_port
+  to_port     = var.redis_port
+}
+
 resource "aws_vpc_security_group_egress_rule" "redis_all_ipv4" {
   security_group_id = aws_security_group.redis.id
   description       = "Allow Redis outbound traffic"
