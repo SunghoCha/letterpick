@@ -1,6 +1,6 @@
 package com.sungho.letterpick.trending.score.adapter.sqs;
 
-import com.sungho.letterpick.trending.application.TrendingMessageProcessor;
+import com.sungho.letterpick.trending.score.application.TrendingScoreMessageProcessor;
 import io.awspring.cloud.sqs.annotation.SqsListener;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,11 +17,10 @@ public class TrendingScoreSqsListener {
     private static final String MAX_CONCURRENT_MESSAGES_PROPERTY =
             "letterpick.trending.sqs-listener.score.max-concurrent-messages";
 
-    private final TrendingMessageProcessor processor;
-    private final String queueName;
+    private final TrendingScoreMessageProcessor processor;
 
     public TrendingScoreSqsListener(
-            TrendingMessageProcessor processor,
+            TrendingScoreMessageProcessor processor,
             @Value("${" + QUEUE_NAME_PROPERTY + "}") String queueName
     ) {
         this.processor = requireNonNull(processor, "processor must not be null");
@@ -29,7 +28,6 @@ public class TrendingScoreSqsListener {
             throw new IllegalStateException("trending score queue name is not configured: "
                     + QUEUE_NAME_PROPERTY);
         }
-        this.queueName = queueName;
     }
 
     @SqsListener(
@@ -38,6 +36,6 @@ public class TrendingScoreSqsListener {
     )
     @WithSpan("trending.score.consume")
     public void receive(String messageBody) {
-        processor.process(messageBody, queueName);
+        processor.process(messageBody);
     }
 }

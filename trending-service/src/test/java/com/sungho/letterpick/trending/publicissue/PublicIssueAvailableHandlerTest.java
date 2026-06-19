@@ -4,7 +4,7 @@ import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.event.trending.PublicIssueAvailablePayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.application.TrendingMessageProcessingException;
-import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingSummaryUpdater;
+import com.sungho.letterpick.trending.ranking.adapter.redis.RedisPublicIssueRankingStateWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +34,7 @@ class PublicIssueAvailableHandlerTest {
     private PublicIssueCandidateRepository publicIssueCandidateRepository;
 
     @Mock
-    private PublicIssueRankingSummaryUpdater rankingSummaryUpdater;
+    private RedisPublicIssueRankingStateWriter rankingStateWriter;
 
     private PublicIssueAvailableHandler handler;
 
@@ -43,7 +43,7 @@ class PublicIssueAvailableHandlerTest {
         handler = new PublicIssueAvailableHandler(
                 OBJECT_MAPPER,
                 publicIssueCandidateRepository,
-                rankingSummaryUpdater,
+                rankingStateWriter,
                 CLOCK
         );
     }
@@ -57,6 +57,33 @@ class PublicIssueAvailableHandlerTest {
     @Test
     @DisplayName("PUBLIC_ISSUE_AVAILABLE payload를 공개 이슈 후보로 저장한다")
     void insert_public_issue_candidate() {
+        // given
+        Instant collectedAt = Instant.parse("2050-06-05T00:59:00Z");
+        EventEnvelope<JsonNode> envelope = envelope(new PublicIssueAvailablePayload(
+                1L,
+                2L,
+                "TECH",
+                collectedAt
+        ));
+        // when
+        handler.handle(envelope);
+
+        // then
+        verify(publicIssueCandidateRepository).insertAvailableIfAbsent(
+                1L,
+                2L,
+                "TECH",
+                PublicIssueCandidateStatus.AVAILABLE.name(),
+                collectedAt,
+                CLOCK.instant(),
+                CLOCK.instant()
+        );
+        verify(rankingStateWriter).markAvailable(1L, collectedAt);
+    }
+
+    @Test
+    @DisplayName("이미 저장된 공개 이슈 후보여도 Redis state 갱신은 Redis 상태 전이 규칙에 맡긴다")
+    void mark_redis_state_even_when_candidate_already_exists() {
         // given
         Instant collectedAt = Instant.parse("2050-06-05T00:59:00Z");
         EventEnvelope<JsonNode> envelope = envelope(new PublicIssueAvailablePayload(
@@ -79,7 +106,7 @@ class PublicIssueAvailableHandlerTest {
                 CLOCK.instant(),
                 CLOCK.instant()
         );
-        verify(rankingSummaryUpdater).refresh(1L);
+        verify(rankingStateWriter).markAvailable(1L, collectedAt);
     }
 
     @Test
@@ -94,7 +121,7 @@ class PublicIssueAvailableHandlerTest {
         assertThatThrownBy(() -> handler.handle(envelope))
                 .isInstanceOf(TrendingMessageProcessingException.class)
                 .hasMessageContaining("failed to deserialize PUBLIC_ISSUE_AVAILABLE payload");
-        verifyNoInteractions(publicIssueCandidateRepository, rankingSummaryUpdater);
+        verifyNoInteractions(publicIssueCandidateRepository, rankingStateWriter);
     }
 
     private EventEnvelope<JsonNode> envelope(PublicIssueAvailablePayload payload) {

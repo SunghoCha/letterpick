@@ -43,14 +43,6 @@ public record PublicIssueRankingWindow(
         return fromDateRange(PublicIssueRankingWindowType.WEEKLY, weekStart, weekStart.plusWeeks(1), zone);
     }
 
-    public static PublicIssueRankingWindow monthly(LocalDate date, ZoneId zone) {
-        requireNonNull(date, "date must not be null");
-        requireNonNull(zone, "zone must not be null");
-
-        LocalDate monthStart = date.withDayOfMonth(1);
-        return fromDateRange(PublicIssueRankingWindowType.MONTHLY, monthStart, monthStart.plusMonths(1), zone);
-    }
-
     private static PublicIssueRankingWindow fromDateRange(PublicIssueRankingWindowType type,
                                                           LocalDate startDate,
                                                           LocalDate endDate,

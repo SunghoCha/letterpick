@@ -4,7 +4,7 @@ import com.sungho.letterpick.event.EventEnvelope;
 import com.sungho.letterpick.event.trending.PublicIssueRemovedPayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.application.TrendingMessageProcessingException;
-import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingSummaryUpdater;
+import com.sungho.letterpick.trending.ranking.adapter.redis.RedisPublicIssueRankingStateWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +34,7 @@ class PublicIssueRemovedHandlerTest {
     private PublicIssueCandidateRepository publicIssueCandidateRepository;
 
     @Mock
-    private PublicIssueRankingSummaryUpdater rankingSummaryUpdater;
+    private RedisPublicIssueRankingStateWriter rankingStateWriter;
 
     private PublicIssueRemovedHandler handler;
 
@@ -43,7 +43,7 @@ class PublicIssueRemovedHandlerTest {
         handler = new PublicIssueRemovedHandler(
                 OBJECT_MAPPER,
                 publicIssueCandidateRepository,
-                rankingSummaryUpdater,
+                rankingStateWriter,
                 CLOCK
         );
     }
@@ -58,9 +58,10 @@ class PublicIssueRemovedHandlerTest {
     @DisplayName("PUBLIC_ISSUE_REMOVED payload를 REMOVED 상태 후보로 저장한다")
     void upsert_removed_candidate_status() {
         // given
+        Instant collectedAt = Instant.parse("2050-06-05T00:59:00Z");
         EventEnvelope<JsonNode> envelope = envelope(new PublicIssueRemovedPayload(
                 1L,
-                Instant.parse("2050-06-05T00:59:00Z")
+                collectedAt
         ));
 
         // when
@@ -72,7 +73,7 @@ class PublicIssueRemovedHandlerTest {
                 CLOCK.instant(),
                 CLOCK.instant()
         );
-        verify(rankingSummaryUpdater).remove(1L);
+        verify(rankingStateWriter).markRemoved(1L, collectedAt);
     }
 
     @Test
@@ -86,7 +87,7 @@ class PublicIssueRemovedHandlerTest {
         assertThatThrownBy(() -> handler.handle(envelope))
                 .isInstanceOf(TrendingMessageProcessingException.class)
                 .hasMessageContaining("failed to deserialize PUBLIC_ISSUE_REMOVED payload");
-        verifyNoInteractions(publicIssueCandidateRepository, rankingSummaryUpdater);
+        verifyNoInteractions(publicIssueCandidateRepository, rankingStateWriter);
     }
 
     private EventEnvelope<JsonNode> envelope(PublicIssueRemovedPayload payload) {
