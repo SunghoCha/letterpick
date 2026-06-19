@@ -31,6 +31,7 @@ class PublicIssueRemovedOutboxPublishListenerTest {
         PublicIssueRemovedEvent event = new PublicIssueRemovedEvent(
                 "event-1",
                 10L,
+                Instant.parse("2050-06-10T00:00:00Z"),
                 Instant.parse("2050-06-10T01:00:00Z")
         );
 

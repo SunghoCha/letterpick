@@ -14,14 +14,13 @@ public class PublicIssueRankingWindowCalculator {
 
     private static final ZoneId RANKING_ZONE = ZoneId.of("Asia/Seoul");
 
-    public List<PublicIssueRankingWindow> windowsFor(Instant publicFeedCollectedAt) {
+    public List<PublicIssueRankingWindow> dailyAndWeeklyWindowsFor(Instant publicFeedCollectedAt) {
         requireNonNull(publicFeedCollectedAt, "publicFeedCollectedAt must not be null");
 
         LocalDate collectedDate = LocalDate.ofInstant(publicFeedCollectedAt, RANKING_ZONE);
         return List.of(
                 PublicIssueRankingWindow.daily(collectedDate, RANKING_ZONE),
-                PublicIssueRankingWindow.weekly(collectedDate, RANKING_ZONE),
-                PublicIssueRankingWindow.monthly(collectedDate, RANKING_ZONE)
+                PublicIssueRankingWindow.weekly(collectedDate, RANKING_ZONE)
         );
     }
 }

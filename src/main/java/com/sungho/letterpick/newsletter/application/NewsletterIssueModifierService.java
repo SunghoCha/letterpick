@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -16,10 +18,11 @@ public class NewsletterIssueModifierService implements NewsletterIssueModifier {
     private final NewsletterIssueRepository newsletterIssueRepository;
 
     @Override
-    public void delete(Long memberId, Long issueId) {
+    public Instant delete(Long memberId, Long issueId) {
         NewsletterIssue newsletterIssue = newsletterIssueRepository.findByIdAndMemberIdAndDeletedFalse(issueId, memberId)
                 .orElseThrow(NewsletterIssueNotFoundException::new);
         newsletterIssue.deleteFromList();
+        return newsletterIssue.getReceivedAt();
     }
 
 }

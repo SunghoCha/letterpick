@@ -21,7 +21,7 @@ public class PublicIssueRemovedOutboxListener {
                 event.eventId(),
                 OutboxMessageType.PUBLIC_ISSUE_REMOVED,
                 String.valueOf(event.issueId()),
-                new PublicIssueRemovedPayload(event.issueId()),
+                new PublicIssueRemovedPayload(event.issueId(), event.publicFeedCollectedAt()),
                 event.occurredAt()
         ));
     }

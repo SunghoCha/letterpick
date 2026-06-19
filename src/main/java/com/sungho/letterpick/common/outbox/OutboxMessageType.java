@@ -11,7 +11,7 @@ public enum OutboxMessageType {
     ),
     PUBLIC_ISSUE_REMOVED(
             TrendingEventType.PUBLIC_ISSUE_REMOVED.value(),
-            1,
+            2,
             "NEWSLETTER_ISSUE"
     ),
     ISSUE_VIEW_COUNT_UPDATED(

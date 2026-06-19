@@ -35,6 +35,7 @@ class PublicIssueRemovedOutboxListenerTest {
         PublicIssueRemovedEvent event = new PublicIssueRemovedEvent(
                 "event-1",
                 10L,
+                Instant.parse("2050-06-10T00:00:00Z"),
                 Instant.parse("2050-06-10T01:00:00Z")
         );
 
@@ -52,6 +53,7 @@ class PublicIssueRemovedOutboxListenerTest {
         assertThat(request.payload()).isInstanceOf(PublicIssueRemovedPayload.class);
         PublicIssueRemovedPayload payload = (PublicIssueRemovedPayload) request.payload();
         assertThat(payload.issueId()).isEqualTo(event.issueId());
+        assertThat(payload.publicFeedCollectedAt()).isEqualTo(event.publicFeedCollectedAt());
     }
 
     @Test

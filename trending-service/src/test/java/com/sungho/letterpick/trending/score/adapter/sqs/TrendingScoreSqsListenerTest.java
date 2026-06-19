@@ -1,6 +1,6 @@
 package com.sungho.letterpick.trending.score.adapter.sqs;
 
-import com.sungho.letterpick.trending.application.TrendingMessageProcessor;
+import com.sungho.letterpick.trending.score.application.TrendingScoreMessageProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -25,28 +25,28 @@ class TrendingScoreSqsListenerTest {
     private static final String BLANK_QUEUE_NAME_PROPERTY = "letterpick.trending.score-events-queue= ";
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withBean(TrendingMessageProcessor.class, () -> mock(TrendingMessageProcessor.class))
+            .withBean(TrendingScoreMessageProcessor.class, () -> mock(TrendingScoreMessageProcessor.class))
             .withUserConfiguration(TrendingScoreSqsListener.class);
 
     @Test
-    @DisplayName("SQS message body와 queue name을 score event processor에 전달한다")
-    void receive_delegates_message_body_and_queue_name_to_processor() {
+    @DisplayName("SQS message body를 score event processor에 전달한다")
+    void receive_delegates_message_body_to_processor() {
         // given
-        TrendingMessageProcessor processor = mock(TrendingMessageProcessor.class);
+        TrendingScoreMessageProcessor processor = mock(TrendingScoreMessageProcessor.class);
         TrendingScoreSqsListener listener = new TrendingScoreSqsListener(processor, QUEUE_NAME);
 
         // when
         listener.receive(SQS_MESSAGE_BODY);
 
         // then
-        verify(processor).process(SQS_MESSAGE_BODY, QUEUE_NAME);
+        verify(processor).process(SQS_MESSAGE_BODY);
     }
 
     @Test
     @DisplayName("queue name 설정이 비어 있으면 listener 생성 시 실패한다")
     void constructor_rejects_blank_queue_name() {
         // given
-        TrendingMessageProcessor processor = mock(TrendingMessageProcessor.class);
+        TrendingScoreMessageProcessor processor = mock(TrendingScoreMessageProcessor.class);
 
         // when & then
         assertThatIllegalStateException()
@@ -58,7 +58,7 @@ class TrendingScoreSqsListenerTest {
     @DisplayName("queue name 설정에 앞뒤 공백이 있으면 listener 생성 시 실패한다")
     void constructor_rejects_padded_queue_name() {
         // given
-        TrendingMessageProcessor processor = mock(TrendingMessageProcessor.class);
+        TrendingScoreMessageProcessor processor = mock(TrendingScoreMessageProcessor.class);
 
         // when & then
         assertThatIllegalStateException()

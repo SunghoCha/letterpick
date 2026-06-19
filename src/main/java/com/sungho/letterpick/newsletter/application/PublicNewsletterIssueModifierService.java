@@ -23,10 +23,11 @@ public class PublicNewsletterIssueModifierService implements PublicNewsletterIss
 
     @Override
     public void delete(Long issueId) {
-        newsletterIssueModifier.delete(publicFeedCollectorAccount.collectorMemberId(), issueId);
+        var publicFeedCollectedAt = newsletterIssueModifier.delete(publicFeedCollectorAccount.collectorMemberId(), issueId);
         eventPublisher.publishEvent(new PublicIssueRemovedEvent(
                 UUID.randomUUID().toString(),
                 issueId,
+                publicFeedCollectedAt,
                 clock.instant()
         ));
     }

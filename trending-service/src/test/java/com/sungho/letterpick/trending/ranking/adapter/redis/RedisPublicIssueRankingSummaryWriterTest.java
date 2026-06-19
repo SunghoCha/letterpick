@@ -84,6 +84,63 @@ class RedisPublicIssueRankingSummaryWriterTest {
     }
 
     @Test
+    @DisplayName("window ranking은 score 상위 100개만 유지한다")
+    void keep_top_100_ranked_issues() {
+        // given
+        PublicIssueRankingWindow window = dailyWindow();
+
+        // when
+        for (long issueId = 1; issueId <= 101; issueId++) {
+            writer.save(window, issueId, issueId, CALCULATED_AT);
+        }
+
+        // then
+        String rankingKey = rankingKey(window);
+        assertThat(redisTemplate.opsForZSet().size(rankingKey))
+                .isEqualTo(100L);
+        assertThat(redisTemplate.opsForZSet().score(rankingKey, "1"))
+                .isNull();
+        assertThat(redisTemplate.opsForZSet().score(rankingKey, "2"))
+                .isEqualTo(2.0);
+        assertThat(redisTemplate.opsForZSet().score(rankingKey, "101"))
+                .isEqualTo(101.0);
+    }
+
+    @Test
+    @DisplayName("daily ranking은 window 종료 후 2일 뒤 만료된다")
+    void daily_ranking_expires_after_two_days_from_window_end() {
+        // given
+        PublicIssueRankingWindow window = PublicIssueRankingWindow.daily(
+                LocalDate.now(RANKING_ZONE),
+                RANKING_ZONE
+        );
+
+        // when
+        writer.save(window, 10L, 150L, Instant.now());
+
+        // then
+        assertThat(redisTemplate.getExpire(rankingKey(window)))
+                .isBetween(2 * 24 * 60 * 60L, 3 * 24 * 60 * 60L + 60L);
+    }
+
+    @Test
+    @DisplayName("weekly ranking은 window 종료 후 7일 뒤 만료된다")
+    void weekly_ranking_expires_after_seven_days_from_window_end() {
+        // given
+        PublicIssueRankingWindow window = PublicIssueRankingWindow.weekly(
+                LocalDate.now(RANKING_ZONE),
+                RANKING_ZONE
+        );
+
+        // when
+        writer.save(window, 10L, 150L, Instant.now());
+
+        // then
+        assertThat(redisTemplate.getExpire(rankingKey(window)))
+                .isBetween(7 * 24 * 60 * 60L, 14 * 24 * 60 * 60L + 60L);
+    }
+
+    @Test
     @DisplayName("window 기준으로 저장된 ranking에서 issueId를 제거한다")
     void delete_summary_by_window() {
         // given

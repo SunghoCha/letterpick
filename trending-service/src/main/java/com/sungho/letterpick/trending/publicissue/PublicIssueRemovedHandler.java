@@ -5,7 +5,7 @@ import com.sungho.letterpick.event.trending.PublicIssueRemovedPayload;
 import com.sungho.letterpick.event.trending.TrendingEventType;
 import com.sungho.letterpick.trending.application.TrendingEventHandler;
 import com.sungho.letterpick.trending.application.TrendingMessageProcessingException;
-import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingSummaryUpdater;
+import com.sungho.letterpick.trending.ranking.adapter.redis.RedisPublicIssueRankingStateWriter;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -20,17 +20,17 @@ public class PublicIssueRemovedHandler implements TrendingEventHandler {
 
     private final ObjectMapper objectMapper;
     private final PublicIssueCandidateRepository publicIssueCandidateRepository;
-    private final PublicIssueRankingSummaryUpdater rankingSummaryUpdater;
+    private final RedisPublicIssueRankingStateWriter rankingStateWriter;
     private final Clock clock;
 
     public PublicIssueRemovedHandler(ObjectMapper objectMapper,
                                      PublicIssueCandidateRepository publicIssueCandidateRepository,
-                                     PublicIssueRankingSummaryUpdater rankingSummaryUpdater,
+                                     RedisPublicIssueRankingStateWriter rankingStateWriter,
                                      Clock clock) {
         this.objectMapper = requireNonNull(objectMapper, "objectMapper must not be null");
         this.publicIssueCandidateRepository = requireNonNull(publicIssueCandidateRepository,
                 "publicIssueCandidateRepository must not be null");
-        this.rankingSummaryUpdater = requireNonNull(rankingSummaryUpdater, "rankingSummaryUpdater must not be null");
+        this.rankingStateWriter = requireNonNull(rankingStateWriter, "rankingStateWriter must not be null");
         this.clock = requireNonNull(clock, "clock must not be null");
     }
 
@@ -48,7 +48,7 @@ public class PublicIssueRemovedHandler implements TrendingEventHandler {
                 now,
                 now
         );
-        rankingSummaryUpdater.remove(payload.issueId());
+        rankingStateWriter.markRemoved(payload.issueId(), payload.publicFeedCollectedAt());
     }
 
     private PublicIssueRemovedPayload readPayload(JsonNode payload) {

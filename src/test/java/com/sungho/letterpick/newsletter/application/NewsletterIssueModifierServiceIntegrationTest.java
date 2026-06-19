@@ -53,11 +53,12 @@ class NewsletterIssueModifierServiceIntegrationTest {
         em.clear();
 
         // when
-        newsletterIssueModifierService.delete(memberId, issueId);
+        Instant deletedIssueReceivedAt = newsletterIssueModifierService.delete(memberId, issueId);
         em.flush();
         em.clear();
 
         // then
+        assertThat(deletedIssueReceivedAt).isEqualTo(Instant.parse("2050-05-12T01:00:00Z"));
         NewsletterIssue found = newsletterIssueRepository.findById(issueId).orElseThrow();
         assertThat(found.isDeleted()).isTrue();
         assertThat(newsletterIssueRepository.findByIdAndMemberIdAndDeletedFalse(issueId, memberId))

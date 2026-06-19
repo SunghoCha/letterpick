@@ -113,5 +113,6 @@ class PublicIssueRemovedOutboxIntegrationTest {
 
         JsonNode payload = objectMapper.readTree(message.getPayload());
         assertThat(payload.path("issueId").asText()).isEqualTo(String.valueOf(issue.getId()));
+        assertThat(payload.path("publicFeedCollectedAt").asText()).isEqualTo(issue.getReceivedAt().toString());
     }
 }

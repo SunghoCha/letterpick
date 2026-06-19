@@ -13,15 +13,14 @@ import com.sungho.letterpick.trending.publicissue.PublicIssueCandidate;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateRepository;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
 import com.sungho.letterpick.trending.ranking.adapter.persistence.PublicIssueRankingSummaryRepository;
-import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingWindowType;
-import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshot;
-import com.sungho.letterpick.trending.viewcount.PublicIssueViewCountSnapshotRepository;
+import com.sungho.letterpick.trending.score.application.TrendingScoreMessageProcessor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
@@ -31,18 +30,21 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.tuple;
 
 @Import(TrendingServiceTestConfiguration.class)
-@SpringBootTest
+@SpringBootTest(properties = {
+        "letterpick.trending.ranking.summary.writer=redis"
+})
 @ActiveProfiles("test")
 class TrendingMessageProcessorIntegrationTest {
 
     private static final String LIFECYCLE_QUEUE_NAME = "letterpick-test-trending-lifecycle-events";
-    private static final String SCORE_QUEUE_NAME = "letterpick-test-trending-score-events";
 
     @Autowired
     private TrendingMessageProcessor processor;
+
+    @Autowired
+    private TrendingScoreMessageProcessor scoreProcessor;
 
     @Autowired
     private InboxEventRepository inboxEventRepository;
@@ -51,10 +53,10 @@ class TrendingMessageProcessorIntegrationTest {
     private PublicIssueCandidateRepository publicIssueCandidateRepository;
 
     @Autowired
-    private PublicIssueViewCountSnapshotRepository publicIssueViewCountSnapshotRepository;
+    private PublicIssueRankingSummaryRepository publicIssueRankingSummaryRepository;
 
     @Autowired
-    private PublicIssueRankingSummaryRepository publicIssueRankingSummaryRepository;
+    private StringRedisTemplate redisTemplate;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -62,9 +64,12 @@ class TrendingMessageProcessorIntegrationTest {
     @BeforeEach
     void setUp() {
         publicIssueRankingSummaryRepository.deleteAll();
-        publicIssueViewCountSnapshotRepository.deleteAll();
         inboxEventRepository.deleteAll();
         publicIssueCandidateRepository.deleteAll();
+        redisTemplate.getRequiredConnectionFactory()
+                .getConnection()
+                .serverCommands()
+                .flushDb();
     }
 
     @Test
@@ -95,120 +100,100 @@ class TrendingMessageProcessorIntegrationTest {
     }
 
     @Test
-    @DisplayName("ISSUE_VIEW_COUNT_UPDATED 메시지를 처리하면 inbox와 조회수 snapshot을 저장한다")
+    @DisplayName("ISSUE_VIEW_COUNT_UPDATED 메시지는 inbox 없이 처리하고 공개 상태가 없으면 ranking에 반영하지 않는다")
     void process_issue_view_count_updated_message() throws Exception {
         // given
         String message = issueViewCountUpdatedMessage("event-view-count-1", 10L, 150L);
 
         // when
-        processor.process(message, SCORE_QUEUE_NAME);
+        scoreProcessor.process(message);
 
         // then
-        InboxEvent inboxEvent = inboxEventRepository.findByEventId("event-view-count-1").orElseThrow();
-        assertThat(inboxEvent.getEventType()).isEqualTo(TrendingEventType.ISSUE_VIEW_COUNT_UPDATED.value());
-        assertThat(inboxEvent.getStatus()).isEqualTo(InboxEventStatus.PROCESSED);
-        assertThat(inboxEvent.getProcessedAt()).isNotNull();
-        assertThat(inboxEvent.getQueueName()).isEqualTo(SCORE_QUEUE_NAME);
-        JsonNode storedPayload = objectMapper.readTree(inboxEvent.getPayload());
-        assertThat(storedPayload.path("issueId").asLong()).isEqualTo(10L);
-        assertThat(storedPayload.path("viewCount").asLong()).isEqualTo(150L);
-
-        PublicIssueViewCountSnapshot snapshot = publicIssueViewCountSnapshotRepository.findById(10L).orElseThrow();
-        assertThat(snapshot.getViewCount()).isEqualTo(150L);
-        assertThat(snapshot.getSnapshotOccurredAt()).isEqualTo(Instant.parse("2050-06-05T01:00:00Z"));
-        assertThat(snapshot.getCreatedAt()).isNotNull();
-        assertThat(snapshot.getUpdatedAt()).isNotNull();
+        assertThat(inboxEventRepository.findByEventId("event-view-count-1")).isEmpty();
         assertThat(publicIssueCandidateRepository.count()).isZero();
         assertThat(publicIssueRankingSummaryRepository.count()).isZero();
+        assertThat(redisTemplate.opsForZSet().score(dailyRankingKey(), "10"))
+                .isNull();
+        assertThat(redisTemplate.opsForZSet().score(weeklyRankingKey(), "10"))
+                .isNull();
     }
 
     @Test
-    @DisplayName("조회수 snapshot 이후 PUBLIC_ISSUE_AVAILABLE이 오면 ranking summary를 생성한다")
-    void process_available_after_view_count_creates_ranking_summary() throws Exception {
+    @DisplayName("PUBLIC_ISSUE_AVAILABLE은 Redis state를 갱신하고 ranking summary를 직접 생성하지 않는다")
+    void process_available_updates_redis_state_without_creating_ranking_summary() throws Exception {
         // given
         String viewCountMessage = issueViewCountUpdatedMessage("event-view-count-before-available", 10L, 150L);
         String availableMessage = publicIssueAvailableMessage("event-available-after-view-count", 10L, 20L);
 
         // when
-        processor.process(viewCountMessage, SCORE_QUEUE_NAME);
+        scoreProcessor.process(viewCountMessage);
         processor.process(availableMessage, LIFECYCLE_QUEUE_NAME);
 
         // then
-        assertThat(publicIssueRankingSummaryRepository.findAll())
-                .extracting(summary -> summary.getWindowType(),
-                        summary -> summary.getWindowKey(),
-                        summary -> summary.getIssueId(),
-                        summary -> summary.getScore())
-                .containsExactlyInAnyOrder(
-                        tuple(PublicIssueRankingWindowType.DAILY.name(), "2050-06-05", 10L, 150L),
-                        tuple(PublicIssueRankingWindowType.WEEKLY.name(), "2050-05-30", 10L, 150L),
-                        tuple(PublicIssueRankingWindowType.MONTHLY.name(), "2050-06-01", 10L, 150L)
-                );
+        assertThat(publicIssueRankingSummaryRepository.count()).isZero();
+        assertThat(redisTemplate.opsForHash().get(issueStateKey(10L), "status"))
+                .isEqualTo(PublicIssueCandidateStatus.AVAILABLE.name());
+        assertThat(redisTemplate.opsForHash().get(issueStateKey(10L), "collected_at"))
+                .isEqualTo("2050-06-05T00:59:00Z");
     }
 
     @Test
-    @DisplayName("PUBLIC_ISSUE_REMOVED가 오면 ranking summary를 제거한다")
-    void process_removed_deletes_ranking_summary() throws Exception {
+    @DisplayName("PUBLIC_ISSUE_REMOVED는 Redis state를 REMOVED로 갱신한다")
+    void process_removed_updates_redis_state() throws Exception {
         // given
-        processor.process(issueViewCountUpdatedMessage("event-view-count-before-removed", 10L, 150L), SCORE_QUEUE_NAME);
-        processor.process(publicIssueAvailableMessage("event-available-before-removed", 10L, 20L), LIFECYCLE_QUEUE_NAME);
+        String removedMessage = publicIssueRemovedMessage("event-removed-state", 10L);
 
         // when
-        processor.process(publicIssueRemovedMessage("event-removed-after-summary", 10L), LIFECYCLE_QUEUE_NAME);
+        processor.process(removedMessage, LIFECYCLE_QUEUE_NAME);
 
         // then
-        assertThat(publicIssueRankingSummaryRepository.count()).isZero();
+        assertThat(redisTemplate.opsForHash().get(issueStateKey(10L), "status"))
+                .isEqualTo(PublicIssueCandidateStatus.REMOVED.name());
+        assertThat(redisTemplate.opsForHash().get(issueStateKey(10L), "collected_at"))
+                .isEqualTo("2050-06-05T00:59:00Z");
     }
 
     @Test
-    @DisplayName("PUBLIC_ISSUE_REMOVED 이후 늦은 조회수 snapshot은 ranking summary를 되살리지 않는다")
+    @DisplayName("PUBLIC_ISSUE_REMOVED 이후 늦은 조회수 이벤트는 Redis ranking을 되살리지 않는다")
     void process_view_count_after_removed_does_not_recreate_ranking_summary() throws Exception {
         // given
-        processor.process(issueViewCountUpdatedMessage("event-view-before-removed", 10L, 150L), SCORE_QUEUE_NAME);
         processor.process(publicIssueAvailableMessage("event-avail-before-late-view", 10L, 20L),
                 LIFECYCLE_QUEUE_NAME);
+        scoreProcessor.process(issueViewCountUpdatedMessage("event-view-before-removed", 10L, 150L));
         processor.process(publicIssueRemovedMessage("event-rem-before-late-view", 10L),
                 LIFECYCLE_QUEUE_NAME);
 
         // when
-        processor.process(issueViewCountUpdatedMessage("event-view-after-removed", 10L, 200L),
-                SCORE_QUEUE_NAME);
+        scoreProcessor.process(issueViewCountUpdatedMessage("event-view-after-removed", 10L, 200L));
 
         // then
         PublicIssueCandidate candidate = publicIssueCandidateRepository.findByIssueId(10L).orElseThrow();
         assertThat(candidate.getStatus()).isEqualTo(PublicIssueCandidateStatus.REMOVED);
 
-        PublicIssueViewCountSnapshot snapshot = publicIssueViewCountSnapshotRepository.findById(10L).orElseThrow();
-        assertThat(snapshot.getViewCount()).isEqualTo(200L);
         assertThat(publicIssueRankingSummaryRepository.count()).isZero();
+        assertThat(redisTemplate.opsForZSet().score(dailyRankingKey(), "10"))
+                .isNull();
+        assertThat(redisTemplate.opsForZSet().score(weeklyRankingKey(), "10"))
+                .isNull();
     }
 
     @Test
-    @DisplayName("낮은 조회수 snapshot이 늦게 도착해도 ranking summary score를 낮추지 않는다")
+    @DisplayName("낮은 조회수 이벤트가 늦게 도착해도 Redis ranking score를 낮추지 않는다")
     void process_stale_view_count_does_not_decrease_ranking_summary() throws Exception {
         // given
         processor.process(publicIssueAvailableMessage("event-available-before-stale-view", 10L, 20L),
                 LIFECYCLE_QUEUE_NAME);
-        processor.process(issueViewCountUpdatedMessage("event-view-count-high", 10L, 200L),
-                SCORE_QUEUE_NAME);
+        scoreProcessor.process(issueViewCountUpdatedMessage("event-view-count-high", 10L, 200L));
 
         // when
-        processor.process(issueViewCountUpdatedMessage("event-view-count-stale", 10L, 150L),
-                SCORE_QUEUE_NAME);
+        scoreProcessor.process(issueViewCountUpdatedMessage("event-view-count-stale", 10L, 150L));
 
         // then
-        PublicIssueViewCountSnapshot snapshot = publicIssueViewCountSnapshotRepository.findById(10L).orElseThrow();
-        assertThat(snapshot.getViewCount()).isEqualTo(200L);
-        assertThat(publicIssueRankingSummaryRepository.findAll())
-                .extracting(summary -> summary.getWindowType(),
-                        summary -> summary.getWindowKey(),
-                        summary -> summary.getIssueId(),
-                        summary -> summary.getScore())
-                .containsExactlyInAnyOrder(
-                        tuple(PublicIssueRankingWindowType.DAILY.name(), "2050-06-05", 10L, 200L),
-                        tuple(PublicIssueRankingWindowType.WEEKLY.name(), "2050-05-30", 10L, 200L),
-                        tuple(PublicIssueRankingWindowType.MONTHLY.name(), "2050-06-01", 10L, 200L)
-                );
+        assertThat(publicIssueRankingSummaryRepository.count()).isZero();
+        assertThat(redisTemplate.opsForZSet().score(dailyRankingKey(), "10"))
+                .isEqualTo(200.0);
+        assertThat(redisTemplate.opsForZSet().score(weeklyRankingKey(), "10"))
+                .isEqualTo(200.0);
     }
 
     @Test
@@ -333,7 +318,8 @@ class TrendingMessageProcessorIntegrationTest {
         return message(
                 eventId,
                 TrendingEventType.PUBLIC_ISSUE_REMOVED.value(),
-                new PublicIssueRemovedPayload(issueId)
+                2,
+                new PublicIssueRemovedPayload(issueId, Instant.parse("2050-06-05T00:59:00Z"))
         );
     }
 
@@ -348,11 +334,27 @@ class TrendingMessageProcessorIntegrationTest {
         );
     }
 
+    private String issueStateKey(Long issueId) {
+        return String.join(":", "letterpick:trending:issue", "{" + issueId + "}", "state");
+    }
+
+    private String dailyRankingKey() {
+        return "letterpick:trending:ranking:{DAILY:2050-06-05}:issues";
+    }
+
+    private String weeklyRankingKey() {
+        return "letterpick:trending:ranking:{WEEKLY:2050-05-30}:issues";
+    }
+
     private String message(String eventId, String eventType, Object payload) throws Exception {
+        return message(eventId, eventType, 1, payload);
+    }
+
+    private String message(String eventId, String eventType, int schemaVersion, Object payload) throws Exception {
         EventEnvelope<Object> envelope = new EventEnvelope<>(
                 eventId,
                 eventType,
-                1,
+                schemaVersion,
                 "letterpick",
                 Instant.parse("2050-06-05T01:00:00Z"),
                 "trace-1",

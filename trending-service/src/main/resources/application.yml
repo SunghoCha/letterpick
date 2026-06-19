@@ -54,5 +54,7 @@ letterpick:
         max-concurrent-messages: ${LETTERPICK_TRENDING_SCORE_LISTENER_MAX_CONCURRENT_MESSAGES:10}
     ranking:
       summary:
-        writer: ${LETTERPICK_TRENDING_RANKING_SUMMARY_WRITER:rds}
+        writer: ${LETTERPICK_TRENDING_RANKING_SUMMARY_WRITER:redis}
         redis-key-prefix: ${LETTERPICK_TRENDING_RANKING_SUMMARY_REDIS_KEY_PREFIX:letterpick:trending:ranking}
+      state:
+        redis-key-prefix: ${LETTERPICK_TRENDING_RANKING_STATE_REDIS_KEY_PREFIX:letterpick:trending:issue}

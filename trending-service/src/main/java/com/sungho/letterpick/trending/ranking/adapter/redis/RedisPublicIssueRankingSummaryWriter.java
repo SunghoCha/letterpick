@@ -6,9 +6,13 @@ import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.connection.DefaultStringRedisConnection;
+import org.springframework.data.redis.connection.StringRedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -20,7 +24,9 @@ import java.util.Objects;
 )
 public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingSummaryWriter {
 
-    private static final String ISSUES_KEY_PART = "issues";
+    private static final long RANKING_SIZE_LIMIT = 100;
+    private static final Duration DAILY_RANKING_RETENTION_AFTER_WINDOW = Duration.ofDays(2);
+    private static final Duration WEEKLY_RANKING_RETENTION_AFTER_WINDOW = Duration.ofDays(7);
 
     private final StringRedisTemplate redisTemplate;
     private final String redisKeyPrefix;
@@ -30,7 +36,7 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
             @Value("${letterpick.trending.ranking.summary.redis-key-prefix}") String redisKeyPrefix
     ) {
         this.redisTemplate = redisTemplate;
-        this.redisKeyPrefix = validateRedisKeyPrefix(redisKeyPrefix);
+        this.redisKeyPrefix = RedisPublicIssueRankingKeys.validateRedisKeyPrefix(redisKeyPrefix);
     }
 
     @Override
@@ -43,9 +49,17 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
         Objects.requireNonNull(issueId, "issueId must not be null");
         Objects.requireNonNull(calculatedAt, "calculatedAt must not be null");
 
-        String rankingKey = rankingKey(window);
-        String rankedIssueId = rankedIssueId(issueId);
-        redisTemplate.opsForZSet().add(rankingKey, rankedIssueId, score);
+        String rankingKey = RedisPublicIssueRankingKeys.rankingKey(redisKeyPrefix, window);
+        String rankedIssueId = RedisPublicIssueRankingKeys.rankedIssueId(issueId);
+        Instant expireAt = expireAt(window);
+
+        redisTemplate.executePipelined((RedisCallback<?>) connection -> {
+            StringRedisConnection stringConnection = new DefaultStringRedisConnection(connection);
+            stringConnection.zAdd(rankingKey, score, rankedIssueId);
+            stringConnection.zRemRange(rankingKey, 0, -RANKING_SIZE_LIMIT - 1);
+            stringConnection.expireAt(rankingKey, expireAt.getEpochSecond());
+            return null;
+        });
     }
 
     @Override
@@ -55,26 +69,18 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
         Objects.requireNonNull(window, "window must not be null");
         Objects.requireNonNull(issueId, "issueId must not be null");
 
-        redisTemplate.opsForZSet().remove(rankingKey(window), rankedIssueId(issueId));
+        redisTemplate.opsForZSet().remove(
+                RedisPublicIssueRankingKeys.rankingKey(redisKeyPrefix, window),
+                RedisPublicIssueRankingKeys.rankedIssueId(issueId)
+        );
     }
 
-    private String rankingKey(PublicIssueRankingWindow window) {
-        String windowHashTag = window.type().name() + ":" + window.key();
-        return String.join(":", redisKeyPrefix, "{" + windowHashTag + "}", ISSUES_KEY_PART);
-    }
-
-    private String rankedIssueId(Long issueId) {
-        return String.valueOf(issueId);
-    }
-
-    private String validateRedisKeyPrefix(String redisKeyPrefix) {
-        Objects.requireNonNull(redisKeyPrefix, "redisKeyPrefix must not be null");
-        if (redisKeyPrefix.isBlank()) {
-            throw new IllegalArgumentException("redisKeyPrefix must not be blank");
-        }
-        if (!redisKeyPrefix.equals(redisKeyPrefix.trim())) {
-            throw new IllegalArgumentException("redisKeyPrefix must not contain leading or trailing whitespace");
-        }
-        return redisKeyPrefix;
+    private Instant expireAt(PublicIssueRankingWindow window) {
+        return switch (window.type()) {
+            case DAILY -> window.endExclusive()
+                    .plus(DAILY_RANKING_RETENTION_AFTER_WINDOW);
+            case WEEKLY -> window.endExclusive()
+                    .plus(WEEKLY_RANKING_RETENTION_AFTER_WINDOW);
+        };
     }
 }

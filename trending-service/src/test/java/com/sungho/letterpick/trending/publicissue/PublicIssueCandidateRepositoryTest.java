@@ -75,6 +75,41 @@ class PublicIssueCandidateRepositoryTest {
     }
 
     @Test
+    @DisplayName("기존 AVAILABLE 후보가 있으면 늦게 도착한 AVAILABLE은 metadata를 덮지 않는다")
+    void insertAvailableIfAbsent_does_not_replace_existing_available_candidate() {
+        // given
+        repository.insertAvailableIfAbsent(
+                10L,
+                20L,
+                "TECH",
+                PublicIssueCandidateStatus.AVAILABLE.name(),
+                Instant.parse("2050-06-10T00:59:00Z"),
+                Instant.parse("2050-06-10T01:00:00Z"),
+                Instant.parse("2050-06-10T01:00:00Z")
+        );
+
+        // when
+        repository.insertAvailableIfAbsent(
+                10L,
+                30L,
+                "LIFE",
+                PublicIssueCandidateStatus.AVAILABLE.name(),
+                Instant.parse("2050-06-10T01:30:00Z"),
+                Instant.parse("2050-06-10T01:30:00Z"),
+                Instant.parse("2050-06-10T01:30:00Z")
+        );
+
+        // then
+        PublicIssueCandidate candidate = repository.findByIssueId(10L).orElseThrow();
+        assertThat(candidate.getNewsletterId()).isEqualTo(20L);
+        assertThat(candidate.getCategory()).isEqualTo("TECH");
+        assertThat(candidate.getStatus()).isEqualTo(PublicIssueCandidateStatus.AVAILABLE);
+        assertThat(candidate.getPublicFeedCollectedAt()).isEqualTo(Instant.parse("2050-06-10T00:59:00Z"));
+        assertThat(candidate.getCreatedAt()).isEqualTo(Instant.parse("2050-06-10T01:00:00Z"));
+        assertThat(candidate.getUpdatedAt()).isEqualTo(Instant.parse("2050-06-10T01:00:00Z"));
+    }
+
+    @Test
     @DisplayName("REMOVED 상태 후보가 있으면 늦게 도착한 AVAILABLE은 후보를 되살리지 않는다")
     void insertAvailableIfAbsent_does_not_restore_removed_candidate() {
         // given
