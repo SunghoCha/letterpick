@@ -1,5 +1,7 @@
 package com.sungho.letterpick.trending.ranking.adapter.redis;
 
+import io.opentelemetry.instrumentation.annotations.SpanAttribute;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -43,7 +45,9 @@ public class RedisPublicIssueViewCountStateUpdater {
         this.redisKeyPrefix = RedisPublicIssueRankingKeys.validateRedisKeyPrefix(redisKeyPrefix);
     }
 
-    public boolean acceptIfAvailableAndNotStale(Long issueId, long viewCount) {
+    @WithSpan("trending.ranking_state.redis_view_count_accept")
+    public boolean acceptIfAvailableAndNotStale(@SpanAttribute("issue.id") Long issueId,
+                                                @SpanAttribute("issue.view_count") long viewCount) {
         Objects.requireNonNull(issueId, "issueId must not be null");
         if (viewCount < 0) {
             return false;

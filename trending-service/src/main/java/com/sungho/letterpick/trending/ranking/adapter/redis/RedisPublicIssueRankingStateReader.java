@@ -1,6 +1,8 @@
 package com.sungho.letterpick.trending.ranking.adapter.redis;
 
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
+import io.opentelemetry.instrumentation.annotations.SpanAttribute;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -24,7 +26,8 @@ public class RedisPublicIssueRankingStateReader {
         this.redisKeyPrefix = RedisPublicIssueRankingKeys.validateRedisKeyPrefix(redisKeyPrefix);
     }
 
-    public Optional<AvailableIssueRankingState> findAvailableIssueState(Long issueId) {
+    @WithSpan("trending.ranking_state.redis_read")
+    public Optional<AvailableIssueRankingState> findAvailableIssueState(@SpanAttribute("issue.id") Long issueId) {
         Objects.requireNonNull(issueId, "issueId must not be null");
 
         List<Object> state = redisTemplate.opsForHash().multiGet(
