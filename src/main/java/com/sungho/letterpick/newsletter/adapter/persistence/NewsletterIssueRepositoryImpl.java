@@ -147,6 +147,39 @@ public class NewsletterIssueRepositoryImpl implements CustomNewsletterIssueRepos
         return new SliceImpl<>(items, pageable, hasNext);
     }
 
+    @Override
+    public List<NewsletterIssueItem> findPublicIssuesByMemberIdAndIssueIds(Long memberId, List<Long> issueIds) {
+        requireNonNull(memberId);
+        requireNonNull(issueIds);
+
+        if (issueIds.isEmpty()) {
+            return List.of();
+        }
+
+        return jpaQueryFactory
+                .select(Projections.constructor(
+                        NewsletterIssueItem.class,
+                        newsletterIssue.id,
+                        newsletterIssue.newsletterId,
+                        newsletter.name,
+                        newsletter.imageUrl,
+                        newsletter.category,
+                        newsletterIssue.subject,
+                        newsletterIssue.previewText,
+                        newsletterIssue.receivedAt,
+                        newsletterIssue.read
+                ))
+                .from(newsletterIssue)
+                .join(newsletter)
+                .on(newsletter.id.eq(newsletterIssue.newsletterId))
+                .where(
+                        newsletterIssue.memberId.eq(memberId),
+                        newsletterIssue.id.in(issueIds),
+                        newsletterIssue.deleted.isFalse()
+                )
+                .fetch();
+    }
+
     private BooleanExpression categoryEq(NewsletterCategory category) {
         return category == null ? null : newsletter.category.eq(category);
     }

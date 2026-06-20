@@ -1,7 +1,9 @@
 package com.sungho.letterpick.newsletter.adapter.webapi;
 
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.PublicNewsletterIssueDetailResponse;
+import com.sungho.letterpick.newsletter.adapter.webapi.dto.PublicNewsletterIssueRankingsResponse;
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.PublicNewsletterIssuesResponse;
+import com.sungho.letterpick.newsletter.application.provided.PublicIssueRankingWindowType;
 import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,6 +26,18 @@ public interface PublicNewsletterIssueControllerApi {
     PublicNewsletterIssuesResponse getIssues(NewsletterCategory category,
                                              String keyword,
                                              Pageable pageable);
+
+    @Operation(
+            summary = "공개 뉴스레터 인기 이슈 조회",
+            description = "비로그인 사용자를 포함해 공개 뉴스레터 피드의 인기 이슈를 일간 또는 주간 랭킹 기준으로 조회한다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "400", description = "요청 query parameter 형식 오류"),
+            @ApiResponse(responseCode = "503", description = "인기 이슈 랭킹 조회 불가")
+    })
+    PublicNewsletterIssueRankingsResponse getIssueRankings(PublicIssueRankingWindowType windowType,
+                                                           Integer limit);
 
     @Operation(
             summary = "공개 뉴스레터 이슈 상세 조회",

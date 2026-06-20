@@ -3,7 +3,12 @@ package com.sungho.letterpick.newsletter.application;
 import com.sungho.letterpick.newsletter.adapter.persistence.NewsletterIssueRepository;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
+import com.sungho.letterpick.newsletter.application.provided.PublicIssueRankingItem;
+import com.sungho.letterpick.newsletter.application.provided.PublicIssueRankingWindowType;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueRankingItem;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueRankingLimitPolicy;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueSearchCondition;
+import com.sungho.letterpick.newsletter.application.required.PublicIssueRankingReader;
 import com.sungho.letterpick.newsletter.application.required.PublicFeedSearchReader;
 import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import com.sungho.letterpick.newsletter.domain.exception.NewsletterIssueNotFoundException;
@@ -40,6 +45,12 @@ class PublicNewsletterIssueQueryServiceTest {
     @Mock
     private PublicFeedSearchReader publicFeedSearchReader;
 
+    @Mock
+    private PublicIssueRankingReader publicIssueRankingReader;
+
+    private final PublicNewsletterIssueRankingLimitPolicy rankingLimitPolicy =
+            new PublicNewsletterIssueRankingLimitPolicy(20, 100);
+
     @Test
     @DisplayName("공개 피드 컬렉터 회원이 없으면 목록 조회를 실패로 드러낸다")
     void findIssuesThrowsWhenCollectorMemberNotFound() {
@@ -55,7 +66,7 @@ class PublicNewsletterIssueQueryServiceTest {
         assertThatThrownBy(() -> service.findIssues(condition, pageable))
                 .isInstanceOf(IllegalStateException.class);
         verify(publicFeedCollectorAccount).collectorMemberId();
-        verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader);
+        verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader, publicIssueRankingReader);
     }
 
     @Test
@@ -93,7 +104,7 @@ class PublicNewsletterIssueQueryServiceTest {
         assertThat(result).isSameAs(expected);
         verify(publicFeedCollectorAccount).collectorMemberId();
         verify(publicFeedSearchReader).findIssues(collectorMemberId, condition, pageable);
-        verifyNoInteractions(newsletterIssueRepository);
+        verifyNoInteractions(newsletterIssueRepository, publicIssueRankingReader);
     }
 
     @Test
@@ -109,7 +120,7 @@ class PublicNewsletterIssueQueryServiceTest {
         assertThatThrownBy(() -> service.findIssueDetail(1L))
                 .isInstanceOf(IllegalStateException.class);
         verify(publicFeedCollectorAccount).collectorMemberId();
-        verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader);
+        verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader, publicIssueRankingReader);
     }
 
     @Test
@@ -140,7 +151,7 @@ class PublicNewsletterIssueQueryServiceTest {
         assertThat(result).isSameAs(expected);
         verify(publicFeedCollectorAccount).collectorMemberId();
         verify(newsletterIssueRepository).findDetailByMemberIdAndIssueId(collectorMemberId, 1L);
-        verifyNoInteractions(publicFeedSearchReader);
+        verifyNoInteractions(publicFeedSearchReader, publicIssueRankingReader);
     }
 
     @Test
@@ -159,15 +170,88 @@ class PublicNewsletterIssueQueryServiceTest {
                 .isInstanceOf(NewsletterIssueNotFoundException.class);
         verify(publicFeedCollectorAccount).collectorMemberId();
         verify(newsletterIssueRepository).findDetailByMemberIdAndIssueId(collectorMemberId, 999L);
+        verifyNoInteractions(publicFeedSearchReader, publicIssueRankingReader);
+    }
+
+    @Test
+    @DisplayName("공개 피드 인기 이슈는 trending-service 랭킹 순서대로 표시 정보를 조립한다")
+    void findRankingsReturnsPublicIssuesInTrendingOrder() {
+        // given
+        PublicNewsletterIssueQueryService service = service();
+        Long collectorMemberId = 10L;
+        given(publicFeedCollectorAccount.collectorMemberId()).willReturn(collectorMemberId);
+        given(publicIssueRankingReader.findTop(PublicIssueRankingWindowType.DAILY, 3))
+                .willReturn(List.of(
+                        new PublicIssueRankingItem(30L, 300),
+                        new PublicIssueRankingItem(10L, 100),
+                        new PublicIssueRankingItem(20L, 200)
+                ));
+        given(newsletterIssueRepository.findPublicIssuesByMemberIdAndIssueIds(
+                collectorMemberId,
+                List.of(30L, 10L, 20L)
+        )).willReturn(List.of(
+                issueItem(10L, "두 번째"),
+                issueItem(30L, "첫 번째")
+        ));
+
+        // when
+        List<PublicNewsletterIssueRankingItem> result = service.findRankings(PublicIssueRankingWindowType.DAILY, 3);
+
+        // then
+        assertThat(result)
+                .extracting(PublicNewsletterIssueRankingItem::issueId)
+                .containsExactly(30L, 10L);
+        assertThat(result)
+                .extracting(PublicNewsletterIssueRankingItem::score)
+                .containsExactly(300L, 100L);
+        verify(publicIssueRankingReader).findTop(PublicIssueRankingWindowType.DAILY, 3);
+        verify(newsletterIssueRepository).findPublicIssuesByMemberIdAndIssueIds(
+                collectorMemberId,
+                List.of(30L, 10L, 20L)
+        );
         verifyNoInteractions(publicFeedSearchReader);
+    }
+
+    @Test
+    @DisplayName("공개 피드 인기 이슈 limit은 설정된 범위로 보정한다")
+    void findRankingsResolvesLimit() {
+        // given
+        PublicNewsletterIssueQueryService service = service();
+        Long collectorMemberId = 10L;
+        given(publicFeedCollectorAccount.collectorMemberId()).willReturn(collectorMemberId);
+        given(publicIssueRankingReader.findTop(PublicIssueRankingWindowType.WEEKLY, 100))
+                .willReturn(List.of());
+
+        // when
+        List<PublicNewsletterIssueRankingItem> result = service.findRankings(PublicIssueRankingWindowType.WEEKLY, 999);
+
+        // then
+        assertThat(result).isEmpty();
+        verify(publicIssueRankingReader).findTop(PublicIssueRankingWindowType.WEEKLY, 100);
+        verifyNoInteractions(newsletterIssueRepository, publicFeedSearchReader);
     }
 
     private PublicNewsletterIssueQueryService service() {
         return new PublicNewsletterIssueQueryService(
                 publicFeedCollectorAccount,
                 newsletterIssueRepository,
-                publicFeedSearchReader
+                publicFeedSearchReader,
+                publicIssueRankingReader,
+                rankingLimitPolicy
+        );
+    }
 
+    private NewsletterIssueItem issueItem(Long issueId, String subject) {
+        return new NewsletterIssueItem(
+                issueId,
+                2L,
+                "기술 뉴스레터",
+                "https://example.com/newsletter.png",
+                NewsletterCategory.TECH,
+                subject,
+                subject + " 미리보기",
+                Instant.parse("2050-05-12T03:00:00Z"),
+                false
         );
     }
 }

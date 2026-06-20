@@ -39,6 +39,7 @@ public class SecurityConfig {
             "/api/v1/newsletters",
             "/api/v1/newsletters/categories",
             "/api/v1/newsletter-issues",
+            "/api/v1/newsletter-issues/rankings",
             "/api/v1/newsletter-issues/*"
     };
 

@@ -7,6 +7,7 @@ import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIss
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface CustomNewsletterIssueRepository {
@@ -21,6 +22,8 @@ public interface CustomNewsletterIssueRepository {
     Slice<NewsletterIssueItem> findPublicIssuesByMemberIdWithFullText(Long memberId,
                                                                       PublicNewsletterIssueSearchCondition condition,
                                                                       Pageable pageable);
+
+    List<NewsletterIssueItem> findPublicIssuesByMemberIdAndIssueIds(Long memberId, List<Long> issueIds);
 
     Optional<NewsletterIssueDetail> findDetailByMemberIdAndIssueId(Long memberId, Long issueId);
 }

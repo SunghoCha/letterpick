@@ -7,9 +7,12 @@ import com.sungho.letterpick.member.adapter.security.CustomOidcUserService;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginFailureHandler;
 import com.sungho.letterpick.member.adapter.security.OAuth2LoginSuccessHandler;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
+import com.sungho.letterpick.newsletter.application.provided.PublicIssueRankingWindowType;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueFinder;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueRankingItem;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecordRequest;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecorder;
+import com.sungho.letterpick.newsletter.domain.NewsletterCategory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -78,6 +81,32 @@ class PublicNewsletterIssueControllerSecurityTest {
                 .andExpect(status().isOk());
 
         verify(publicNewsletterIssueFinder).findIssues(any(), any());
+    }
+
+    @Test
+    @DisplayName("익명 사용자가 공개 뉴스레터 인기 이슈를 조회할 수 있다")
+    void getIssueRankings_passes_for_anonymous() throws Exception {
+        // given
+        given(publicNewsletterIssueFinder.findRankings(PublicIssueRankingWindowType.DAILY, 20))
+                .willReturn(List.of(new PublicNewsletterIssueRankingItem(
+                        10L,
+                        1L,
+                        "테크 레터",
+                        "https://example.com/tech.png",
+                        NewsletterCategory.TECH,
+                        "테크 뉴스",
+                        "테크 뉴스 미리보기",
+                        Instant.parse("2050-05-12T01:00:00Z"),
+                        123
+                )));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/newsletter-issues/rankings")
+                        .param("windowType", "DAILY")
+                        .param("limit", "20"))
+                .andExpect(status().isOk());
+
+        verify(publicNewsletterIssueFinder).findRankings(PublicIssueRankingWindowType.DAILY, 20);
     }
 
     @Test
