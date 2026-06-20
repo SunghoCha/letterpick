@@ -2,6 +2,7 @@ package com.sungho.letterpick.trending.ranking.adapter.redis;
 
 import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingWindow;
 import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingSummaryWriter;
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,8 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
     private static final long RANKING_SIZE_LIMIT = 100;
     private static final Duration DAILY_RANKING_RETENTION_AFTER_WINDOW = Duration.ofDays(2);
     private static final Duration WEEKLY_RANKING_RETENTION_AFTER_WINDOW = Duration.ofDays(7);
+    private static final String WINDOW_TYPE_ATTRIBUTE = "ranking.window.type";
+    private static final String WINDOW_KEY_ATTRIBUTE = "ranking.window.key";
 
     private final StringRedisTemplate redisTemplate;
     private final String redisKeyPrefix;
@@ -48,6 +51,9 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
         Objects.requireNonNull(window, "window must not be null");
         Objects.requireNonNull(issueId, "issueId must not be null");
         Objects.requireNonNull(calculatedAt, "calculatedAt must not be null");
+
+        Span.current().setAttribute(WINDOW_TYPE_ATTRIBUTE, window.type().name());
+        Span.current().setAttribute(WINDOW_KEY_ATTRIBUTE, window.key());
 
         String rankingKey = RedisPublicIssueRankingKeys.rankingKey(redisKeyPrefix, window);
         String rankedIssueId = RedisPublicIssueRankingKeys.rankedIssueId(issueId);
