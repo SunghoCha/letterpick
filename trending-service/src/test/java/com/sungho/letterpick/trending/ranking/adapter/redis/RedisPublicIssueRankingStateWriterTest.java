@@ -1,6 +1,7 @@
 package com.sungho.letterpick.trending.ranking.adapter.redis;
 
 import com.sungho.letterpick.trending.TrendingRedisTestConfiguration;
+import com.sungho.letterpick.trending.config.TrendingTimeConfig;
 import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingWindow;
 import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingWindowCalculator;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 })
 @Import({
         TrendingRedisTestConfiguration.class,
+        TrendingTimeConfig.class,
         PublicIssueRankingWindowCalculator.class,
         RedisPublicIssueRankingStateWriter.class
 })

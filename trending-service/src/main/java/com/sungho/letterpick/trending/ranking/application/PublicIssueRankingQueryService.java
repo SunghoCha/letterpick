@@ -2,32 +2,35 @@ package com.sungho.letterpick.trending.ranking.application;
 
 import com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRankingFinder;
 import com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRankingItem;
-import com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRankingLimit;
+import com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRankingLimitPolicy;
 import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingReader;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
-@RequiredArgsConstructor
 public class PublicIssueRankingQueryService implements PublicIssueRankingFinder {
 
-    private static final ZoneId RANKING_ZONE = ZoneId.of("Asia/Seoul");
-
     private final PublicIssueRankingReader rankingReader;
-    private final Clock clock;
+    private final PublicIssueRankingLimitPolicy limitPolicy;
+    private final PublicIssueRankingWindowCalculator windowCalculator;
+
+    public PublicIssueRankingQueryService(
+            PublicIssueRankingReader rankingReader,
+            PublicIssueRankingLimitPolicy limitPolicy,
+            PublicIssueRankingWindowCalculator windowCalculator
+    ) {
+        this.rankingReader = rankingReader;
+        this.limitPolicy = limitPolicy;
+        this.windowCalculator = windowCalculator;
+    }
 
     @Override
-    public List<PublicIssueRankingItem> findTodayTop(int limit) {
-        PublicIssueRankingLimit.validate(limit);
+    public List<PublicIssueRankingItem> findTop(PublicIssueRankingWindowType windowType, Integer limit) {
+        int resolvedLimit = limitPolicy.resolve(limit);
 
-        LocalDate today = LocalDate.now(clock.withZone(RANKING_ZONE));
-        return rankingReader.findTop(PublicIssueRankingWindow.daily(today, RANKING_ZONE), limit);
+        return rankingReader.findTop(windowCalculator.currentWindow(windowType), resolvedLimit);
     }
 }

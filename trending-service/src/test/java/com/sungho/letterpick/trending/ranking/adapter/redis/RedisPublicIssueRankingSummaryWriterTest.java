@@ -2,6 +2,7 @@ package com.sungho.letterpick.trending.ranking.adapter.redis;
 
 import com.sungho.letterpick.trending.TrendingRedisTestConfiguration;
 import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingWindow;
+import com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRankingLimitPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 })
 @Import({
         TrendingRedisTestConfiguration.class,
+        PublicIssueRankingLimitPolicy.class,
         RedisPublicIssueRankingSummaryWriter.class
 })
 class RedisPublicIssueRankingSummaryWriterTest {
@@ -107,6 +109,34 @@ class RedisPublicIssueRankingSummaryWriterTest {
     }
 
     @Test
+    @DisplayName("window ranking 유지 개수는 설정된 maxSize를 따른다")
+    void keep_configured_max_size_ranked_issues() {
+        // given
+        PublicIssueRankingWindow window = dailyWindow();
+        RedisPublicIssueRankingSummaryWriter maxSizeThreeWriter = new RedisPublicIssueRankingSummaryWriter(
+                redisTemplate,
+                redisKeyPrefix,
+                new PublicIssueRankingLimitPolicy(2, 3)
+        );
+
+        // when
+        for (long issueId = 1; issueId <= 4; issueId++) {
+            maxSizeThreeWriter.save(window, issueId, issueId, CALCULATED_AT);
+        }
+
+        // then
+        String rankingKey = rankingKey(window);
+        assertThat(redisTemplate.opsForZSet().size(rankingKey))
+                .isEqualTo(3L);
+        assertThat(redisTemplate.opsForZSet().score(rankingKey, "1"))
+                .isNull();
+        assertThat(redisTemplate.opsForZSet().score(rankingKey, "2"))
+                .isEqualTo(2.0);
+        assertThat(redisTemplate.opsForZSet().score(rankingKey, "4"))
+                .isEqualTo(4.0);
+    }
+
+    @Test
     @DisplayName("daily ranking은 window 종료 후 2일 뒤 만료된다")
     void daily_ranking_expires_after_two_days_from_window_end() {
         // given
@@ -168,7 +198,11 @@ class RedisPublicIssueRankingSummaryWriterTest {
     @Test
     @DisplayName("blank Redis key prefix는 허용하지 않는다")
     void reject_blank_redis_key_prefix() {
-        assertThatThrownBy(() -> new RedisPublicIssueRankingSummaryWriter(redisTemplate, " "))
+        assertThatThrownBy(() -> new RedisPublicIssueRankingSummaryWriter(
+                redisTemplate,
+                " ",
+                new PublicIssueRankingLimitPolicy(20, 100)
+        ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("redisKeyPrefix must not be blank");
     }
@@ -178,7 +212,8 @@ class RedisPublicIssueRankingSummaryWriterTest {
     void reject_redis_key_prefix_with_surrounding_whitespace() {
         assertThatThrownBy(() -> new RedisPublicIssueRankingSummaryWriter(
                 redisTemplate,
-                " letterpick:trending:ranking"
+                " letterpick:trending:ranking",
+                new PublicIssueRankingLimitPolicy(20, 100)
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("redisKeyPrefix must not contain leading or trailing whitespace");
