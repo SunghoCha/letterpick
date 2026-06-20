@@ -6,13 +6,16 @@ import com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRa
 import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingReader;
 import com.sungho.letterpick.trending.publicissue.PublicIssueCandidateStatus;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
+@Slf4j
 public class RedisPublicIssueRankingReader implements PublicIssueRankingReader {
 
     private final StringRedisTemplate redisTemplate;
@@ -47,29 +50,49 @@ public class RedisPublicIssueRankingReader implements PublicIssueRankingReader {
         }
 
         return rankings.stream()
-                .filter(this::isAvailable)
-                .map(this::toRankingItem)
+                .map(tuple -> toAvailableRankingItem(rankingKey, tuple))
+                .flatMap(Optional::stream)
                 .limit(resolvedLimit)
                 .toList();
     }
 
-    private boolean isAvailable(ZSetOperations.TypedTuple<String> tuple) {
-        String rankedIssueId = Objects.requireNonNull(tuple.getValue(), "rankedIssueId must not be null");
-        Long issueId = Long.parseLong(rankedIssueId);
+    private Optional<PublicIssueRankingItem> toAvailableRankingItem(
+            String rankingKey,
+            ZSetOperations.TypedTuple<String> tuple
+    ) {
+        Long issueId = parseIssueId(rankingKey, tuple.getValue());
+
+        if (issueId == null || !isAvailable(issueId)) {
+            return Optional.empty();
+        }
+
+        Double score = Objects.requireNonNull(tuple.getScore(), "score must not be null");
+
+        return Optional.of(new PublicIssueRankingItem(
+                issueId,
+                score.longValue()
+        ));
+    }
+
+    private Long parseIssueId(String rankingKey, String rankedIssueId) {
+        if (rankedIssueId == null) {
+            log.warn("Skip malformed ranking member. rankingKey={}, rankedIssueId=null", rankingKey);
+            return null;
+        }
+
+        try {
+            return Long.parseLong(rankedIssueId);
+        } catch (NumberFormatException e) {
+            log.warn("Skip malformed ranking member. rankingKey={}, rankedIssueId={}", rankingKey, rankedIssueId);
+            return null;
+        }
+    }
+
+    private boolean isAvailable(Long issueId) {
         Object status = redisTemplate.opsForHash().get(
                 RedisPublicIssueRankingKeys.issueStateKey(issueStateRedisKeyPrefix, issueId),
                 RedisPublicIssueRankingKeys.STATUS_FIELD
         );
         return PublicIssueCandidateStatus.AVAILABLE.name().equals(status);
-    }
-
-    private PublicIssueRankingItem toRankingItem(ZSetOperations.TypedTuple<String> tuple) {
-        String rankedIssueId = Objects.requireNonNull(tuple.getValue(), "rankedIssueId must not be null");
-        Double score = Objects.requireNonNull(tuple.getScore(), "score must not be null");
-
-        return new PublicIssueRankingItem(
-                Long.parseLong(rankedIssueId),
-                score.longValue()
-        );
     }
 }
