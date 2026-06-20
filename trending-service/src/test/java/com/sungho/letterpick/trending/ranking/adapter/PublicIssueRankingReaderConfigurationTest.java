@@ -38,6 +38,21 @@ class PublicIssueRankingReaderConfigurationTest {
     }
 
     @Test
+    @DisplayName("reader 설정이 없으면 Redis ranking reader를 기본으로 등록한다")
+    void register_redis_reader_when_reader_is_missing() {
+        contextRunner
+                .withPropertyValues(
+                        "letterpick.trending.ranking.summary.redis-key-prefix=letterpick:trending:ranking",
+                        "letterpick.trending.ranking.state.redis-key-prefix=letterpick:trending:issue"
+                )
+                .run(context -> {
+                    assertThat(context).hasSingleBean(PublicIssueRankingReader.class);
+                    assertThat(context).hasSingleBean(RedisPublicIssueRankingReader.class);
+                    assertThat(context).doesNotHaveBean(RdsSummaryPublicIssueRankingReader.class);
+                });
+    }
+
+    @Test
     @DisplayName("RDS reader 설정이면 RDS summary ranking reader를 등록한다")
     void register_rds_reader_when_reader_is_rds() {
         contextRunner

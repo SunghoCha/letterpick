@@ -105,6 +105,24 @@ class RedisPublicIssueRankingReaderTest {
     }
 
     @Test
+    @DisplayName("숫자가 아닌 ranking member는 건너뛰고 정상 issue만 응답한다")
+    void skip_malformed_ranking_member() {
+        // given
+        PublicIssueRankingWindow window = dailyWindow();
+        redisTemplate.opsForZSet().add(rankingKey(window), "not-an-issue-id", 2_000);
+        redisTemplate.opsForZSet().add(rankingKey(window), "10", 1_000);
+        markAvailable(10L);
+
+        // when
+        List<PublicIssueRankingItem> rankingItems = reader.findTop(window, 10);
+
+        // then
+        assertThat(rankingItems)
+                .extracting(PublicIssueRankingItem::issueId)
+                .containsExactly(10L);
+    }
+
+    @Test
     @DisplayName("window ZSET이 없으면 빈 목록을 반환한다")
     void return_empty_when_window_zset_does_not_exist() {
         assertThat(reader.findTop(dailyWindow(), 10))

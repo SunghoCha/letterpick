@@ -18,7 +18,8 @@ public class PublicIssueRankingReaderConfiguration {
     @ConditionalOnProperty(
             prefix = "letterpick.trending.ranking.summary",
             name = "reader",
-            havingValue = "redis"
+            havingValue = "redis",
+            matchIfMissing = true
     )
     PublicIssueRankingReader redisPublicIssueRankingReader(
             StringRedisTemplate redisTemplate,
