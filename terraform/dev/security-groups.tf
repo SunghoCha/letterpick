@@ -116,6 +116,16 @@ resource "aws_vpc_security_group_ingress_rule" "trending_service_task_http_from_
   to_port     = var.container_port
 }
 
+resource "aws_vpc_security_group_ingress_rule" "trending_service_task_http_from_api" {
+  security_group_id            = aws_security_group.trending_service_task.id
+  referenced_security_group_id = aws_security_group.api_task.id
+  description                  = "Allow API task to reach trending service HTTP"
+
+  ip_protocol = "tcp"
+  from_port   = var.container_port
+  to_port     = var.container_port
+}
+
 resource "aws_security_group" "db_access_host" {
   count = var.enable_db_access_host ? 1 : 0
 
