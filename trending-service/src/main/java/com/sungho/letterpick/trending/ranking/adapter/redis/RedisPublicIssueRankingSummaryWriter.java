@@ -1,5 +1,6 @@
 package com.sungho.letterpick.trending.ranking.adapter.redis;
 
+import com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRankingLimitPolicy;
 import com.sungho.letterpick.trending.ranking.application.PublicIssueRankingWindow;
 import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingSummaryWriter;
 import io.opentelemetry.api.trace.Span;
@@ -25,7 +26,6 @@ import java.util.Objects;
 )
 public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingSummaryWriter {
 
-    private static final long RANKING_SIZE_LIMIT = 100;
     private static final Duration DAILY_RANKING_RETENTION_AFTER_WINDOW = Duration.ofDays(2);
     private static final Duration WEEKLY_RANKING_RETENTION_AFTER_WINDOW = Duration.ofDays(7);
     private static final String WINDOW_TYPE_ATTRIBUTE = "ranking.window.type";
@@ -33,13 +33,16 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
 
     private final StringRedisTemplate redisTemplate;
     private final String redisKeyPrefix;
+    private final PublicIssueRankingLimitPolicy limitPolicy;
 
     public RedisPublicIssueRankingSummaryWriter(
             StringRedisTemplate redisTemplate,
-            @Value("${letterpick.trending.ranking.summary.redis-key-prefix}") String redisKeyPrefix
+            @Value("${letterpick.trending.ranking.summary.redis-key-prefix}") String redisKeyPrefix,
+            PublicIssueRankingLimitPolicy limitPolicy
     ) {
         this.redisTemplate = redisTemplate;
         this.redisKeyPrefix = RedisPublicIssueRankingKeys.validateRedisKeyPrefix(redisKeyPrefix);
+        this.limitPolicy = limitPolicy;
     }
 
     @Override
@@ -62,7 +65,7 @@ public class RedisPublicIssueRankingSummaryWriter implements PublicIssueRankingS
         redisTemplate.executePipelined((RedisCallback<?>) connection -> {
             StringRedisConnection stringConnection = new DefaultStringRedisConnection(connection);
             stringConnection.zAdd(rankingKey, score, rankedIssueId);
-            stringConnection.zRemRange(rankingKey, 0, -RANKING_SIZE_LIMIT - 1);
+            stringConnection.zRemRange(rankingKey, 0, -limitPolicy.maxSize() - 1L);
             stringConnection.expireAt(rankingKey, expireAt.getEpochSecond());
             return null;
         });

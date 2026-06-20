@@ -6,11 +6,9 @@ import com.sungho.letterpick.trending.ranking.application.provided.PublicIssueRa
 import com.sungho.letterpick.trending.ranking.application.required.PublicIssueRankingReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Component
 @RequiredArgsConstructor
 public class RdsSummaryPublicIssueRankingReader implements PublicIssueRankingReader {
 

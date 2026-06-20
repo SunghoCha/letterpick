@@ -10,8 +10,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.mockito.Mockito.verify;
@@ -23,6 +25,7 @@ import static org.mockito.Mockito.when;
 class PublicIssueRankingScoreUpdaterTest {
 
     private static final ZoneId RANKING_ZONE = ZoneId.of("Asia/Seoul");
+    private static final Clock CLOCK = Clock.fixed(Instant.parse("2050-06-10T01:00:00Z"), ZoneOffset.UTC);
     private static final Instant COLLECTED_AT = Instant.parse("2050-06-10T00:59:00Z");
     private static final Instant CALCULATED_AT = Instant.parse("2050-06-10T01:00:00Z");
 
@@ -43,7 +46,7 @@ class PublicIssueRankingScoreUpdaterTest {
                 rankingStateReader,
                 scoreCalculator,
                 rankingSummaryWriter,
-                new PublicIssueRankingWindowCalculator()
+                new PublicIssueRankingWindowCalculator(CLOCK)
         );
     }
 
