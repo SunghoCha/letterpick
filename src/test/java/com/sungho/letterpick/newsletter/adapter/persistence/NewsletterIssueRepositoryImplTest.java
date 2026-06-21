@@ -21,6 +21,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -549,6 +550,47 @@ class NewsletterIssueRepositoryImplTest {
         assertThat(detail.read()).isTrue();
         assertThat(newsletterIssueRepository.findDetailByMemberIdAndIssueId(otherMemberId, targetIssue.getId())).isEmpty();
         assertThat(newsletterIssueRepository.findDetailByMemberIdAndIssueId(memberId, deletedIssue.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("ID 목록으로 공개 피드 이슈 표시 정보를 조회하고 삭제된 이슈는 제외한다")
+    void findPublicIssuesByMemberIdAndIssueIds_returns_public_issue_items() {
+        // given
+        Long collectorMemberId = 1L;
+        Long otherMemberId = 2L;
+        Newsletter newsletter = newslettersRepository.save(
+                NewsletterFixture.createNewsletter("랭킹 뉴스레터", NewsletterCategory.TECH)
+        );
+        NewsletterIssue firstIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, newsletter.getId(), 10L, "첫 번째 이슈",
+                        "첫 번째 본문", "첫 번째 미리보기", Instant.parse("2050-05-12T01:00:00Z"))
+        );
+        NewsletterIssue secondIssue = newsletterIssueRepository.save(
+                createIssue(collectorMemberId, newsletter.getId(), 11L, "두 번째 이슈",
+                        "두 번째 본문", "두 번째 미리보기", Instant.parse("2050-05-12T02:00:00Z"))
+        );
+        NewsletterIssue deletedIssue = createIssue(collectorMemberId, newsletter.getId(), 12L, "삭제된 이슈",
+                "삭제된 본문", "삭제된 미리보기", Instant.parse("2050-05-12T03:00:00Z"));
+        deletedIssue.deleteFromList();
+        newsletterIssueRepository.save(deletedIssue);
+        newsletterIssueRepository.save(
+                createIssue(otherMemberId, newsletter.getId(), 13L, "다른 회원 이슈",
+                        "다른 회원 본문", "다른 회원 미리보기", Instant.parse("2050-05-12T04:00:00Z"))
+        );
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        List<NewsletterIssueItem> result = newsletterIssueRepository.findPublicIssuesByMemberIdAndIssueIds(
+                collectorMemberId,
+                List.of(firstIssue.getId(), secondIssue.getId(), deletedIssue.getId())
+        );
+
+        // then
+        assertThat(result)
+                .extracting(NewsletterIssueItem::issueId)
+                .containsExactlyInAnyOrder(firstIssue.getId(), secondIssue.getId());
     }
 
     private NewsletterIssue createIssue(Long memberId, Long newsletterId, Long inboundEmailId,

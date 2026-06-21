@@ -2,7 +2,9 @@ package com.sungho.letterpick.newsletter.adapter.webapi;
 
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
+import com.sungho.letterpick.newsletter.application.provided.PublicIssueRankingWindowType;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueFinder;
+import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueRankingItem;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueSearchCondition;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecordRequest;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecorder;
@@ -118,6 +120,43 @@ class PublicNewsletterIssueControllerTest {
                 .andExpect(jsonPath("$.timestamp").exists());
 
         verifyNoInteractions(publicNewsletterIssueFinder);
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/newsletter-issues/rankings 요청 시 인기 이슈 목록을 반환한다")
+    void getIssueRankings_returns_public_issue_rankings() throws Exception {
+        // given
+        given(publicNewsletterIssueFinder.findRankings(PublicIssueRankingWindowType.DAILY, 3))
+                .willReturn(List.of(new PublicNewsletterIssueRankingItem(
+                        10L,
+                        1L,
+                        "테크 레터",
+                        "https://example.com/tech.png",
+                        NewsletterCategory.TECH,
+                        "테크 뉴스",
+                        "테크 뉴스 미리보기",
+                        Instant.parse("2050-05-12T01:00:00Z"),
+                        123
+                )));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/newsletter-issues/rankings")
+                        .param("windowType", "DAILY")
+                        .param("limit", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].issueId").value(10L))
+                .andExpect(jsonPath("$.items[0].newsletterId").value(1L))
+                .andExpect(jsonPath("$.items[0].newsletterName").value("테크 레터"))
+                .andExpect(jsonPath("$.items[0].newsletterImageUrl").value("https://example.com/tech.png"))
+                .andExpect(jsonPath("$.items[0].newsletterCategory.code").value("TECH"))
+                .andExpect(jsonPath("$.items[0].newsletterCategory.label").value("IT·테크"))
+                .andExpect(jsonPath("$.items[0].subject").value("테크 뉴스"))
+                .andExpect(jsonPath("$.items[0].previewText").value("테크 뉴스 미리보기"))
+                .andExpect(jsonPath("$.items[0].receivedAt").value("2050-05-12T01:00:00Z"))
+                .andExpect(jsonPath("$.items[0].score").value(123));
+
+        verify(publicNewsletterIssueFinder).findRankings(PublicIssueRankingWindowType.DAILY, 3);
     }
 
     @Test

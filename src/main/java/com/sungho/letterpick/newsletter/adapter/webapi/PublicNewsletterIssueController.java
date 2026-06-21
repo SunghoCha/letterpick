@@ -1,9 +1,11 @@
 package com.sungho.letterpick.newsletter.adapter.webapi;
 
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.PublicNewsletterIssueDetailResponse;
+import com.sungho.letterpick.newsletter.adapter.webapi.dto.PublicNewsletterIssueRankingsResponse;
 import com.sungho.letterpick.newsletter.adapter.webapi.dto.PublicNewsletterIssuesResponse;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueDetail;
 import com.sungho.letterpick.newsletter.application.provided.NewsletterIssueItem;
+import com.sungho.letterpick.newsletter.application.provided.PublicIssueRankingWindowType;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueFinder;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueSearchCondition;
 import com.sungho.letterpick.newsletter.application.provided.PublicNewsletterIssueViewCountRecordRequest;
@@ -42,6 +44,17 @@ public class PublicNewsletterIssueController implements PublicNewsletterIssueCon
                 pageable
         );
         return PublicNewsletterIssuesResponse.from(issueItems);
+    }
+
+    @Override
+    @GetMapping("/rankings")
+    public PublicNewsletterIssueRankingsResponse getIssueRankings(
+            @RequestParam PublicIssueRankingWindowType windowType,
+            @RequestParam(required = false) Integer limit
+    ) {
+        return PublicNewsletterIssueRankingsResponse.from(
+                publicNewsletterIssueFinder.findRankings(windowType, limit)
+        );
     }
 
     @Override

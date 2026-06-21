@@ -54,6 +54,7 @@ locals {
       LETTERPICK_SQS_ENABLED               = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "false"
       LETTERPICK_OUTBOX_PUBLISH_ENABLED    = "true"
+      LETTERPICK_TRENDING_SERVICE_BASE_URL = local.trending_service_connect_base_url
       MANAGEMENT_METRICS_TAGS_APPLICATION  = "letterpick-api"
       MANAGEMENT_METRICS_TAGS_SERVICE      = "letterpick-api"
       }) : {
@@ -456,6 +457,8 @@ locals {
       {
         containerPort = var.container_port
         protocol      = "tcp"
+        name          = local.service_connect_port_name
+        appProtocol   = "http"
       },
     ]
 

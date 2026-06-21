@@ -22,6 +22,9 @@ newsletter:
 
 letterpick:
   public-issue:
+    ranking:
+      default-limit: 20
+      max-limit: 100
     view-count:
       anonymous-cookie-secure: false
   outbox:

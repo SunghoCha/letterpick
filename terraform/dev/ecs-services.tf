@@ -2,6 +2,15 @@
 // API는 ALB target group에 붙이고, Worker는 외부 ingress 없이 SQS를 polling한다.
 // task_definition은 최초 생성에만 사용하고 이후 image revision은 배포 파이프라인이 바꿀 수 있게 둔다.
 
+resource "aws_service_discovery_http_namespace" "service_connect" {
+  name        = local.service_connect_namespace_name
+  description = "Service Connect namespace for ${local.name_prefix}"
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-service-connect-namespace"
+  })
+}
+
 resource "aws_ecs_service" "api" {
   name            = "${local.name_prefix}-api"
   cluster         = aws_ecs_cluster.main.id
@@ -26,6 +35,11 @@ resource "aws_ecs_service" "api" {
     subnets          = aws_subnet.private[*].id
     security_groups  = [aws_security_group.api_task.id]
     assign_public_ip = false
+  }
+
+  service_connect_configuration {
+    enabled   = true
+    namespace = aws_service_discovery_http_namespace.service_connect.arn
   }
 
   enable_ecs_managed_tags = true
@@ -94,6 +108,21 @@ resource "aws_ecs_service" "trending_service" {
     subnets          = aws_subnet.private[*].id
     security_groups  = [aws_security_group.trending_service_task.id]
     assign_public_ip = false
+  }
+
+  service_connect_configuration {
+    enabled   = true
+    namespace = aws_service_discovery_http_namespace.service_connect.arn
+
+    service {
+      port_name      = local.service_connect_port_name
+      discovery_name = local.trending_service_connect_dns_name
+
+      client_alias {
+        dns_name = local.trending_service_connect_dns_name
+        port     = var.container_port
+      }
+    }
   }
 
   enable_ecs_managed_tags = true
