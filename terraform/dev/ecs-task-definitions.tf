@@ -99,6 +99,7 @@ locals {
       LETTERPICK_SQS_ENABLED               = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "true"
       LETTERPICK_MAIL_RECEIVE_QUEUE        = aws_sqs_queue.mail_receive.name
+      LETTERPICK_TRENDING_SERVICE_BASE_URL = local.trending_service_connect_base_url
       MANAGEMENT_METRICS_TAGS_APPLICATION  = "letterpick-worker"
       MANAGEMENT_METRICS_TAGS_SERVICE      = "letterpick-worker"
       }) : {
