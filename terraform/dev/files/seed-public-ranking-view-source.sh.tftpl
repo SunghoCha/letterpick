@@ -1,0 +1,253 @@
+#!/bin/bash
+set -euo pipefail
+
+AWS_REGION="${aws_region}"
+DB_HOST="${db_host}"
+DB_PORT="${db_port}"
+DB_NAME="${db_name}"
+DB_SECRET_ARN="${db_secret_arn}"
+REDIS_HOST="${redis_host}"
+REDIS_PORT="${redis_port}"
+ISSUE_STATE_REDIS_KEY_PREFIX="${issue_state_redis_key_prefix}"
+
+COLLECTOR_EMAIL="public-feed-collector@letterpick.dev"
+COLLECTOR_NICKNAME="publicfeeddev"
+COLLECTOR_SOCIAL_PROVIDER="GOOGLE"
+COLLECTOR_SOCIAL_PROVIDER_ID="dev-public-feed-collector"
+COLLECTOR_INBOX_ADDRESS="omcxewctypxo@inbound-dev.letterpicknews.com"
+
+NEWSLETTER_EMAIL="public-feed-seed@letterpick.dev"
+NEWSLETTER_NAME="Dev Public Feed"
+NEWSLETTER_CATEGORY="TECH"
+
+DEFAULT_ISSUE_COUNT="100"
+ISSUE_COUNT="$${PUBLIC_RANKING_VIEW_SEED_ISSUE_COUNT:-$DEFAULT_ISSUE_COUNT}"
+SEED_KEY="$${PUBLIC_RANKING_VIEW_SEED_KEY:-$(date -u +%Y%m%d%H%M%S)}"
+OUTPUT_DIR="$${PUBLIC_RANKING_VIEW_SEED_OUTPUT_DIR:-/opt/letterpick-k6/results}"
+MESSAGE_KEY_PREFIX="dev-public-ranking-view-$SEED_KEY-"
+ISSUE_STATE_TTL_SECONDS="1209600"
+
+if ! [[ "$ISSUE_COUNT" =~ ^[0-9]+$ ]] || [ "$ISSUE_COUNT" -lt 1 ] || [ "$ISSUE_COUNT" -gt 1000 ]; then
+  echo "PUBLIC_RANKING_VIEW_SEED_ISSUE_COUNT must be between 1 and 1000" >&2
+  exit 1
+fi
+
+if ! [[ "$SEED_KEY" =~ ^[A-Za-z0-9.-]+$ ]]; then
+  echo "PUBLIC_RANKING_VIEW_SEED_KEY may contain only letters, numbers, dot, and hyphen" >&2
+  exit 1
+fi
+
+SECRET_JSON="$(aws secretsmanager get-secret-value \
+  --region "$AWS_REGION" \
+  --secret-id "$DB_SECRET_ARN" \
+  --query SecretString \
+  --output text)"
+
+DB_USER="$(echo "$SECRET_JSON" | jq -r '.username')"
+DB_PASSWORD="$(echo "$SECRET_JSON" | jq -r '.password')"
+
+SQL_FILE="$(mktemp)"
+SELECT_SQL_FILE="$(mktemp)"
+ISSUE_ROWS_FILE="$(mktemp)"
+trap 'rm -f "$SQL_FILE" "$SELECT_SQL_FILE" "$ISSUE_ROWS_FILE"' EXIT
+
+cat >"$SQL_FILE" <<SQL
+SET @now = UTC_TIMESTAMP(6);
+
+INSERT INTO member (
+    email,
+    social_provider,
+    social_provider_id,
+    nickname,
+    newsletter_inbox_address,
+    status,
+    role,
+    created_at,
+    updated_at
+)
+VALUES (
+    '$COLLECTOR_EMAIL',
+    '$COLLECTOR_SOCIAL_PROVIDER',
+    '$COLLECTOR_SOCIAL_PROVIDER_ID',
+    '$COLLECTOR_NICKNAME',
+    '$COLLECTOR_INBOX_ADDRESS',
+    'ACTIVE',
+    'USER',
+    @now,
+    @now
+)
+ON DUPLICATE KEY UPDATE
+    id = LAST_INSERT_ID(id),
+    newsletter_inbox_address = VALUES(newsletter_inbox_address),
+    updated_at = @now;
+
+SET @member_id = LAST_INSERT_ID();
+
+INSERT INTO newsletter (
+    name,
+    description,
+    image_url,
+    category,
+    subscribe_url,
+    main_page_url,
+    email,
+    created_at,
+    updated_at
+)
+VALUES (
+    '$NEWSLETTER_NAME',
+    'Dev public ranking view-count seed newsletter',
+    'https://dev.letterpicknews.com/public-feed-seed.png',
+    '$NEWSLETTER_CATEGORY',
+    'https://dev.letterpicknews.com/public-feed-seed/subscribe',
+    'https://dev.letterpicknews.com/public-feed-seed',
+    '$NEWSLETTER_EMAIL',
+    @now,
+    @now
+)
+ON DUPLICATE KEY UPDATE
+    id = LAST_INSERT_ID(id),
+    updated_at = @now;
+
+SET @newsletter_id = LAST_INSERT_ID();
+SQL
+
+values=""
+for n in $(seq 1 "$ISSUE_COUNT"); do
+  padded="$(printf "%04d" "$n")"
+  key="$MESSAGE_KEY_PREFIX$padded"
+  subject="Dev ranking view seed $SEED_KEY #$padded"
+  received_offset=$((ISSUE_COUNT - n))
+
+  if [ -n "$values" ]; then
+    values="$values,"$'\n'
+  fi
+
+  values="$values('$key', 'dev-public-ranking-view/raw/$key.eml', '$COLLECTOR_INBOX_ADDRESS', '$NEWSLETTER_EMAIL', '$subject', DATE_SUB(@now, INTERVAL $received_offset SECOND), 'ISSUE_CREATED', @member_id, @newsletter_id, @now, @now)"
+done
+
+start_key="$MESSAGE_KEY_PREFIX$(printf "%04d" 1)"
+end_key="$MESSAGE_KEY_PREFIX$(printf "%04d" "$ISSUE_COUNT")"
+
+cat >>"$SQL_FILE" <<SQL
+
+INSERT IGNORE INTO inbound_email (
+    message_key,
+    raw_reference,
+    recipient_address,
+    sender_email,
+    subject,
+    received_at,
+    status,
+    member_id,
+    newsletter_id,
+    created_at,
+    updated_at
+)
+VALUES
+$values;
+
+INSERT IGNORE INTO newsletter_issue (
+    member_id,
+    newsletter_id,
+    inbound_email_id,
+    subject,
+    content,
+    preview_text,
+    received_at,
+    read_status,
+    deleted,
+    created_at,
+    updated_at
+)
+SELECT
+    @member_id,
+    @newsletter_id,
+    ie.id,
+    ie.subject,
+    CONCAT('<html><body><h1>', ie.subject, '</h1><p>This issue is generated for dev ranking view-count experiments.</p></body></html>'),
+    CONCAT(ie.subject, ' preview'),
+    ie.received_at,
+    false,
+    false,
+    @now,
+    @now
+FROM inbound_email ie
+WHERE ie.message_key >= '$start_key'
+  AND ie.message_key <= '$end_key';
+SQL
+
+cat >"$SELECT_SQL_FILE" <<SQL
+SELECT
+    ni.id,
+    DATE_FORMAT(ie.received_at, '%Y-%m-%dT%H:%i:%s.%fZ')
+FROM newsletter_issue ni
+JOIN inbound_email ie ON ie.id = ni.inbound_email_id
+WHERE ie.message_key >= '$start_key'
+  AND ie.message_key <= '$end_key'
+ORDER BY ni.id;
+SQL
+
+echo "Seeding DB source issues for public ranking view-count experiment..."
+echo "DB: $DB_HOST:$DB_PORT/$DB_NAME"
+echo "Redis: $REDIS_HOST:$REDIS_PORT"
+echo "SEED_KEY: $SEED_KEY"
+echo "ISSUE_COUNT: $ISSUE_COUNT"
+
+sudo docker run --rm -i \
+  -e MYSQL_PWD="$DB_PASSWORD" \
+  mysql:8.4 \
+  mysql \
+    --default-character-set=utf8mb4 \
+    -h "$DB_HOST" \
+    -P "$DB_PORT" \
+    -u "$DB_USER" \
+    "$DB_NAME" <"$SQL_FILE"
+
+sudo docker run --rm -i \
+  -e MYSQL_PWD="$DB_PASSWORD" \
+  mysql:8.4 \
+  mysql \
+    --default-character-set=utf8mb4 \
+    --batch \
+    --raw \
+    --skip-column-names \
+    -h "$DB_HOST" \
+    -P "$DB_PORT" \
+    -u "$DB_USER" \
+    "$DB_NAME" <"$SELECT_SQL_FILE" >"$ISSUE_ROWS_FILE"
+
+mkdir -p "$OUTPUT_DIR"
+ISSUE_IDS_FILE="$OUTPUT_DIR/public-ranking-view-seed-$SEED_KEY-issue-ids.txt"
+ISSUE_ROWS_OUTPUT_FILE="$OUTPUT_DIR/public-ranking-view-seed-$SEED_KEY-issue-rows.tsv"
+
+cp "$ISSUE_ROWS_FILE" "$ISSUE_ROWS_OUTPUT_FILE"
+: >"$ISSUE_IDS_FILE"
+
+issue_ids=""
+while IFS=$'\t' read -r issue_id collected_at; do
+  if [ -z "$issue_id" ] || [ -z "$collected_at" ]; then
+    continue
+  fi
+
+  redis_key="$ISSUE_STATE_REDIS_KEY_PREFIX:{$issue_id}:state"
+  redis6-cli -h "$REDIS_HOST" -p "$REDIS_PORT" HSET "$redis_key" \
+    status AVAILABLE \
+    collected_at "$collected_at" >/dev/null
+  redis6-cli -h "$REDIS_HOST" -p "$REDIS_PORT" EXPIRE "$redis_key" "$ISSUE_STATE_TTL_SECONDS" >/dev/null
+
+  if [ -n "$issue_ids" ]; then
+    issue_ids="$issue_ids,"
+  fi
+  issue_ids="$issue_ids$issue_id"
+done <"$ISSUE_ROWS_FILE"
+
+printf '%s\n' "$issue_ids" >"$ISSUE_IDS_FILE"
+
+seeded_count="$(wc -l <"$ISSUE_ROWS_FILE" | tr -d ' ')"
+echo "Seeded issue rows: $seeded_count"
+echo "Issue IDs file: $ISSUE_IDS_FILE"
+echo "Issue rows file: $ISSUE_ROWS_OUTPUT_FILE"
+echo
+echo "Use for view-count setup:"
+echo "  ISSUE_IDS=\$(cat $ISSUE_IDS_FILE) ITERATIONS=\$(( $seeded_count * 50 )) VUS=50 k6 run /opt/letterpick-k6/public-issue-view-count.js"

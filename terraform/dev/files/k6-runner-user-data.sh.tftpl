@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 dnf install -y https://dl.k6.io/rpm/repo.rpm
-dnf install -y git jq k6 docker python3 python3-boto3
+dnf install -y git jq k6 docker python3 python3-boto3 redis6
 systemctl enable --now docker
 
 mkdir -p /opt/letterpick-k6/results
@@ -36,11 +36,17 @@ ${seed_public_feed_script}
 SEED_SCRIPT
 chmod +x /opt/letterpick-k6/seed-public-feed.sh
 
+cat >/opt/letterpick-k6/seed-public-ranking-view-source.sh <<'RANKING_VIEW_SEED_SCRIPT'
+${seed_public_ranking_view_source_script}
+RANKING_VIEW_SEED_SCRIPT
+chmod +x /opt/letterpick-k6/seed-public-ranking-view-source.sh
+
 cat >/opt/letterpick-k6/README.txt <<'README'
 LetterPick k6 runner
 
 Scripts:
   /opt/letterpick-k6/seed-public-feed.sh
+  /opt/letterpick-k6/seed-public-ranking-view-source.sh
   /opt/letterpick-k6/public-feed-search.js
   /opt/letterpick-k6/public-issue-view-count.js
   /opt/letterpick-k6/send-trending-score-events.sh
@@ -48,6 +54,11 @@ Scripts:
 Seed public feed source data and candidates after dev services are running:
   PUBLIC_FEED_SEED_ISSUE_COUNT=100000 \
   /opt/letterpick-k6/seed-public-feed.sh
+
+Seed 100 DB issues and Redis AVAILABLE state for ranking view-count experiments:
+  PUBLIC_RANKING_VIEW_SEED_KEY=ranking-view-$(date -u +%Y%m%d%H%M%S) \
+  PUBLIC_RANKING_VIEW_SEED_ISSUE_COUNT=100 \
+  /opt/letterpick-k6/seed-public-ranking-view-source.sh
 
 Public feed search example:
   BASE_URL=https://dev-api.letterpicknews.com \
@@ -72,6 +83,17 @@ Public issue view count example:
     --summary-export /opt/letterpick-k6/results/public-issue-view-count-r10-60s.json \
     /opt/letterpick-k6/public-issue-view-count.js \
     2>&1 | tee /opt/letterpick-k6/results/public-issue-view-count-r10-60s.txt
+
+Prepare ranking score snapshots for 100 public issues:
+  BASE_URL=https://dev-api.letterpicknews.com \
+  START_ISSUE_ID=1 \
+  ISSUE_COUNT=100 \
+  ITERATIONS=5000 \
+  VUS=50 \
+  k6 run \
+    --summary-export /opt/letterpick-k6/results/public-issue-view-count-seed-100x50.json \
+    /opt/letterpick-k6/public-issue-view-count.js \
+    2>&1 | tee /opt/letterpick-k6/results/public-issue-view-count-seed-100x50.txt
 
 Trending score event injection example:
   RATE=10 \
