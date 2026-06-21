@@ -6,7 +6,6 @@ import com.sungho.letterpick.newsletter.application.provided.PublicIssueRankingW
 import com.sungho.letterpick.newsletter.application.required.PublicIssueRankingReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 
@@ -39,7 +38,9 @@ public class RestClientPublicIssueRankingReader implements PublicIssueRankingRea
             }
 
             return response.toRankingItems();
-        } catch (RestClientException e) {
+        } catch (PublicIssueRankingReadException e) {
+            throw e;
+        } catch (RuntimeException e) {
             throw new PublicIssueRankingReadException(e);
         }
     }

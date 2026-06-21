@@ -71,4 +71,29 @@ class RestClientPublicIssueRankingReaderTest {
                 .isInstanceOf(PublicIssueRankingReadException.class);
         server.verify();
     }
+
+    @Test
+    @DisplayName("trending-service 응답 매핑 실패는 랭킹 조회 실패 예외로 변환한다")
+    void findTop_throws_when_trending_service_response_is_invalid() {
+        // given
+        RestClient.Builder builder = RestClient.builder()
+                .baseUrl("https://trending.example.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RestClientPublicIssueRankingReader reader = new RestClientPublicIssueRankingReader(builder.build());
+
+        server.expect(requestTo("https://trending.example.com/internal/api/v1/public-issue-rankings?windowType=DAILY&limit=3"))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("""
+                        {
+                          "items": [
+                            { "issueId": null, "score": 123 }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        // when & then
+        assertThatThrownBy(() -> reader.findTop(PublicIssueRankingWindowType.DAILY, 3))
+                .isInstanceOf(PublicIssueRankingReadException.class);
+        server.verify();
+    }
 }
