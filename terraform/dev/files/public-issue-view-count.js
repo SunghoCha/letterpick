@@ -37,11 +37,16 @@ function issueIdsEnv() {
 
   if (issueIds !== '') {
     const parsedIssueIds = issueIds.split(',')
-      .map((value) => Number(value.trim()))
-      .filter((value) => Number.isInteger(value) && value > 0);
-    if (parsedIssueIds.length === 0) {
-      throw new Error('ISSUE_IDS must contain at least one positive integer');
-    }
+      .map((value) => {
+        const trimmedValue = value.trim();
+        const parsedValue = Number(trimmedValue);
+
+        if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+          throw new Error(`ISSUE_IDS contains invalid issue id: ${trimmedValue}`);
+        }
+
+        return parsedValue;
+      });
     return parsedIssueIds;
   }
 

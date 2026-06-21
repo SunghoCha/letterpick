@@ -8,6 +8,7 @@ DB_NAME="${db_name}"
 DB_SECRET_ARN="${db_secret_arn}"
 REDIS_HOST="${redis_host}"
 REDIS_PORT="${redis_port}"
+ISSUE_STATE_REDIS_KEY_PREFIX="${issue_state_redis_key_prefix}"
 
 COLLECTOR_EMAIL="public-feed-collector@letterpick.dev"
 COLLECTOR_NICKNAME="publicfeeddev"
@@ -229,7 +230,7 @@ while IFS=$'\t' read -r issue_id collected_at; do
     continue
   fi
 
-  redis_key="letterpick:trending:issue:{$issue_id}:state"
+  redis_key="$ISSUE_STATE_REDIS_KEY_PREFIX:{$issue_id}:state"
   redis6-cli -h "$REDIS_HOST" -p "$REDIS_PORT" HSET "$redis_key" \
     status AVAILABLE \
     collected_at "$collected_at" >/dev/null
