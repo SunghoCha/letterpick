@@ -14,8 +14,12 @@ locals {
     LETTERPICK_AWS_REGION                          = var.aws_region
     FRONTEND_BASE_URL                              = var.frontend_base_url
     SPRING_DATASOURCE_URL                          = "jdbc:mysql://${local.persistence.rds_address}:${local.persistence.rds_port}/${local.persistence.rds_database_name}"
+    SPRING_DATA_REDIS_HOST                         = aws_elasticache_replication_group.redis.primary_endpoint_address
+    SPRING_DATA_REDIS_PORT                         = tostring(var.redis_port)
     NEWSLETTER_INBOX_ADDRESS_DOMAIN                = local.newsletter_inbox_address_domain
     NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS = var.public_feed_collector_inbox_address
+    LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE     = local.persistence.trending_lifecycle_events_queue_name
+    LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE         = local.persistence.trending_score_events_queue_name
     GOOGLE_CLIENT_ID                               = var.google_client_id
     NAVER_CLIENT_ID                                = var.naver_client_id
   }
@@ -42,9 +46,12 @@ locals {
 
   api_environment = [
     for name, value in merge(local.backend_common_environment, {
+      LETTERPICK_SQS_ENABLED               = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "false"
       LETTERPICK_MAIL_RECEIVE_QUEUE        = local.persistence.mail_receive_queue_name
       LETTERPICK_MAIL_RECEIVE_DLQ          = local.persistence.mail_receive_dlq_name
+      LETTERPICK_OUTBOX_PUBLISH_ENABLED    = "true"
+      LETTERPICK_TRENDING_SERVICE_BASE_URL = local.trending_service_connect_base_url
       }) : {
       name  = name
       value = value
@@ -53,9 +60,36 @@ locals {
 
   worker_environment = [
     for name, value in merge(local.backend_common_environment, {
+      LETTERPICK_SQS_ENABLED               = "true"
       LETTERPICK_MAIL_SQS_LISTENER_ENABLED = "true"
       LETTERPICK_MAIL_RECEIVE_QUEUE        = local.persistence.mail_receive_queue_name
+      LETTERPICK_TRENDING_SERVICE_BASE_URL = local.trending_service_connect_base_url
+      MANAGEMENT_METRICS_TAGS_APPLICATION  = "letterpick-worker"
+      MANAGEMENT_METRICS_TAGS_SERVICE      = "letterpick-worker"
       }) : {
+      name  = name
+      value = value
+    }
+  ]
+
+  trending_service_environment = [
+    for name, value in {
+      SPRING_PROFILES_ACTIVE                                     = var.environment
+      LETTERPICK_AWS_REGION                                      = var.aws_region
+      FRONTEND_BASE_URL                                          = var.frontend_base_url
+      SPRING_DATASOURCE_URL                                      = "jdbc:mysql://${local.persistence.rds_address}:${local.persistence.rds_port}/${local.persistence.rds_database_name}"
+      SPRING_DATA_REDIS_HOST                                     = aws_elasticache_replication_group.redis.primary_endpoint_address
+      SPRING_DATA_REDIS_PORT                                     = tostring(var.redis_port)
+      LETTERPICK_TRENDING_SQS_ENABLED                            = "true"
+      LETTERPICK_TRENDING_SQS_LISTENER_ENABLED                   = "true"
+      LETTERPICK_TRENDING_RANKING_SUMMARY_READER                 = "redis"
+      LETTERPICK_TRENDING_RANKING_SUMMARY_WRITER                 = "redis"
+      LETTERPICK_TRENDING_SCORE_LISTENER_MAX_CONCURRENT_MESSAGES = "10"
+      LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE                 = local.persistence.trending_lifecycle_events_queue_name
+      LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE                     = local.persistence.trending_score_events_queue_name
+      MANAGEMENT_METRICS_TAGS_APPLICATION                        = "trending-service"
+      MANAGEMENT_METRICS_TAGS_SERVICE                            = "trending-service"
+      } : {
       name  = name
       value = value
     }
@@ -158,5 +192,57 @@ resource "aws_ecs_task_definition" "worker" {
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-worker-task-definition"
+  })
+}
+
+resource "aws_ecs_task_definition" "trending_service" {
+  family                   = "${local.name_prefix}-trending-service"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.trending_service_cpu
+  memory                   = var.trending_service_memory
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.trending_service_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name        = "trending-service"
+      image       = var.initial_trending_service_image_uri
+      essential   = true
+      stopTimeout = 30
+
+      portMappings = [
+        {
+          containerPort = var.container_port
+          protocol      = "tcp"
+          name          = local.service_connect_port_name
+          appProtocol   = "http"
+        },
+      ]
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -fsS http://localhost:${var.container_port}/actuator/health/liveness || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 120
+      }
+
+      environment = local.trending_service_environment
+      secrets     = local.backend_secrets
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.trending_service.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "trending-service"
+        }
+      }
+    },
+  ])
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-trending-service-task-definition"
   })
 }

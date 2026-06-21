@@ -40,12 +40,14 @@ locals {
   prod_ecs_service_arns = [
     "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${local.prod_name_prefix}-cluster/${local.prod_name_prefix}-api",
     "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${local.prod_name_prefix}-cluster/${local.prod_name_prefix}-worker",
+    "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${local.prod_name_prefix}-cluster/${local.prod_name_prefix}-trending-service",
   ]
 
   prod_ecs_task_role_arns = [
     "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prod_name_prefix}-ecs-execution-role",
     "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prod_name_prefix}-api-task-role",
     "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prod_name_prefix}-worker-task-role",
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.prod_name_prefix}-trending-service-task-role",
   ]
 }
 
