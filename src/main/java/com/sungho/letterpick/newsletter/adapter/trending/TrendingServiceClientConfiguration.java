@@ -18,7 +18,10 @@ public class TrendingServiceClientConfiguration {
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(3);
 
     @Bean
-    RestClient trendingServiceRestClient(TrendingServiceProperties properties) {
+    RestClient trendingServiceRestClient(
+            RestClient.Builder restClientBuilder,
+            TrendingServiceProperties properties
+    ) {
         if (!StringUtils.hasText(properties.baseUrl())) {
             throw new IllegalStateException("letterpick.trending-service.base-url must not be blank");
         }
@@ -27,7 +30,7 @@ public class TrendingServiceClientConfiguration {
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
         requestFactory.setReadTimeout(READ_TIMEOUT);
 
-        return RestClient.builder()
+        return restClientBuilder
                 .baseUrl(properties.baseUrl())
                 .requestFactory(requestFactory)
                 .build();
