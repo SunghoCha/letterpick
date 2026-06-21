@@ -63,6 +63,18 @@ resource "aws_vpc_security_group_ingress_rule" "redis_from_db_access_host" {
   to_port     = var.redis_port
 }
 
+resource "aws_vpc_security_group_ingress_rule" "redis_from_k6_runner" {
+  count = var.enable_k6_runner ? 1 : 0
+
+  security_group_id            = aws_security_group.redis.id
+  referenced_security_group_id = aws_security_group.k6_runner[0].id
+  description                  = "Allow k6 runner to seed Redis ranking state"
+
+  ip_protocol = "tcp"
+  from_port   = var.redis_port
+  to_port     = var.redis_port
+}
+
 resource "aws_vpc_security_group_egress_rule" "redis_all_ipv4" {
   security_group_id = aws_security_group.redis.id
   description       = "Allow Redis outbound traffic"

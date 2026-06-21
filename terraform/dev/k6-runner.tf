@@ -135,6 +135,15 @@ resource "aws_instance" "k6_runner" {
     public_issue_view_count_script  = file("${path.module}/files/public-issue-view-count.js")
     trending_score_events_script    = file("${path.module}/files/send-trending-score-events.py")
     trending_score_events_queue_url = aws_sqs_queue.trending_score_events.url
+    seed_public_ranking_view_source_script = templatefile("${path.module}/files/seed-public-ranking-view-source.sh.tftpl", {
+      aws_region    = var.aws_region
+      db_host       = aws_db_instance.main.address
+      db_port       = tostring(aws_db_instance.main.port)
+      db_name       = var.rds_database_name
+      db_secret_arn = aws_db_instance.main.master_user_secret[0].secret_arn
+      redis_host    = aws_elasticache_replication_group.redis.primary_endpoint_address
+      redis_port    = tostring(var.redis_port)
+    })
     seed_public_feed_script = templatefile("${path.module}/files/seed-public-feed.sh.tftpl", {
       aws_region          = var.aws_region
       db_host             = aws_db_instance.main.address
