@@ -5,8 +5,11 @@ import com.sungho.letterpick.newsletter.domain.exception.NewsletterErrorCode;
 
 public class PublicIssueRankingReadException extends BusinessException {
 
-    public PublicIssueRankingReadException(Throwable cause) {
+    public PublicIssueRankingReadException() {
         super(NewsletterErrorCode.PUBLIC_ISSUE_RANKING_UNAVAILABLE);
-        initCause(cause);
+    }
+
+    public PublicIssueRankingReadException(Throwable cause) {
+        super(NewsletterErrorCode.PUBLIC_ISSUE_RANKING_UNAVAILABLE, cause);
     }
 }

@@ -6,6 +6,7 @@ import com.sungho.letterpick.newsletter.application.provided.PublicIssueRankingW
 import com.sungho.letterpick.newsletter.application.required.PublicIssueRankingReader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 
@@ -32,15 +33,11 @@ public class RestClientPublicIssueRankingReader implements PublicIssueRankingRea
                     .body(PublicIssueRankingsResponse.class);
 
             if (response == null) {
-                throw new PublicIssueRankingReadException(
-                        new IllegalStateException("trending-service ranking response body is empty")
-                );
+                return List.of();
             }
 
             return response.toRankingItems();
-        } catch (PublicIssueRankingReadException e) {
-            throw e;
-        } catch (RuntimeException e) {
+        } catch (RestClientException e) {
             throw new PublicIssueRankingReadException(e);
         }
     }
@@ -64,6 +61,13 @@ public class RestClientPublicIssueRankingReader implements PublicIssueRankingRea
             Long issueId,
             long score
     ) {
+
+        private PublicIssueRankingItemResponse {
+            requireNonNull(issueId, "issueId must not be null");
+            if (score < 0) {
+                throw new IllegalArgumentException("score must not be negative");
+            }
+        }
 
         private PublicIssueRankingItem toRankingItem() {
             return new PublicIssueRankingItem(issueId, score);

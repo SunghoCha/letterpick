@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.http.HttpMethod.GET;
 
@@ -69,6 +70,27 @@ class RestClientPublicIssueRankingReaderTest {
         // when & then
         assertThatThrownBy(() -> reader.findTop(PublicIssueRankingWindowType.WEEKLY, 20))
                 .isInstanceOf(PublicIssueRankingReadException.class);
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("trending-service 응답 본문이 없으면 빈 랭킹을 반환한다")
+    void findTop_returns_empty_list_when_trending_service_response_body_is_empty() {
+        // given
+        RestClient.Builder builder = RestClient.builder()
+                .baseUrl("https://trending.example.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RestClientPublicIssueRankingReader reader = new RestClientPublicIssueRankingReader(builder.build());
+
+        server.expect(requestTo("https://trending.example.com/internal/api/v1/public-issue-rankings?windowType=DAILY&limit=3"))
+                .andExpect(method(GET))
+                .andRespond(withNoContent());
+
+        // when
+        List<PublicIssueRankingItem> result = reader.findTop(PublicIssueRankingWindowType.DAILY, 3);
+
+        // then
+        assertThat(result).isEmpty();
         server.verify();
     }
 
