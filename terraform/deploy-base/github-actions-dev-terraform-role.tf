@@ -75,6 +75,7 @@ data "aws_iam_policy_document" "github_actions_dev_terraform" {
       "logs:*",
       "acm:*",
       "route53:*",
+      "servicediscovery:*",
       "rds:*",
       "s3:*",
       "secretsmanager:*",
