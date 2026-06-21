@@ -37,7 +37,7 @@ public record PublicNewsletterIssueRankingItem(
             long score
     ) {
         this(
-                issue.issueId(),
+                requireNonNull(issue, "issue must not be null").issueId(),
                 issue.newsletterId(),
                 issue.newsletterName(),
                 issue.newsletterImageUrl(),
@@ -65,7 +65,7 @@ public record PublicNewsletterIssueRankingItem(
                 newsletterId,
                 newsletterName,
                 newsletterImageUrl,
-                NewsletterCategoryItem.from(newsletterCategory),
+                NewsletterCategoryItem.from(requireNonNull(newsletterCategory, "newsletterCategory must not be null")),
                 subject,
                 previewText,
                 receivedAt,
