@@ -20,6 +20,7 @@
 //
 // 공개 뉴스레터 피드 (비로그인 OK, /api/v1/newsletter-issues):
 //   - fetchPublicIssues:      GET        — 공개 피드 이슈 목록
+//   - fetchPublicIssueRankings: GET /rankings — 공개 피드 인기 이슈 목록
 //   - fetchPublicIssueDetail: GET /{id}  — 공개 피드 이슈 상세
 //   - deletePublicIssueAsAdmin: DELETE /api/v1/admin/public-newsletter-issues/{id}
 import apiClient, { ensureCsrfToken } from './client'
@@ -97,6 +98,13 @@ export async function fetchPublicIssues({ category, keyword, page = 0, size = 20
     params.keyword = trimmedKeyword
   }
   const { data } = await apiClient.get(PUBLIC_ISSUE_BASE, { params })
+  return data
+}
+
+export async function fetchPublicIssueRankings({ windowType = 'DAILY', limit = 10 } = {}) {
+  const { data } = await apiClient.get(`${PUBLIC_ISSUE_BASE}/rankings`, {
+    params: { windowType, limit },
+  })
   return data
 }
 

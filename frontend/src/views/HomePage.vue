@@ -5,6 +5,7 @@ import { useToastStore } from '@/stores/toast'
 
 const PAGE_SIZE = 20
 const LOAD_MORE_THRESHOLD_PX = 480
+const RANKING_LIMIT = 10
 
 export default {
   name: 'HomePage',
@@ -21,6 +22,12 @@ export default {
       issueToDelete: null,
       deleting: false,
       virtualScrollElement: null,
+
+      rankings: [],
+      rankingWindowType: 'DAILY',
+      rankingLoading: false,
+      rankingLoaded: false,
+      rankingRequestToken: 0,
 
       categories: [{ code: 'ALL', label: '전체' }],
       selectedCategory: 'ALL',
@@ -41,10 +48,16 @@ export default {
     isEmpty() {
       return this.loaded && this.issues.length === 0
     },
+    isRankingEmpty() {
+      return this.rankingLoaded && this.rankings.length === 0
+    },
   },
   watch: {
     selectedCategory() {
       this.reloadList()
+    },
+    rankingWindowType() {
+      this.fetchRankings()
     },
   },
   async created() {
@@ -52,6 +65,7 @@ export default {
   },
   mounted() {
     this.bindVirtualScroll()
+    this.fetchRankings()
     this.fetchPage(0)
   },
   updated() {
@@ -70,6 +84,33 @@ export default {
         ]
       } catch {
         this.toastStore.error('카테고리를 불러오지 못했습니다.')
+      }
+    },
+    async fetchRankings() {
+      this.rankingRequestToken += 1
+      const requestToken = this.rankingRequestToken
+      this.rankingLoading = true
+      this.rankingLoaded = false
+      this.rankings = []
+      try {
+        const data = await newsletterApi.fetchPublicIssueRankings({
+          windowType: this.rankingWindowType,
+          limit: RANKING_LIMIT,
+        })
+        if (requestToken !== this.rankingRequestToken) return
+
+        this.rankings = data.items
+        this.rankingLoaded = true
+      } catch {
+        if (requestToken !== this.rankingRequestToken) return
+
+        this.rankings = []
+        this.rankingLoaded = true
+        this.toastStore.error('인기글을 불러오지 못했습니다.')
+      } finally {
+        if (requestToken === this.rankingRequestToken) {
+          this.rankingLoading = false
+        }
       }
     },
     async fetchPage(pageNum) {
@@ -210,6 +251,82 @@ export default {
         수집된 뉴스레터 이슈를 최신순으로 둘러보세요.
       </p>
     </header>
+
+    <section class="ranking-section mb-7">
+      <div class="ranking-header">
+        <div>
+          <h2 class="text-subtitle-1 font-weight-bold">인기글</h2>
+        </div>
+
+        <v-btn-toggle
+          v-model="rankingWindowType"
+          mandatory
+          density="compact"
+          divided
+          class="ranking-toggle"
+        >
+          <v-btn value="DAILY" size="small">오늘</v-btn>
+          <v-btn value="WEEKLY" size="small">이번 주</v-btn>
+        </v-btn-toggle>
+      </div>
+
+      <div
+        v-if="rankingLoading && rankings.length === 0"
+        class="ranking-loading"
+      >
+        <v-skeleton-loader
+          v-for="n in 3"
+          :key="n"
+          type="list-item-avatar-two-line"
+          class="ranking-skeleton"
+        />
+      </div>
+
+      <div
+        v-else-if="isRankingEmpty"
+        class="ranking-empty text-body-2 text-medium-emphasis"
+      >
+        표시할 인기글이 없습니다.
+      </div>
+
+      <v-slide-group
+        v-else
+        show-arrows
+        class="ranking-list"
+      >
+        <v-slide-group-item
+          v-for="(ranking, index) in rankings"
+          :key="ranking.issueId"
+        >
+          <button
+            type="button"
+            class="ranking-item"
+            @click="openIssue(ranking)"
+          >
+            <span class="ranking-number">{{ index + 1 }}</span>
+            <v-avatar size="36" rounded="md" class="ranking-avatar">
+              <v-img :src="ranking.newsletterImageUrl" :alt="ranking.newsletterName">
+                <template #error>
+                  <div class="image-fallback">
+                    {{ ranking.newsletterName.slice(0, 2) }}
+                  </div>
+                </template>
+              </v-img>
+            </v-avatar>
+            <span class="ranking-content">
+              <span class="ranking-meta">
+                <span class="ranking-newsletter">{{ ranking.newsletterName }}</span>
+                <span class="ranking-score">
+                  <v-icon size="14" icon="mdi-trending-up" />
+                  {{ ranking.score }}
+                </span>
+              </span>
+              <span class="ranking-title">{{ ranking.subject }}</span>
+            </span>
+          </button>
+        </v-slide-group-item>
+      </v-slide-group>
+    </section>
 
     <div class="filters mb-5">
       <v-chip-group
@@ -422,6 +539,128 @@ export default {
   text-align: center;
 }
 
+.ranking-section {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.ranking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ranking-toggle {
+  flex: 0 0 auto;
+}
+
+.ranking-loading {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ranking-skeleton {
+  border-radius: 8px;
+}
+
+.ranking-empty {
+  padding: 28px 0;
+  text-align: center;
+}
+
+.ranking-list {
+  margin: 0 -4px;
+}
+
+.ranking-item {
+  width: 280px;
+  min-height: 88px;
+  margin: 0 4px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.ranking-item:hover {
+  background: #fafafa;
+  border-color: rgba(0, 0, 0, 0.14);
+}
+
+.ranking-number {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ranking-avatar {
+  align-self: center;
+}
+
+.ranking-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ranking-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.ranking-score {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #374151;
+  font-weight: 600;
+}
+
+.ranking-newsletter {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .search-row {
   display: flex;
   gap: 8px;
@@ -429,6 +668,28 @@ export default {
 }
 
 @media (max-width: 600px) {
+  .ranking-section {
+    padding: 14px;
+  }
+
+  .ranking-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ranking-toggle,
+  .ranking-toggle :deep(.v-btn) {
+    width: 100%;
+  }
+
+  .ranking-loading {
+    grid-template-columns: 1fr;
+  }
+
+  .ranking-item {
+    width: 248px;
+  }
+
   .search-row {
     flex-direction: column;
   }
