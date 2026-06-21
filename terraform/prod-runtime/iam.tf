@@ -66,6 +66,27 @@ resource "aws_iam_role" "api_task" {
   })
 }
 
+data "aws_iam_policy_document" "trending_event_publish" {
+  statement {
+    actions = [
+      "sqs:GetQueueUrl",
+      "sqs:GetQueueAttributes",
+      "sqs:SendMessage",
+    ]
+
+    resources = [
+      local.persistence.trending_lifecycle_events_queue_arn,
+      local.persistence.trending_score_events_queue_arn,
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "api_trending_event_publish" {
+  name   = "${local.name_prefix}-api-trending-event-publish"
+  role   = aws_iam_role.api_task.id
+  policy = data.aws_iam_policy_document.trending_event_publish.json
+}
+
 data "aws_iam_policy_document" "api_mail_queue_status_access" {
   statement {
     actions = [
@@ -125,6 +146,44 @@ resource "aws_iam_role_policy" "worker_mail_access" {
   name   = "${local.name_prefix}-worker-mail-access"
   role   = aws_iam_role.worker_task.id
   policy = data.aws_iam_policy_document.worker_mail_access.json
+}
+
+resource "aws_iam_role_policy" "worker_trending_event_publish" {
+  name   = "${local.name_prefix}-worker-trending-event-publish"
+  role   = aws_iam_role.worker_task.id
+  policy = data.aws_iam_policy_document.trending_event_publish.json
+}
+
+resource "aws_iam_role" "trending_service_task" {
+  name               = "${local.name_prefix}-trending-service-task-role"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-trending-service-task-role"
+  })
+}
+
+data "aws_iam_policy_document" "trending_event_consume" {
+  statement {
+    actions = [
+      "sqs:GetQueueUrl",
+      "sqs:GetQueueAttributes",
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage",
+      "sqs:ChangeMessageVisibility",
+    ]
+
+    resources = [
+      local.persistence.trending_lifecycle_events_queue_arn,
+      local.persistence.trending_score_events_queue_arn,
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "trending_service_event_consume" {
+  name   = "${local.name_prefix}-trending-service-event-consume"
+  role   = aws_iam_role.trending_service_task.id
+  policy = data.aws_iam_policy_document.trending_event_consume.json
 }
 
 data "aws_iam_policy_document" "ecs_infrastructure_assume_role" {

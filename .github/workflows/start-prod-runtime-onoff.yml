@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       image_uri:
-        description: Full ECR image URI to use for the prod runtime task definitions
+        description: Full backend ECR image URI to use for prod API/worker task definitions
+        required: true
+        type: string
+      trending_service_image_uri:
+        description: Full trending-service ECR image URI to use for the prod trending-service task definition
         required: true
         type: string
 
@@ -19,7 +23,8 @@ jobs:
     environment: prod
 
     env:
-      IMAGE_URI: ${{ inputs.image_uri }}
+      BACKEND_IMAGE_URI: ${{ inputs.image_uri }}
+      TRENDING_SERVICE_IMAGE_URI: ${{ inputs.trending_service_image_uri }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
       AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -34,7 +39,8 @@ jobs:
       - name: Validate inputs
         run: |
           required_env=(
-            IMAGE_URI
+            BACKEND_IMAGE_URI
+            TRENDING_SERVICE_IMAGE_URI
             AWS_REGION
             AWS_TERRAFORM_ROLE_ARN
             GOOGLE_CLIENT_ID
@@ -72,7 +78,8 @@ jobs:
       - name: Terraform apply
         run: |
           terraform -chdir=terraform/prod-runtime apply -auto-approve -input=false \
-            -var="initial_backend_image_uri=$IMAGE_URI" \
+            -var="initial_backend_image_uri=$BACKEND_IMAGE_URI" \
+            -var="initial_trending_service_image_uri=$TRENDING_SERVICE_IMAGE_URI" \
             -var="google_client_id=$GOOGLE_CLIENT_ID" \
             -var="naver_client_id=$NAVER_CLIENT_ID" \
             -var="public_feed_collector_inbox_address=$NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS" \
@@ -83,11 +90,12 @@ jobs:
           ECS_CLUSTER_NAME=$(terraform -chdir=terraform/prod-runtime output -raw ecs_cluster_name)
           API_SERVICE_NAME=$(terraform -chdir=terraform/prod-runtime output -raw api_service_name)
           WORKER_SERVICE_NAME=$(terraform -chdir=terraform/prod-runtime output -raw worker_service_name)
+          TRENDING_SERVICE_NAME=$(terraform -chdir=terraform/prod-runtime output -raw trending_service_name)
           CLOUDFRONT_DISTRIBUTION_ID=$(terraform -chdir=terraform/prod-runtime output -raw frontend_cloudfront_distribution_id)
 
           aws ecs wait services-stable \
             --cluster "$ECS_CLUSTER_NAME" \
-            --services "$API_SERVICE_NAME" "$WORKER_SERVICE_NAME"
+            --services "$API_SERVICE_NAME" "$WORKER_SERVICE_NAME" "$TRENDING_SERVICE_NAME"
 
           aws cloudfront wait distribution-deployed \
             --id "$CLOUDFRONT_DISTRIBUTION_ID"
@@ -98,10 +106,14 @@ jobs:
           ALB_DNS_NAME=$(terraform -chdir=terraform/prod-runtime output -raw api_alb_dns_name)
           NAT_GATEWAY_ID=$(terraform -chdir=terraform/prod-runtime output -raw nat_gateway_id)
           CLOUDFRONT_DISTRIBUTION_ID=$(terraform -chdir=terraform/prod-runtime output -raw frontend_cloudfront_distribution_id)
+          TRENDING_SERVICE_NAME=$(terraform -chdir=terraform/prod-runtime output -raw trending_service_name)
+          REDIS_ENDPOINT=$(terraform -chdir=terraform/prod-runtime output -raw redis_primary_endpoint_address)
 
           echo "### Prod runtime on/off" >> "$GITHUB_STEP_SUMMARY"
           echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "API URL: $FRONTEND_URL/api" >> "$GITHUB_STEP_SUMMARY"
           echo "ALB DNS: $ALB_DNS_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "NAT Gateway: $NAT_GATEWAY_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "Trending Service: $TRENDING_SERVICE_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Redis Endpoint: $REDIS_ENDPOINT" >> "$GITHUB_STEP_SUMMARY"
           echo "CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID" >> "$GITHUB_STEP_SUMMARY"

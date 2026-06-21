@@ -63,6 +63,7 @@ jobs:
         run: |
           RUNTIME_OUTPUTS=$(terraform -chdir=terraform/prod-runtime output -json)
           API_TASK_DEFINITION_ARN=$(jq -r '.api_task_definition_arn.value // empty' <<< "$RUNTIME_OUTPUTS")
+          TRENDING_SERVICE_TASK_DEFINITION_ARN=$(jq -r '.trending_service_task_definition_arn.value // empty' <<< "$RUNTIME_OUTPUTS")
 
           if [ -z "$API_TASK_DEFINITION_ARN" ]; then
             echo "already_stopped=true" >> "$GITHUB_OUTPUT"
@@ -70,29 +71,47 @@ jobs:
             exit 0
           fi
 
-          IMAGE_URI=$(aws ecs describe-task-definition \
+          BACKEND_IMAGE_URI=$(aws ecs describe-task-definition \
             --task-definition "$API_TASK_DEFINITION_ARN" \
             --query 'taskDefinition.containerDefinitions[0].image' \
             --output text)
 
-          if [ -z "$IMAGE_URI" ] || [ "$IMAGE_URI" = "None" ]; then
+          if [ -z "$BACKEND_IMAGE_URI" ] || [ "$BACKEND_IMAGE_URI" = "None" ]; then
             echo "IMAGE_URI could not be resolved from $API_TASK_DEFINITION_ARN" >&2
+            exit 1
+          fi
+
+          if [ -n "$TRENDING_SERVICE_TASK_DEFINITION_ARN" ]; then
+            TRENDING_SERVICE_IMAGE_URI=$(aws ecs describe-task-definition \
+              --task-definition "$TRENDING_SERVICE_TASK_DEFINITION_ARN" \
+              --query 'taskDefinition.containerDefinitions[0].image' \
+              --output text)
+          else
+            TRENDING_SERVICE_IMAGE_URI="$BACKEND_IMAGE_URI"
+          fi
+
+          if [ -z "$TRENDING_SERVICE_IMAGE_URI" ] || [ "$TRENDING_SERVICE_IMAGE_URI" = "None" ]; then
+            echo "TRENDING_SERVICE_IMAGE_URI could not be resolved" >&2
             exit 1
           fi
 
           {
             echo "already_stopped=false"
-            echo "image_uri=$IMAGE_URI"
+            echo "backend_image_uri=$BACKEND_IMAGE_URI"
+            echo "trending_service_image_uri=$TRENDING_SERVICE_IMAGE_URI"
             echo "api_task_definition_arn=$API_TASK_DEFINITION_ARN"
+            echo "trending_service_task_definition_arn=$TRENDING_SERVICE_TASK_DEFINITION_ARN"
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate destroy inputs
         if: steps.resolve-runtime-inputs.outputs.already_stopped != 'true'
         env:
-          IMAGE_URI: ${{ steps.resolve-runtime-inputs.outputs.image_uri }}
+          BACKEND_IMAGE_URI: ${{ steps.resolve-runtime-inputs.outputs.backend_image_uri }}
+          TRENDING_SERVICE_IMAGE_URI: ${{ steps.resolve-runtime-inputs.outputs.trending_service_image_uri }}
         run: |
           required_env=(
-            IMAGE_URI
+            BACKEND_IMAGE_URI
+            TRENDING_SERVICE_IMAGE_URI
             GOOGLE_CLIENT_ID
             NAVER_CLIENT_ID
             NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS
@@ -109,10 +128,12 @@ jobs:
       - name: Terraform destroy
         if: steps.resolve-runtime-inputs.outputs.already_stopped != 'true'
         env:
-          IMAGE_URI: ${{ steps.resolve-runtime-inputs.outputs.image_uri }}
+          BACKEND_IMAGE_URI: ${{ steps.resolve-runtime-inputs.outputs.backend_image_uri }}
+          TRENDING_SERVICE_IMAGE_URI: ${{ steps.resolve-runtime-inputs.outputs.trending_service_image_uri }}
         run: |
           terraform -chdir=terraform/prod-runtime destroy -auto-approve -input=false \
-            -var="initial_backend_image_uri=$IMAGE_URI" \
+            -var="initial_backend_image_uri=$BACKEND_IMAGE_URI" \
+            -var="initial_trending_service_image_uri=$TRENDING_SERVICE_IMAGE_URI" \
             -var="google_client_id=$GOOGLE_CLIENT_ID" \
             -var="naver_client_id=$NAVER_CLIENT_ID" \
             -var="public_feed_collector_inbox_address=$NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS" \

@@ -43,6 +43,11 @@ variable "worker_desired_count" {
   default = 1
 }
 
+variable "trending_service_desired_count" {
+  type    = number
+  default = 1
+}
+
 variable "api_health_check_path" {
   type    = string
   default = "/actuator/health/readiness"
@@ -94,6 +99,10 @@ variable "frontend_cloudfront_cache_policy_id" {
 }
 
 variable "initial_backend_image_uri" {
+  type = string
+}
+
+variable "initial_trending_service_image_uri" {
   type = string
 }
 
@@ -153,6 +162,36 @@ variable "worker_cpu" {
 variable "worker_memory" {
   type    = number
   default = 1024
+}
+
+variable "trending_service_cpu" {
+  type    = number
+  default = 512
+}
+
+variable "trending_service_memory" {
+  type    = number
+  default = 1024
+}
+
+variable "redis_port" {
+  type    = number
+  default = 6379
+}
+
+variable "redis_node_type" {
+  type    = string
+  default = "cache.t4g.micro"
+}
+
+variable "redis_engine_version" {
+  type    = string
+  default = "7.1"
+}
+
+variable "redis_parameter_group_name" {
+  type    = string
+  default = "default.redis7"
 }
 
 variable "log_retention_days" {

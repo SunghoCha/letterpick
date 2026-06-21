@@ -168,6 +168,41 @@ variable "mail_receive_message_retention_seconds" {
   default = 1209600
 }
 
+variable "trending_lifecycle_events_queue_name" {
+  type    = string
+  default = null
+}
+
+variable "trending_lifecycle_events_dlq_name" {
+  type    = string
+  default = null
+}
+
+variable "trending_score_events_queue_name" {
+  type    = string
+  default = null
+}
+
+variable "trending_score_events_dlq_name" {
+  type    = string
+  default = null
+}
+
+variable "trending_events_max_receive_count" {
+  type    = number
+  default = 5
+}
+
+variable "trending_events_visibility_timeout_seconds" {
+  type    = number
+  default = 300
+}
+
+variable "trending_events_message_retention_seconds" {
+  type    = number
+  default = 1209600
+}
+
 variable "frontend_bucket_name" {
   type    = string
   default = null
