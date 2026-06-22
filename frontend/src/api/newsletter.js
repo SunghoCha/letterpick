@@ -22,6 +22,7 @@
 //   - fetchPublicIssues:      GET        — 공개 피드 이슈 목록
 //   - fetchPublicIssueRankings: GET /rankings — 공개 피드 인기 이슈 목록
 //   - fetchPublicIssueDetail: GET /{id}  — 공개 피드 이슈 상세
+//   - recordPublicIssueView:  POST /{id}/views — 공개 피드 이슈 조회수 기록
 //   - deletePublicIssueAsAdmin: DELETE /api/v1/admin/public-newsletter-issues/{id}
 import apiClient, { ensureCsrfToken } from './client'
 
@@ -111,6 +112,11 @@ export async function fetchPublicIssueRankings({ windowType = 'DAILY', limit = 1
 export async function fetchPublicIssueDetail(issueId) {
   const { data } = await apiClient.get(`${PUBLIC_ISSUE_BASE}/${issueId}`)
   return data
+}
+
+export async function recordPublicIssueView(issueId) {
+  await ensureCsrfToken()
+  await apiClient.post(`${PUBLIC_ISSUE_BASE}/${issueId}/views`)
 }
 
 export async function deletePublicIssueAsAdmin(issueId) {
