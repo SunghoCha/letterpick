@@ -14,6 +14,18 @@ output "db_access_instance_private_ip" {
   value = var.enable_db_access_host ? aws_instance.db_access_host[0].private_ip : null
 }
 
+output "observability_instance_id" {
+  value = var.enable_observability_stack ? aws_instance.observability[0].id : null
+}
+
+output "observability_private_ip" {
+  value = var.enable_observability_stack ? aws_instance.observability[0].private_ip : null
+}
+
+output "observability_grafana_port_forward_command" {
+  value = var.enable_observability_stack ? "aws ssm start-session --target ${aws_instance.observability[0].id} --document-name AWS-StartPortForwardingSession --parameters '{\"portNumber\":[\"${var.observability_grafana_port}\"],\"localPortNumber\":[\"${var.observability_grafana_port}\"]}'" : null
+}
+
 output "ecs_cluster_name" {
   value = aws_ecs_cluster.main.name
 }

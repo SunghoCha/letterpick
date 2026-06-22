@@ -1,0 +1,72 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+prometheus.remote_write "prod" {
+  external_labels = {
+    environment  = "${environment}",
+    service_name = "${service_name}",
+  }
+
+  endpoint {
+    url = "${prometheus_remote_write_url}"
+  }
+}
+
+prometheus.scrape "spring_app" {
+  targets = [
+    {
+      "__address__"  = "127.0.0.1:8081",
+      "job"          = "spring_app",
+      "environment"  = "${environment}",
+      "service_name" = "${service_name}",
+      "instance"     = sys.env("HOSTNAME"),
+    },
+  ]
+
+  metrics_path    = "/actuator/prometheus"
+  scrape_interval = "15s"
+  scrape_timeout  = "5s"
+
+  forward_to = [prometheus.remote_write.prod.receiver]
+}
+
+prometheus.exporter.self "alloy" {}
+
+prometheus.scrape "alloy_self" {
+  targets = prometheus.exporter.self.alloy.targets
+
+  scrape_interval = "30s"
+
+  forward_to = [prometheus.remote_write.prod.receiver]
+}
+
+otelcol.receiver.otlp "app" {
+  grpc {
+    endpoint = "127.0.0.1:4317"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  timeout          = "1s"
+  send_batch_size = 512
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "${tempo_otlp_grpc_endpoint}"
+
+    tls {
+      insecure = true
+    }
+  }
+}
