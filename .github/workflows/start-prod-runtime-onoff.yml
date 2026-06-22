@@ -11,6 +11,11 @@ on:
         description: Full trending-service ECR image URI to use for the prod trending-service task definition
         required: true
         type: string
+      public_issue_view_count_snapshot_interval:
+        description: Public issue view count snapshot interval for the prod backend
+        required: true
+        default: '50'
+        type: string
 
 permissions:
   contents: read
@@ -25,6 +30,7 @@ jobs:
     env:
       BACKEND_IMAGE_URI: ${{ inputs.image_uri }}
       TRENDING_SERVICE_IMAGE_URI: ${{ inputs.trending_service_image_uri }}
+      PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL: ${{ inputs.public_issue_view_count_snapshot_interval }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
       AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -41,6 +47,7 @@ jobs:
           required_env=(
             BACKEND_IMAGE_URI
             TRENDING_SERVICE_IMAGE_URI
+            PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL
             AWS_REGION
             AWS_TERRAFORM_ROLE_ARN
             GOOGLE_CLIENT_ID
@@ -80,6 +87,7 @@ jobs:
           terraform -chdir=terraform/prod-runtime apply -auto-approve -input=false \
             -var="initial_backend_image_uri=$BACKEND_IMAGE_URI" \
             -var="initial_trending_service_image_uri=$TRENDING_SERVICE_IMAGE_URI" \
+            -var="public_issue_view_count_snapshot_interval=$PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL" \
             -var="google_client_id=$GOOGLE_CLIENT_ID" \
             -var="naver_client_id=$NAVER_CLIENT_ID" \
             -var="public_feed_collector_inbox_address=$NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS" \
@@ -116,4 +124,5 @@ jobs:
           echo "NAT Gateway: $NAT_GATEWAY_ID" >> "$GITHUB_STEP_SUMMARY"
           echo "Trending Service: $TRENDING_SERVICE_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "Redis Endpoint: $REDIS_ENDPOINT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Public issue view count snapshot interval: $PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL" >> "$GITHUB_STEP_SUMMARY"
           echo "CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID" >> "$GITHUB_STEP_SUMMARY"

@@ -194,6 +194,17 @@ variable "redis_parameter_group_name" {
   default = "default.redis7"
 }
 
+variable "public_issue_view_count_snapshot_interval" {
+  description = "Snapshot interval for public issue view count events in the prod backend."
+  type        = number
+  default     = 50
+
+  validation {
+    condition     = var.public_issue_view_count_snapshot_interval > 0
+    error_message = "public_issue_view_count_snapshot_interval must be greater than zero."
+  }
+}
+
 variable "log_retention_days" {
   type    = number
   default = 30
