@@ -24,7 +24,7 @@ export default {
       virtualScrollElement: null,
 
       rankings: [],
-      rankingWindowType: 'DAILY',
+      rankingWindowType: 'WEEKLY',
       rankingLoading: false,
       rankingLoaded: false,
       rankingRequestToken: 0,

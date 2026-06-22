@@ -12,11 +12,13 @@ export default {
           name: 'Google',
           href: `${apiBaseUrl}/oauth2/authorization/google`,
           icon: 'mdi-google',
+          className: 'provider-google',
         },
         {
           name: 'Naver',
           href: `${apiBaseUrl}/oauth2/authorization/naver`,
           icon: 'mdi-alpha-n-box',
+          className: 'provider-naver',
         },
       ],
     }
@@ -25,43 +27,145 @@ export default {
 </script>
 
 <template>
-  <v-container class="login-wrap" max-width="420">
-    <div class="text-center mb-10">
-      <h1 class="text-h3 font-weight-bold mb-2">letterPick</h1>
-      <p class="text-body-1 text-medium-emphasis">
-        흩어진 뉴스레터를 한곳에서.
+  <v-container class="login-wrap" max-width="480">
+    <div class="login-heading">
+      <div class="login-brand">letterPick</div>
+      <h1>로그인</h1>
+      <p>
+        흩어진 뉴스레터를 한곳에서 읽고 정리하세요.
       </p>
     </div>
 
-    <v-card class="pa-6" variant="outlined">
-      <v-card-title class="text-center text-h6 pa-0 mb-6">
-        시작하기
-      </v-card-title>
+    <v-card class="login-card" elevation="0">
+      <div class="login-card-header">
+        <div class="login-card-title">소셜 계정으로 시작하기</div>
+      </div>
 
-      <div class="d-flex flex-column ga-3">
+      <div class="provider-list">
         <v-btn
           v-for="provider in providers"
           :key="provider.name"
           :href="provider.href"
           :prepend-icon="provider.icon"
-          variant="outlined"
+          :class="['provider-button', provider.className]"
+          variant="flat"
           size="large"
           block
         >
           {{ provider.name }}로 시작하기
         </v-btn>
       </div>
-    </v-card>
 
-    <p class="text-center text-caption text-medium-emphasis mt-6">
-      소셜 계정으로 로그인하면 letterPick 약관에 동의한 것으로 간주합니다.
-    </p>
+      <p class="login-terms">
+        소셜 계정으로 로그인하면 letterPick 약관에 동의한 것으로 간주합니다.
+      </p>
+    </v-card>
   </v-container>
 </template>
 
 <style scoped>
 .login-wrap {
-  padding-top: 64px;
+  padding-top: 72px;
   padding-bottom: 64px;
+}
+
+.login-heading {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.login-brand {
+  margin-bottom: 14px;
+  color: #2563eb;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.login-heading h1 {
+  margin: 0 0 10px;
+  color: #111827;
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.login-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.login-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 28px;
+  background: #ffffff;
+}
+
+.login-card-header {
+  margin-bottom: 20px;
+}
+
+.login-card-title {
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.provider-button {
+  min-height: 54px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.provider-google {
+  border: 1px solid #d1d5db;
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+.provider-naver {
+  background: #03c75a !important;
+  color: #ffffff !important;
+}
+
+.login-terms {
+  margin: 18px 0 0;
+  color: #64748b;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .login-wrap {
+    padding-top: 48px;
+  }
+
+  .login-heading {
+    margin-bottom: 24px;
+  }
+
+  .login-heading h1 {
+    font-size: 1.875rem;
+  }
+
+  .login-card {
+    padding: 22px;
+  }
 }
 </style>
