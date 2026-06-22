@@ -10,18 +10,19 @@ locals {
   newsletter_inbox_address_domain = coalesce(var.newsletter_inbox_address_domain, local.persistence.ses_receive_domain_name)
 
   backend_common_environment = {
-    SPRING_PROFILES_ACTIVE                         = var.environment
-    LETTERPICK_AWS_REGION                          = var.aws_region
-    FRONTEND_BASE_URL                              = var.frontend_base_url
-    SPRING_DATASOURCE_URL                          = "jdbc:mysql://${local.persistence.rds_address}:${local.persistence.rds_port}/${local.persistence.rds_database_name}"
-    SPRING_DATA_REDIS_HOST                         = aws_elasticache_replication_group.redis.primary_endpoint_address
-    SPRING_DATA_REDIS_PORT                         = tostring(var.redis_port)
-    NEWSLETTER_INBOX_ADDRESS_DOMAIN                = local.newsletter_inbox_address_domain
-    NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS = var.public_feed_collector_inbox_address
-    LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE     = local.persistence.trending_lifecycle_events_queue_name
-    LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE         = local.persistence.trending_score_events_queue_name
-    GOOGLE_CLIENT_ID                               = var.google_client_id
-    NAVER_CLIENT_ID                                = var.naver_client_id
+    SPRING_PROFILES_ACTIVE                               = var.environment
+    LETTERPICK_AWS_REGION                                = var.aws_region
+    FRONTEND_BASE_URL                                    = var.frontend_base_url
+    SPRING_DATASOURCE_URL                                = "jdbc:mysql://${local.persistence.rds_address}:${local.persistence.rds_port}/${local.persistence.rds_database_name}"
+    SPRING_DATA_REDIS_HOST                               = aws_elasticache_replication_group.redis.primary_endpoint_address
+    SPRING_DATA_REDIS_PORT                               = tostring(var.redis_port)
+    NEWSLETTER_INBOX_ADDRESS_DOMAIN                      = local.newsletter_inbox_address_domain
+    NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS       = var.public_feed_collector_inbox_address
+    LETTERPICK_PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL = tostring(var.public_issue_view_count_snapshot_interval)
+    LETTERPICK_TRENDING_LIFECYCLE_EVENTS_QUEUE           = local.persistence.trending_lifecycle_events_queue_name
+    LETTERPICK_TRENDING_SCORE_EVENTS_QUEUE               = local.persistence.trending_score_events_queue_name
+    GOOGLE_CLIENT_ID                                     = var.google_client_id
+    NAVER_CLIENT_ID                                      = var.naver_client_id
   }
 
   database_secrets = [
