@@ -16,6 +16,16 @@ on:
         required: true
         default: '50'
         type: string
+      enable_observability_stack:
+        description: Create the prod observability EC2 stack
+        required: true
+        default: false
+        type: boolean
+      observability_instance_type:
+        description: EC2 instance type for the prod observability stack
+        required: true
+        default: t3.small
+        type: string
 
 permissions:
   contents: read
@@ -31,6 +41,8 @@ jobs:
       BACKEND_IMAGE_URI: ${{ inputs.image_uri }}
       TRENDING_SERVICE_IMAGE_URI: ${{ inputs.trending_service_image_uri }}
       PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL: ${{ inputs.public_issue_view_count_snapshot_interval }}
+      ENABLE_OBSERVABILITY_STACK: ${{ inputs.enable_observability_stack }}
+      OBSERVABILITY_INSTANCE_TYPE: ${{ inputs.observability_instance_type }}
       AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
       AWS_TERRAFORM_ROLE_ARN: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -48,6 +60,8 @@ jobs:
             BACKEND_IMAGE_URI
             TRENDING_SERVICE_IMAGE_URI
             PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL
+            ENABLE_OBSERVABILITY_STACK
+            OBSERVABILITY_INSTANCE_TYPE
             AWS_REGION
             AWS_TERRAFORM_ROLE_ARN
             GOOGLE_CLIENT_ID
@@ -88,6 +102,8 @@ jobs:
             -var="initial_backend_image_uri=$BACKEND_IMAGE_URI" \
             -var="initial_trending_service_image_uri=$TRENDING_SERVICE_IMAGE_URI" \
             -var="public_issue_view_count_snapshot_interval=$PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL" \
+            -var="enable_observability_stack=$ENABLE_OBSERVABILITY_STACK" \
+            -var="observability_instance_type=$OBSERVABILITY_INSTANCE_TYPE" \
             -var="google_client_id=$GOOGLE_CLIENT_ID" \
             -var="naver_client_id=$NAVER_CLIENT_ID" \
             -var="public_feed_collector_inbox_address=$NEWSLETTER_PUBLIC_FEED_COLLECTOR_INBOX_ADDRESS" \
@@ -116,6 +132,13 @@ jobs:
           CLOUDFRONT_DISTRIBUTION_ID=$(terraform -chdir=terraform/prod-runtime output -raw frontend_cloudfront_distribution_id)
           TRENDING_SERVICE_NAME=$(terraform -chdir=terraform/prod-runtime output -raw trending_service_name)
           REDIS_ENDPOINT=$(terraform -chdir=terraform/prod-runtime output -raw redis_primary_endpoint_address)
+          if [ "$ENABLE_OBSERVABILITY_STACK" = "true" ]; then
+            OBSERVABILITY_INSTANCE_ID=$(terraform -chdir=terraform/prod-runtime output -raw observability_instance_id)
+            OBSERVABILITY_GRAFANA_PORT_FORWARD_COMMAND=$(terraform -chdir=terraform/prod-runtime output -raw observability_grafana_port_forward_command)
+          else
+            OBSERVABILITY_INSTANCE_ID="disabled"
+            OBSERVABILITY_GRAFANA_PORT_FORWARD_COMMAND="disabled"
+          fi
 
           echo "### Prod runtime on/off" >> "$GITHUB_STEP_SUMMARY"
           echo "Frontend URL: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
@@ -125,4 +148,7 @@ jobs:
           echo "Trending Service: $TRENDING_SERVICE_NAME" >> "$GITHUB_STEP_SUMMARY"
           echo "Redis Endpoint: $REDIS_ENDPOINT" >> "$GITHUB_STEP_SUMMARY"
           echo "Public issue view count snapshot interval: $PUBLIC_ISSUE_VIEW_COUNT_SNAPSHOT_INTERVAL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Observability enabled: $ENABLE_OBSERVABILITY_STACK" >> "$GITHUB_STEP_SUMMARY"
+          echo "Observability instance id: $OBSERVABILITY_INSTANCE_ID" >> "$GITHUB_STEP_SUMMARY"
+          echo "Grafana port forwarding: \`$OBSERVABILITY_GRAFANA_PORT_FORWARD_COMMAND\`" >> "$GITHUB_STEP_SUMMARY"
           echo "CloudFront Distribution: $CLOUDFRONT_DISTRIBUTION_ID" >> "$GITHUB_STEP_SUMMARY"

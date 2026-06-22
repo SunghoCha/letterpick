@@ -53,11 +53,44 @@ locals {
       LETTERPICK_MAIL_RECEIVE_DLQ          = local.persistence.mail_receive_dlq_name
       LETTERPICK_OUTBOX_PUBLISH_ENABLED    = "true"
       LETTERPICK_TRENDING_SERVICE_BASE_URL = local.trending_service_connect_base_url
+      MANAGEMENT_METRICS_TAGS_APPLICATION  = "letterpick-api"
+      MANAGEMENT_METRICS_TAGS_SERVICE      = "letterpick-api"
       }) : {
       name  = name
       value = value
     }
   ]
+
+  api_observability_environment = var.enable_observability_stack ? [
+    {
+      name  = "JAVA_TOOL_OPTIONS"
+      value = "-javaagent:/otel/opentelemetry-javaagent.jar"
+    },
+    {
+      name  = "OTEL_SERVICE_NAME"
+      value = "letterpick-api"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+      value = "http://127.0.0.1:4317"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+      value = "grpc"
+    },
+    {
+      name  = "OTEL_TRACES_EXPORTER"
+      value = "otlp"
+    },
+    {
+      name  = "OTEL_METRICS_EXPORTER"
+      value = "none"
+    },
+    {
+      name  = "OTEL_LOGS_EXPORTER"
+      value = "none"
+    },
+  ] : []
 
   worker_environment = [
     for name, value in merge(local.backend_common_environment, {
@@ -72,6 +105,37 @@ locals {
       value = value
     }
   ]
+
+  worker_observability_environment = var.enable_observability_stack ? [
+    {
+      name  = "JAVA_TOOL_OPTIONS"
+      value = "-javaagent:/otel/opentelemetry-javaagent.jar"
+    },
+    {
+      name  = "OTEL_SERVICE_NAME"
+      value = "letterpick-worker"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+      value = "http://127.0.0.1:4317"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+      value = "grpc"
+    },
+    {
+      name  = "OTEL_TRACES_EXPORTER"
+      value = "otlp"
+    },
+    {
+      name  = "OTEL_METRICS_EXPORTER"
+      value = "none"
+    },
+    {
+      name  = "OTEL_LOGS_EXPORTER"
+      value = "none"
+    },
+  ] : []
 
   trending_service_environment = [
     for name, value in {
@@ -95,6 +159,303 @@ locals {
       value = value
     }
   ]
+
+  trending_service_observability_environment = var.enable_observability_stack ? [
+    {
+      name  = "JAVA_TOOL_OPTIONS"
+      value = "-javaagent:/otel/opentelemetry-javaagent.jar"
+    },
+    {
+      name  = "OTEL_SERVICE_NAME"
+      value = "trending-service"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+      value = "http://127.0.0.1:4317"
+    },
+    {
+      name  = "OTEL_EXPORTER_OTLP_PROTOCOL"
+      value = "grpc"
+    },
+    {
+      name  = "OTEL_TRACES_EXPORTER"
+      value = "otlp"
+    },
+    {
+      name  = "OTEL_METRICS_EXPORTER"
+      value = "none"
+    },
+    {
+      name  = "OTEL_LOGS_EXPORTER"
+      value = "none"
+    },
+  ] : []
+
+  observability_private_ip = var.enable_observability_stack ? aws_instance.observability[0].private_ip : ""
+
+  api_alloy_config = var.enable_observability_stack ? templatefile("${path.module}/files/service-alloy-config.alloy.tftpl", {
+    environment                 = var.environment
+    service_name                = "letterpick-api"
+    prometheus_remote_write_url = "http://${local.observability_private_ip}:${var.observability_prometheus_port}/api/v1/write"
+    tempo_otlp_grpc_endpoint    = "${local.observability_private_ip}:${var.observability_tempo_otlp_grpc_port}"
+  }) : ""
+
+  worker_alloy_config = var.enable_observability_stack ? templatefile("${path.module}/files/service-alloy-config.alloy.tftpl", {
+    environment                 = var.environment
+    service_name                = "letterpick-worker"
+    prometheus_remote_write_url = "http://${local.observability_private_ip}:${var.observability_prometheus_port}/api/v1/write"
+    tempo_otlp_grpc_endpoint    = "${local.observability_private_ip}:${var.observability_tempo_otlp_grpc_port}"
+  }) : ""
+
+  trending_service_alloy_config = var.enable_observability_stack ? templatefile("${path.module}/files/service-alloy-config.alloy.tftpl", {
+    environment                 = var.environment
+    service_name                = "trending-service"
+    prometheus_remote_write_url = "http://${local.observability_private_ip}:${var.observability_prometheus_port}/api/v1/write"
+    tempo_otlp_grpc_endpoint    = "${local.observability_private_ip}:${var.observability_tempo_otlp_grpc_port}"
+  }) : ""
+
+  api_alloy_config_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy-config"
+      image     = var.observability_config_writer_image
+      essential = false
+
+      entryPoint = ["sh", "-c"]
+      command = [
+        "printf '%s' \"$ALLOY_CONFIG_BASE64\" | base64 -d > /config/config.alloy && chmod 0444 /config/config.alloy"
+      ]
+
+      environment = [
+        {
+          name  = "ALLOY_CONFIG_BASE64"
+          value = base64encode(local.api_alloy_config)
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "api-alloy-config"
+          containerPath = "/config"
+          readOnly      = false
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.api.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "api-alloy-config"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  api_alloy_sidecar_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy"
+      image     = var.observability_alloy_image
+      essential = false
+
+      command = [
+        "run",
+        "--server.http.listen-addr=127.0.0.1:12345",
+        "--storage.path=/tmp/alloy",
+        "/etc/alloy/config.alloy",
+      ]
+
+      dependsOn = [
+        {
+          containerName = "alloy-config"
+          condition     = "SUCCESS"
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "api-alloy-config"
+          containerPath = "/etc/alloy"
+          readOnly      = true
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.api.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "api-alloy"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  api_alloy_container_definitions = concat(
+    local.api_alloy_config_container_definitions,
+    local.api_alloy_sidecar_container_definitions
+  )
+
+  worker_alloy_config_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy-config"
+      image     = var.observability_config_writer_image
+      essential = false
+
+      entryPoint = ["sh", "-c"]
+      command = [
+        "printf '%s' \"$ALLOY_CONFIG_BASE64\" | base64 -d > /config/config.alloy && chmod 0444 /config/config.alloy"
+      ]
+
+      environment = [
+        {
+          name  = "ALLOY_CONFIG_BASE64"
+          value = base64encode(local.worker_alloy_config)
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "worker-alloy-config"
+          containerPath = "/config"
+          readOnly      = false
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.worker.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "worker-alloy-config"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  worker_alloy_sidecar_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy"
+      image     = var.observability_alloy_image
+      essential = false
+
+      command = [
+        "run",
+        "--server.http.listen-addr=127.0.0.1:12345",
+        "--storage.path=/tmp/alloy",
+        "/etc/alloy/config.alloy",
+      ]
+
+      dependsOn = [
+        {
+          containerName = "alloy-config"
+          condition     = "SUCCESS"
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "worker-alloy-config"
+          containerPath = "/etc/alloy"
+          readOnly      = true
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.worker.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "worker-alloy"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  worker_alloy_container_definitions = concat(
+    local.worker_alloy_config_container_definitions,
+    local.worker_alloy_sidecar_container_definitions
+  )
+
+  trending_service_alloy_config_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy-config"
+      image     = var.observability_config_writer_image
+      essential = false
+
+      entryPoint = ["sh", "-c"]
+      command = [
+        "printf '%s' \"$ALLOY_CONFIG_BASE64\" | base64 -d > /config/config.alloy && chmod 0444 /config/config.alloy"
+      ]
+
+      environment = [
+        {
+          name  = "ALLOY_CONFIG_BASE64"
+          value = base64encode(local.trending_service_alloy_config)
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "trending-service-alloy-config"
+          containerPath = "/config"
+          readOnly      = false
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.trending_service.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "trending-service-alloy-config"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  trending_service_alloy_sidecar_container_definitions = [
+    for _ in [1] : {
+      name      = "alloy"
+      image     = var.observability_alloy_image
+      essential = false
+
+      command = [
+        "run",
+        "--server.http.listen-addr=127.0.0.1:12345",
+        "--storage.path=/tmp/alloy",
+        "/etc/alloy/config.alloy",
+      ]
+
+      dependsOn = [
+        {
+          containerName = "alloy-config"
+          condition     = "SUCCESS"
+        },
+      ]
+
+      mountPoints = [
+        {
+          sourceVolume  = "trending-service-alloy-config"
+          containerPath = "/etc/alloy"
+          readOnly      = true
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.trending_service.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "trending-service-alloy"
+        }
+      }
+    } if var.enable_observability_stack
+  ]
+
+  trending_service_alloy_container_definitions = concat(
+    local.trending_service_alloy_config_container_definitions,
+    local.trending_service_alloy_sidecar_container_definitions
+  )
 }
 
 data "aws_secretsmanager_secret" "backend" {
@@ -112,7 +473,7 @@ resource "aws_ecs_task_definition" "api" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.api_task.arn
 
-  container_definitions = jsonencode([
+  container_definitions = jsonencode(concat([
     {
       name        = "api"
       image       = var.initial_backend_image_uri
@@ -134,7 +495,7 @@ resource "aws_ecs_task_definition" "api" {
         startPeriod = 120
       }
 
-      environment = local.api_environment
+      environment = concat(local.api_environment, local.api_observability_environment)
       secrets     = local.backend_secrets
 
       logConfiguration = {
@@ -146,7 +507,15 @@ resource "aws_ecs_task_definition" "api" {
         }
       }
     },
-  ])
+  ], local.api_alloy_container_definitions))
+
+  dynamic "volume" {
+    for_each = var.enable_observability_stack ? ["api-alloy-config"] : []
+
+    content {
+      name = volume.value
+    }
+  }
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-api-task-definition"
@@ -162,7 +531,7 @@ resource "aws_ecs_task_definition" "worker" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.worker_task.arn
 
-  container_definitions = jsonencode([
+  container_definitions = jsonencode(concat([
     {
       name        = "worker"
       image       = var.initial_backend_image_uri
@@ -177,7 +546,7 @@ resource "aws_ecs_task_definition" "worker" {
         startPeriod = 120
       }
 
-      environment = local.worker_environment
+      environment = concat(local.worker_environment, local.worker_observability_environment)
       secrets     = local.backend_secrets
 
       logConfiguration = {
@@ -189,7 +558,15 @@ resource "aws_ecs_task_definition" "worker" {
         }
       }
     },
-  ])
+  ], local.worker_alloy_container_definitions))
+
+  dynamic "volume" {
+    for_each = var.enable_observability_stack ? ["worker-alloy-config"] : []
+
+    content {
+      name = volume.value
+    }
+  }
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-worker-task-definition"
@@ -205,7 +582,7 @@ resource "aws_ecs_task_definition" "trending_service" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.trending_service_task.arn
 
-  container_definitions = jsonencode([
+  container_definitions = jsonencode(concat([
     {
       name        = "trending-service"
       image       = var.initial_trending_service_image_uri
@@ -229,7 +606,7 @@ resource "aws_ecs_task_definition" "trending_service" {
         startPeriod = 120
       }
 
-      environment = local.trending_service_environment
+      environment = concat(local.trending_service_environment, local.trending_service_observability_environment)
       secrets     = local.backend_secrets
 
       logConfiguration = {
@@ -241,7 +618,15 @@ resource "aws_ecs_task_definition" "trending_service" {
         }
       }
     },
-  ])
+  ], local.trending_service_alloy_container_definitions))
+
+  dynamic "volume" {
+    for_each = var.enable_observability_stack ? ["trending-service-alloy-config"] : []
+
+    content {
+      name = volume.value
+    }
+  }
 
   tags = merge(local.common_tags, {
     Name = "${local.name_prefix}-trending-service-task-definition"
