@@ -102,7 +102,7 @@ export async function fetchPublicIssues({ category, keyword, page = 0, size = 20
   return data
 }
 
-export async function fetchPublicIssueRankings({ windowType = 'DAILY', limit = 10 } = {}) {
+export async function fetchPublicIssueRankings({ windowType = 'WEEKLY', limit = 10 } = {}) {
   const { data } = await apiClient.get(`${PUBLIC_ISSUE_BASE}/rankings`, {
     params: { windowType, limit },
   })
