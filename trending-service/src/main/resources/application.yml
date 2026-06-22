@@ -26,6 +26,10 @@ spring:
 server:
   shutdown: graceful
 
+logging:
+  pattern:
+    level: "%5p [trace:%X{trace_id:-}] [span:%X{span_id:-}] [req:%X{requestId:-}]"
+
 management:
   health:
     redis:
