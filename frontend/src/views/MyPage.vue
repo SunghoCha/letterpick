@@ -54,14 +54,17 @@ export default {
     member: {
       immediate: true,
       handler(member) {
-        if (member) this.nicknameInput = member.nickname
+        this.nicknameInput = member?.nickname ?? ''
       },
     },
   },
   methods: {
     async copyInboxAddress() {
       const address = this.member?.newsletterInboxAddress
-      if (!address) return
+      if (!address) {
+        this.toastStore.error('복사할 수신 주소가 없습니다.')
+        return
+      }
       try {
         await navigator.clipboard.writeText(address)
         this.toastStore.success('수신 주소를 복사했어요.')
@@ -161,6 +164,7 @@ export default {
               icon="mdi-content-copy"
               variant="text"
               size="small"
+              :disabled="!member.newsletterInboxAddress"
               aria-label="뉴스레터 수신 주소 복사"
               @click="copyInboxAddress"
             />
@@ -169,7 +173,7 @@ export default {
       </div>
     </section>
 
-    <div class="settings-grid">
+    <div v-if="member" class="settings-grid">
       <v-card class="settings-panel" elevation="0">
         <div class="panel-heading">
           <v-icon icon="mdi-account-edit-outline" size="22" />
