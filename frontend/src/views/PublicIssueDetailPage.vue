@@ -34,11 +34,19 @@ export default {
       this.loading = true
       try {
         this.issue = await newsletterApi.fetchPublicIssueDetail(this.issueId)
+        this.recordIssueView()
       } catch {
         this.issue = null
         this.toastStore.error('이슈를 불러오지 못했습니다.')
       } finally {
         this.loading = false
+      }
+    },
+    async recordIssueView() {
+      try {
+        await newsletterApi.recordPublicIssueView(this.issueId)
+      } catch {
+        // 조회수 기록 실패는 상세 조회 경험을 막지 않는다.
       }
     },
     goBack() {
